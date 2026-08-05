@@ -1,0 +1,1561 @@
+{
+  "base_url": "http://host.docker.internal:8900",
+  "checkpoint_every_n": 25,
+  "created_at": "2026-08-05T22:20:44+00:00",
+  "current": null,
+  "full_budget": false,
+  "holdout_protocol": {
+    "checkpoint_root": "/checkpoints",
+    "episodes": 100,
+    "influences_selection": false,
+    "role": "post_selection_only",
+    "seed_base": 200000
+  },
+  "inventory_after": {
+    "active_run": {
+      "episode": 500,
+      "seed": 42,
+      "total_steps": 248210,
+      "training": false,
+      "updates": 104
+    },
+    "active_scenario": "rally-ridge",
+    "engine_source_sha256": "db0897132c3690966b2ebc75be23ad30b5d1736c48c44157d096bd41b54bb7a6",
+    "evaluation_episodes": 10,
+    "evaluation_suite": "policy-atlas-eval-v1-n10",
+    "scenario_count": 16,
+    "scenarios": [
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "apex-gp",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Apex GP"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "velocita",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Velocit\u00e0"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "grandville",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Grandville Streets"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "thunder-oval",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Thunder Oval"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "apex-gp-wet",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Apex GP \u2014 Wet"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "glacier",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Glacier Lake"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 20,
+        "episode": 500,
+        "id": "rally-ridge",
+        "kind": "driving",
+        "mean_reward": 11.03,
+        "name": "Rally Ridge"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "kart-sprint",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Kart Sprint"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "drift-trial",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Drift Trial"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "eco-gp",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Eco GP"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "traffic-rush",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Traffic Rush"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "lunar-lander",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Lunar Lander"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "pendulum-swingup",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Pendulum Swing-Up"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "drone-hover",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Drone Course"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "cartpole-balance",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Continuous Cart-Pole"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "mountain-car",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Mountain Car"
+      }
+    ]
+  },
+  "inventory_before": {
+    "active_run": {
+      "episode": 500,
+      "seed": 42,
+      "total_steps": 174913,
+      "training": false,
+      "updates": 77
+    },
+    "active_scenario": "rally-ridge",
+    "engine_source_sha256": "db0897132c3690966b2ebc75be23ad30b5d1736c48c44157d096bd41b54bb7a6",
+    "evaluation_episodes": 10,
+    "evaluation_suite": "policy-atlas-eval-v1-n10",
+    "scenario_count": 16,
+    "scenarios": [
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "apex-gp",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Apex GP"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "velocita",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Velocit\u00e0"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "grandville",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Grandville Streets"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "thunder-oval",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Thunder Oval"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "apex-gp-wet",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Apex GP \u2014 Wet"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "glacier",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Glacier Lake"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 20,
+        "episode": 500,
+        "id": "rally-ridge",
+        "kind": "driving",
+        "mean_reward": -23.57,
+        "name": "Rally Ridge"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "kart-sprint",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Kart Sprint"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "drift-trial",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Drift Trial"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "eco-gp",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Eco GP"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "traffic-rush",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Traffic Rush"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "lunar-lander",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Lunar Lander"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "pendulum-swingup",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Pendulum Swing-Up"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "drone-hover",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Drone Course"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "cartpole-balance",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Continuous Cart-Pole"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "mountain-car",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Mountain Car"
+      }
+    ]
+  },
+  "max_episodes": 500,
+  "runs": [
+    {
+      "checkpoint_every_n": 25,
+      "checkpoints_observed": 20,
+      "checkpoints_seen_total": 20,
+      "completed_episodes": 500,
+      "earliest_solve": null,
+      "engine_source_sha256": "db0897132c3690966b2ebc75be23ad30b5d1736c48c44157d096bd41b54bb7a6",
+      "evaluation_suite": "policy-atlas-eval-v1-n10",
+      "final_checkpoint": {
+        "checkpoint_sha256": "91a7d82a7d78496c7da9c3d731e1cf74426012e0440947e71bf6abdd079e1a7a",
+        "engine_source_sha256": "db0897132c3690966b2ebc75be23ad30b5d1736c48c44157d096bd41b54bb7a6",
+        "episode": 500,
+        "eval_reward": 21.73,
+        "eval_reward_std": 0.03,
+        "evaluation_episodes": 10,
+        "evaluation_suite": "policy-atlas-eval-v1-n10",
+        "failure_progress": 0.588,
+        "metadata_sha256": "930ad59af11dc5b31ec00f5559fd7d0792359933007719bd3bc211c20334bd71",
+        "metric": null,
+        "metric_std": null,
+        "n_binary": 1,
+        "n_continuous": 2,
+        "obs_dim": 25,
+        "protocol": {
+          "algorithm": "PPO",
+          "clip_epsilon": 0.2,
+          "deterministic_evaluation": true,
+          "device": "cpu",
+          "engine_source_sha256": "db0897132c3690966b2ebc75be23ad30b5d1736c48c44157d096bd41b54bb7a6",
+          "entropy_coefficient": 0.0,
+          "episode_aligned_rollouts": true,
+          "evaluation_episodes": 10,
+          "evaluation_seed_base": 100000,
+          "evaluation_suite": "policy-atlas-eval-v1-n10",
+          "gae_lambda": 0.95,
+          "gamma": 0.995,
+          "learning_rate": 0.0003,
+          "minibatch_size": 256,
+          "reproducibility_scope": "RNG-exact continuation on the saved runtime; bitwise identity is not guaranteed across devices or dependency builds",
+          "rollout_steps": 2048,
+          "target_kl": 0.03,
+          "torch_version": "2.4.1+cu124",
+          "training_reward_scale": 0.01,
+          "training_start_distribution": "75% start line, 25% uniform measured track checkpoints",
+          "update_epochs": 10,
+          "value_coefficient": 0.5,
+          "value_loss_scale": "rollout return RMS",
+          "version": 3
+        },
+        "schema_version": 6,
+        "seed": 42,
+        "success_ci_high": 0.2775,
+        "success_ci_low": 0.0,
+        "success_rate": 0.0,
+        "total_steps": 248210,
+        "training_diagnostics": {
+          "action_std_0": 0.54558,
+          "action_std_1": 0.49189,
+          "action_std_max": 0.54558,
+          "action_std_mean": 0.51873,
+          "action_std_min": 0.49189,
+          "approx_kl": 0.00666,
+          "clip_frac": 0.07927,
+          "entropy": 0.90115,
+          "explained_variance": 0.82441,
+          "policy_loss": -0.01408,
+          "value_bias": 1e-05,
+          "value_clip_frac": 0.0,
+          "value_loss": 0.00035,
+          "value_scale": 1.0
+        },
+        "updates": 104
+      },
+      "finished_at": "2026-08-05T22:25:02+00:00",
+      "holdout": {
+        "deterministic_policy": true,
+        "engine_source_sha256": "db0897132c3690966b2ebc75be23ad30b5d1736c48c44157d096bd41b54bb7a6",
+        "episodes": 100,
+        "failure_progress": 0.5881,
+        "failure_progress_std": 0.00030000000000000024,
+        "influences_selection": false,
+        "metric": null,
+        "metric_std": null,
+        "protocol_role": "post_selection_holdout",
+        "reward_mean": 21.75268667470492,
+        "reward_std": 0.04342883226893069,
+        "seed_base": 200000,
+        "seed_end": 200099,
+        "seed_range_disjoint_from_selection": true,
+        "selected_checkpoint_episode": 500,
+        "selected_checkpoint_sha256": "91a7d82a7d78496c7da9c3d731e1cf74426012e0440947e71bf6abdd079e1a7a",
+        "selection_reason": "final_budget_checkpoint",
+        "selection_seed_base": 100000,
+        "selection_seed_end": 100009,
+        "selection_suite": "policy-atlas-eval-v1-n10",
+        "state": "complete",
+        "success_ci_high": 0.03699480747600191,
+        "success_ci_low": 0.0,
+        "success_rate": 0.0,
+        "successes": 0,
+        "suite": "policy-atlas-holdout-v1-n100-seeds200000-200099",
+        "trials": [
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 0,
+            "metric": null,
+            "reward": 21.729723145343,
+            "seed": 200000,
+            "steps": 1010,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 1,
+            "metric": null,
+            "reward": 21.751764523679853,
+            "seed": 200001,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 2,
+            "metric": null,
+            "reward": 21.76706790318631,
+            "seed": 200002,
+            "steps": 1008,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 3,
+            "metric": null,
+            "reward": 21.73019954661296,
+            "seed": 200003,
+            "steps": 1010,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 4,
+            "metric": null,
+            "reward": 21.76730494474907,
+            "seed": 200004,
+            "steps": 1008,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 5,
+            "metric": null,
+            "reward": 21.70947510854895,
+            "seed": 200005,
+            "steps": 1011,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.589,
+            "index": 6,
+            "metric": null,
+            "reward": 21.875443317518204,
+            "seed": 200006,
+            "steps": 1008,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 7,
+            "metric": null,
+            "reward": 21.75040859784965,
+            "seed": 200007,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 8,
+            "metric": null,
+            "reward": 21.71120222951904,
+            "seed": 200008,
+            "steps": 1011,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 9,
+            "metric": null,
+            "reward": 21.747633457404888,
+            "seed": 200009,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 10,
+            "metric": null,
+            "reward": 21.67628706092505,
+            "seed": 200010,
+            "steps": 1013,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 11,
+            "metric": null,
+            "reward": 21.748441838388622,
+            "seed": 200011,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 12,
+            "metric": null,
+            "reward": 21.76721642179416,
+            "seed": 200012,
+            "steps": 1008,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 13,
+            "metric": null,
+            "reward": 21.768647213186433,
+            "seed": 200013,
+            "steps": 1008,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 14,
+            "metric": null,
+            "reward": 21.706984451183196,
+            "seed": 200014,
+            "steps": 1011,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 15,
+            "metric": null,
+            "reward": 21.714278714015947,
+            "seed": 200015,
+            "steps": 1011,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 16,
+            "metric": null,
+            "reward": 21.749828573799427,
+            "seed": 200016,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 17,
+            "metric": null,
+            "reward": 21.752367085514038,
+            "seed": 200017,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 18,
+            "metric": null,
+            "reward": 21.737410250073268,
+            "seed": 200018,
+            "steps": 1010,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 19,
+            "metric": null,
+            "reward": 21.73423153317313,
+            "seed": 200019,
+            "steps": 1010,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 20,
+            "metric": null,
+            "reward": 21.766964116082853,
+            "seed": 200020,
+            "steps": 1008,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 21,
+            "metric": null,
+            "reward": 21.71146511879713,
+            "seed": 200021,
+            "steps": 1011,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 22,
+            "metric": null,
+            "reward": 21.787762908630143,
+            "seed": 200022,
+            "steps": 1007,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 23,
+            "metric": null,
+            "reward": 21.731352579276702,
+            "seed": 200023,
+            "steps": 1010,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 24,
+            "metric": null,
+            "reward": 21.766673863168712,
+            "seed": 200024,
+            "steps": 1008,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 25,
+            "metric": null,
+            "reward": 21.731272655625496,
+            "seed": 200025,
+            "steps": 1010,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 26,
+            "metric": null,
+            "reward": 21.715702839245793,
+            "seed": 200026,
+            "steps": 1011,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 27,
+            "metric": null,
+            "reward": 21.70767256417256,
+            "seed": 200027,
+            "steps": 1011,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 28,
+            "metric": null,
+            "reward": 21.731766206951413,
+            "seed": 200028,
+            "steps": 1010,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 29,
+            "metric": null,
+            "reward": 21.730953040742016,
+            "seed": 200029,
+            "steps": 1010,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 30,
+            "metric": null,
+            "reward": 21.748212797108863,
+            "seed": 200030,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 31,
+            "metric": null,
+            "reward": 21.767920096968133,
+            "seed": 200031,
+            "steps": 1008,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 32,
+            "metric": null,
+            "reward": 21.78651994024844,
+            "seed": 200032,
+            "steps": 1007,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 33,
+            "metric": null,
+            "reward": 21.747986589373603,
+            "seed": 200033,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 34,
+            "metric": null,
+            "reward": 21.731923808981378,
+            "seed": 200034,
+            "steps": 1010,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 35,
+            "metric": null,
+            "reward": 21.71296394152499,
+            "seed": 200035,
+            "steps": 1011,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 36,
+            "metric": null,
+            "reward": 21.731733578420304,
+            "seed": 200036,
+            "steps": 1010,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 37,
+            "metric": null,
+            "reward": 21.712549625685618,
+            "seed": 200037,
+            "steps": 1011,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 38,
+            "metric": null,
+            "reward": 21.752395250325854,
+            "seed": 200038,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 39,
+            "metric": null,
+            "reward": 21.733187579543596,
+            "seed": 200039,
+            "steps": 1010,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 40,
+            "metric": null,
+            "reward": 21.751465334359246,
+            "seed": 200040,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 41,
+            "metric": null,
+            "reward": 21.69354323697911,
+            "seed": 200041,
+            "steps": 1012,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.589,
+            "index": 42,
+            "metric": null,
+            "reward": 21.800987705533863,
+            "seed": 200042,
+            "steps": 1012,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 43,
+            "metric": null,
+            "reward": 21.750181860099026,
+            "seed": 200043,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.589,
+            "index": 44,
+            "metric": null,
+            "reward": 21.874540045517946,
+            "seed": 200044,
+            "steps": 1008,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.589,
+            "index": 45,
+            "metric": null,
+            "reward": 21.85354716295663,
+            "seed": 200045,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 46,
+            "metric": null,
+            "reward": 21.753877932874822,
+            "seed": 200046,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 47,
+            "metric": null,
+            "reward": 21.74729778086685,
+            "seed": 200047,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 48,
+            "metric": null,
+            "reward": 21.75167230106588,
+            "seed": 200048,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 49,
+            "metric": null,
+            "reward": 21.71538635363693,
+            "seed": 200049,
+            "steps": 1011,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 50,
+            "metric": null,
+            "reward": 21.728596558615834,
+            "seed": 200050,
+            "steps": 1010,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 51,
+            "metric": null,
+            "reward": 21.730723856967884,
+            "seed": 200051,
+            "steps": 1010,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.589,
+            "index": 52,
+            "metric": null,
+            "reward": 21.8207370865384,
+            "seed": 200052,
+            "steps": 1011,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 53,
+            "metric": null,
+            "reward": 21.729865111657645,
+            "seed": 200053,
+            "steps": 1010,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 54,
+            "metric": null,
+            "reward": 21.711180721055598,
+            "seed": 200054,
+            "steps": 1011,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 55,
+            "metric": null,
+            "reward": 21.749837860446355,
+            "seed": 200055,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 56,
+            "metric": null,
+            "reward": 21.770239910720086,
+            "seed": 200056,
+            "steps": 1008,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 57,
+            "metric": null,
+            "reward": 21.766830870332157,
+            "seed": 200057,
+            "steps": 1008,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 58,
+            "metric": null,
+            "reward": 21.768137132758916,
+            "seed": 200058,
+            "steps": 1008,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 59,
+            "metric": null,
+            "reward": 21.727678525135005,
+            "seed": 200059,
+            "steps": 1010,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 60,
+            "metric": null,
+            "reward": 21.753554422960526,
+            "seed": 200060,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 61,
+            "metric": null,
+            "reward": 21.7125313662262,
+            "seed": 200061,
+            "steps": 1011,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 62,
+            "metric": null,
+            "reward": 21.789468478634774,
+            "seed": 200062,
+            "steps": 1007,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 63,
+            "metric": null,
+            "reward": 21.735463752523117,
+            "seed": 200063,
+            "steps": 1010,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 64,
+            "metric": null,
+            "reward": 21.73519464621532,
+            "seed": 200064,
+            "steps": 1010,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.589,
+            "index": 65,
+            "metric": null,
+            "reward": 21.89711656535819,
+            "seed": 200065,
+            "steps": 1007,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 66,
+            "metric": null,
+            "reward": 21.767674743733757,
+            "seed": 200066,
+            "steps": 1008,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 67,
+            "metric": null,
+            "reward": 21.766490286330217,
+            "seed": 200067,
+            "steps": 1008,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 68,
+            "metric": null,
+            "reward": 21.747314611567965,
+            "seed": 200068,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 69,
+            "metric": null,
+            "reward": 21.748694349101555,
+            "seed": 200069,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.589,
+            "index": 70,
+            "metric": null,
+            "reward": 21.854195578864726,
+            "seed": 200070,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 71,
+            "metric": null,
+            "reward": 21.714656102394883,
+            "seed": 200071,
+            "steps": 1011,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 72,
+            "metric": null,
+            "reward": 21.747846809591884,
+            "seed": 200072,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 73,
+            "metric": null,
+            "reward": 21.74784715571841,
+            "seed": 200073,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 74,
+            "metric": null,
+            "reward": 21.74731619578764,
+            "seed": 200074,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 75,
+            "metric": null,
+            "reward": 21.748942079035267,
+            "seed": 200075,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.589,
+            "index": 76,
+            "metric": null,
+            "reward": 21.877340782093036,
+            "seed": 200076,
+            "steps": 1008,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 77,
+            "metric": null,
+            "reward": 21.711965344945952,
+            "seed": 200077,
+            "steps": 1011,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 78,
+            "metric": null,
+            "reward": 21.728963169103963,
+            "seed": 200078,
+            "steps": 1010,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 79,
+            "metric": null,
+            "reward": 21.731659820891494,
+            "seed": 200079,
+            "steps": 1010,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 80,
+            "metric": null,
+            "reward": 21.73307065597276,
+            "seed": 200080,
+            "steps": 1010,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 81,
+            "metric": null,
+            "reward": 21.74652097641536,
+            "seed": 200081,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 82,
+            "metric": null,
+            "reward": 21.7336472776487,
+            "seed": 200082,
+            "steps": 1010,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 83,
+            "metric": null,
+            "reward": 21.709807904624697,
+            "seed": 200083,
+            "steps": 1011,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 84,
+            "metric": null,
+            "reward": 21.716481142890558,
+            "seed": 200084,
+            "steps": 1011,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.589,
+            "index": 85,
+            "metric": null,
+            "reward": 21.857016425196207,
+            "seed": 200085,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 86,
+            "metric": null,
+            "reward": 21.766775250880116,
+            "seed": 200086,
+            "steps": 1008,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 87,
+            "metric": null,
+            "reward": 21.751660729017622,
+            "seed": 200087,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 88,
+            "metric": null,
+            "reward": 21.789325443443687,
+            "seed": 200088,
+            "steps": 1007,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.589,
+            "index": 89,
+            "metric": null,
+            "reward": 21.895424642001053,
+            "seed": 200089,
+            "steps": 1007,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 90,
+            "metric": null,
+            "reward": 21.75361970186497,
+            "seed": 200090,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 91,
+            "metric": null,
+            "reward": 21.69294989693585,
+            "seed": 200091,
+            "steps": 1012,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 92,
+            "metric": null,
+            "reward": 21.76767559427367,
+            "seed": 200092,
+            "steps": 1008,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 93,
+            "metric": null,
+            "reward": 21.72991788468405,
+            "seed": 200093,
+            "steps": 1010,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 94,
+            "metric": null,
+            "reward": 21.750284870153855,
+            "seed": 200094,
+            "steps": 1009,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 95,
+            "metric": null,
+            "reward": 21.71140525997555,
+            "seed": 200095,
+            "steps": 1011,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 96,
+            "metric": null,
+            "reward": 21.727922243428644,
+            "seed": 200096,
+            "steps": 1010,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 97,
+            "metric": null,
+            "reward": 21.731139555926163,
+            "seed": 200097,
+            "steps": 1010,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 98,
+            "metric": null,
+            "reward": 21.806383768778865,
+            "seed": 200098,
+            "steps": 1006,
+            "success": false
+          },
+          {
+            "cause": "collision",
+            "failure_progress": 0.588,
+            "index": 99,
+            "metric": null,
+            "reward": 21.73417961984348,
+            "seed": 200099,
+            "steps": 1010,
+            "success": false
+          }
+        ]
+      },
+      "max_episodes": 500,
+      "scenario_id": "rally-ridge",
+      "seed": 42,
+      "selection": {
+        "checkpoint": {
+          "checkpoint_sha256": "91a7d82a7d78496c7da9c3d731e1cf74426012e0440947e71bf6abdd079e1a7a",
+          "engine_source_sha256": "db0897132c3690966b2ebc75be23ad30b5d1736c48c44157d096bd41b54bb7a6",
+          "episode": 500,
+          "eval_reward": 21.73,
+          "eval_reward_std": 0.03,
+          "evaluation_episodes": 10,
+          "evaluation_suite": "policy-atlas-eval-v1-n10",
+          "failure_progress": 0.588,
+          "metadata_sha256": "930ad59af11dc5b31ec00f5559fd7d0792359933007719bd3bc211c20334bd71",
+          "metric": null,
+          "metric_std": null,
+          "n_binary": 1,
+          "n_continuous": 2,
+          "obs_dim": 25,
+          "protocol": {
+            "algorithm": "PPO",
+            "clip_epsilon": 0.2,
+            "deterministic_evaluation": true,
+            "device": "cpu",
+            "engine_source_sha256": "db0897132c3690966b2ebc75be23ad30b5d1736c48c44157d096bd41b54bb7a6",
+            "entropy_coefficient": 0.0,
+            "episode_aligned_rollouts": true,
+            "evaluation_episodes": 10,
+            "evaluation_seed_base": 100000,
+            "evaluation_suite": "policy-atlas-eval-v1-n10",
+            "gae_lambda": 0.95,
+            "gamma": 0.995,
+            "learning_rate": 0.0003,
+            "minibatch_size": 256,
+            "reproducibility_scope": "RNG-exact continuation on the saved runtime; bitwise identity is not guaranteed across devices or dependency builds",
+            "rollout_steps": 2048,
+            "target_kl": 0.03,
+            "torch_version": "2.4.1+cu124",
+            "training_reward_scale": 0.01,
+            "training_start_distribution": "75% start line, 25% uniform measured track checkpoints",
+            "update_epochs": 10,
+            "value_coefficient": 0.5,
+            "value_loss_scale": "rollout return RMS",
+            "version": 3
+          },
+          "schema_version": 6,
+          "seed": 42,
+          "success_ci_high": 0.2775,
+          "success_ci_low": 0.0,
+          "success_rate": 0.0,
+          "total_steps": 248210,
+          "training_diagnostics": {
+            "action_std_0": 0.54558,
+            "action_std_1": 0.49189,
+            "action_std_max": 0.54558,
+            "action_std_mean": 0.51873,
+            "action_std_min": 0.49189,
+            "approx_kl": 0.00666,
+            "clip_frac": 0.07927,
+            "entropy": 0.90115,
+            "explained_variance": 0.82441,
+            "policy_loss": -0.01408,
+            "value_bias": 1e-05,
+            "value_clip_frac": 0.0,
+            "value_loss": 0.00035,
+            "value_scale": 1.0
+          },
+          "updates": 104
+        },
+        "protocol_role": "checkpoint_selection",
+        "reason": "final_budget_checkpoint",
+        "seed_base": 100000,
+        "suite": "policy-atlas-eval-v1-n10"
+      },
+      "solve_criteria": {
+        "confirmations": 2,
+        "min_ci_low": 0.7,
+        "min_eval_episodes": 10,
+        "min_success_rate": 0.9
+      },
+      "started_at": "2026-08-05T22:20:44+00:00",
+      "state": "budget_exhausted",
+      "stop_on_solve": true,
+      "total_steps": 248210,
+      "updates": 104
+    }
+  ],
+  "schema_version": 1,
+  "seeds": [
+    42
+  ],
+  "selected_scenarios": [
+    "rally-ridge"
+  ],
+  "solve_contract": {
+    "confirmations": 2,
+    "definition": "The first of consecutive protocol-matched checkpoints whose fixed-suite success rate and 95% Wilson lower bound both meet the configured thresholds.",
+    "min_ci_low": 0.7,
+    "min_eval_episodes": 10,
+    "min_success_rate": 0.9
+  },
+  "state": "incomplete",
+  "updated_at": "2026-08-05T22:25:49+00:00",
+  "verification": {
+    "all_verified": false,
+    "expected_runs": 1,
+    "failures": [
+      {
+        "reasons": [
+          "selection state is budget_exhausted",
+          "holdout success rate is below threshold",
+          "holdout Wilson lower bound is below threshold"
+        ],
+        "scenario_id": "rally-ridge",
+        "seed": 42
+      }
+    ],
+    "observed_runs": 1,
+    "require_holdout": true,
+    "verified_runs": 0
+  }
+}
