@@ -467,6 +467,39 @@ button:disabled { cursor: not-allowed; opacity: 0.48; }
 .track-idle strong { color: white; font-family: var(--font-display); font-size: 18px; }
 .track-idle span { font-size: 13px; }
 .ghost-chip { position: absolute; top: 12px; right: 12px; padding: 6px 9px; border: 1px solid rgba(98, 164, 255, 0.55); border-radius: 8px; background: rgba(16, 27, 38, 0.8); color: #8bbcff; font: 500 10px var(--font-data); }
+.termination-notice {
+  --termination: #f0a34a;
+  position: absolute;
+  z-index: 3;
+  top: 14px;
+  left: 14px;
+  display: grid;
+  width: min(330px, calc(100% - 28px));
+  max-width: calc(100% - 28px);
+  gap: 2px;
+  padding: 10px 38px 11px 14px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--termination) 52%, transparent);
+  border-left: 3px solid var(--termination);
+  border-radius: 3px 12px 12px 3px;
+  background: linear-gradient(105deg, rgba(8, 16, 23, 0.96), rgba(17, 31, 40, 0.9));
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28), inset 0 1px rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+  animation: terminal-in 160ms ease-out both;
+}
+.termination-notice::after { content: ""; position: absolute; top: 13px; right: 14px; width: 8px; height: 8px; border: 1px solid var(--termination); background: color-mix(in srgb, var(--termination) 25%, transparent); box-shadow: 0 0 12px color-mix(in srgb, var(--termination) 55%, transparent); }
+.termination-notice > span { color: var(--termination); font: 700 9px var(--font-data); letter-spacing: 0.13em; text-transform: uppercase; }
+.termination-notice > strong { color: #f5faf8; font: 600 17px/1.25 var(--font-display); }
+.termination-notice > small { color: #9db0ac; font-size: 10px; }
+.termination-notice[data-cause="collision"],
+.termination-notice[data-cause="contact"],
+.termination-notice[data-cause="crash"] { --termination: #ef7180; }
+.termination-notice[data-cause="balanced"],
+.termination-notice[data-cause="summit"],
+.termination-notice[data-cause="landed"],
+.termination-notice[data-cause="complete"] { --termination: #63cfaa; }
+@keyframes terminal-in { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
 .fullscreen-exit { position: absolute; z-index: 5; top: 14px; right: 14px; min-height: 42px; padding: 0 13px; border-color: rgba(255,255,255,.28); background: rgba(8,16,23,.88); color: white; }
 
 .scene-telemetry { position: absolute; right: 12px; bottom: 12px; left: 12px; display: flex; gap: 7px; align-items: stretch; pointer-events: none; }
@@ -631,6 +664,7 @@ button:disabled { cursor: not-allowed; opacity: 0.48; }
   .track-canvas { object-fit: contain; }
   .scene-telemetry { right: 7px; bottom: 7px; left: 7px; gap: 4px; overflow-x: auto; }
   .scene-telemetry > span { min-width: 70px; padding: 6px 7px; }
+  .termination-notice { top: 8px; left: 8px; width: calc(100% - 16px); max-width: calc(100% - 16px); }
   .learning-lens { padding: 16px 13px; border-radius: 15px; }
   .lens-flow { gap: 2px; }
   .lens-step { padding: 12px; }

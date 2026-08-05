@@ -54,6 +54,9 @@ export interface FrameMsg {
   scenario_id: string;
   episode: number;
   episode_reward: number;
+  terminal?: boolean;
+  cause?: string | null;
+  terminal_steps?: number | null;
   learning?: { observation: number[]; action: number[]; reward: number } | null;
   car?: CarFrame;
   laps?: number;
@@ -76,6 +79,9 @@ export interface EpisodeRecord {
   cause: string;
   metric: number | null;
   success?: boolean;
+  peak_progress?: number;
+  progress_fraction?: number;
+  failure_progress?: number | null;
   laps?: number;
   best_lap?: number | null;
   rollingMean?: number;
@@ -335,6 +341,94 @@ export function formatMetric(value: number | null | undefined, label: string): s
   if (label === "style pts") return `${value.toFixed(1)} pts`;
   if (Number.isInteger(value)) return `${value}`;
   return value.toFixed(2);
+}
+
+export interface HeldTerminalFrame {
+  frame: FrameMsg;
+  receivedAt: number;
+}
+
+export const TERMINAL_HOLD_MS = 350;
+export const TERMINAL_CAPTURE_COOLDOWN_MS = 1_000;
+
+export function shouldCaptureTerminal(
+  previous: HeldTerminalFrame | null,
+  now: number,
+  cooldownMs = TERMINAL_CAPTURE_COOLDOWN_MS,
+): boolean {
+  return previous == null || now - previous.receivedAt >= cooldownMs;
+}
+
+export function recordTerminalFrame(
+  previous: HeldTerminalFrame | null,
+  frame: FrameMsg,
+  now: number,
+): HeldTerminalFrame {
+  return {
+    frame,
+    receivedAt: shouldCaptureTerminal(previous, now)
+      ? now
+      : previous!.receivedAt,
+  };
+}
+
+export function selectVisibleFrame(
+  live: FrameMsg | null,
+  terminal: HeldTerminalFrame | null,
+  now: number,
+  holdMs = TERMINAL_HOLD_MS,
+  terminalPinned = false,
+): FrameMsg | null {
+  if (terminal && terminalPinned) return terminal.frame;
+  if (terminal && now - terminal.receivedAt < holdMs) return terminal.frame;
+  return live;
+}
+
+export function displayedEpisodeNumber(
+  frame: FrameMsg | null,
+  completedEpisodes: number,
+): number {
+  if (!frame) return completedEpisodes;
+  // Trainer frames carry the zero-based count before the current episode is
+  // committed; both live and terminal views therefore represent episode N+1.
+  return frame.episode + 1;
+}
+
+export function formatTerminationCause(cause: string): string {
+  const labels: Record<string, string> = {
+    collision: "Off-track collision",
+    contact: "Traffic contact",
+    fuel: "Fuel exhausted",
+    wrong_way: "Wrong-way travel",
+    stall: "No forward progress",
+    timeout: "Time limit reached",
+    crash: "Crash",
+    tipped: "Pole tipped",
+    out_of_bounds: "Out of bounds",
+    balanced: "Balance target reached",
+    summit: "Summit reached",
+    landed: "Safe landing",
+    complete: "Route complete",
+  };
+  return labels[cause] ?? cause.replaceAll("_", " ");
+}
+
+export function formatEpisodeDuration(
+  steps: number, horizonSteps: number, horizonSeconds: number | null,
+): string {
+  if (horizonSeconds == null || horizonSteps <= 0) {
+    return `${steps.toLocaleString()} control steps`;
+  }
+  return `${(steps * horizonSeconds / horizonSteps).toFixed(1)} simulated s`;
+}
+
+export function formatSimulationRate(
+  stepsPerSecond: number, horizonSteps: number, horizonSeconds: number | null,
+): string {
+  if (horizonSeconds == null || horizonSteps <= 0) {
+    return `${Math.round(stepsPerSecond).toLocaleString()} steps/s`;
+  }
+  return `${Math.round(stepsPerSecond * horizonSeconds / horizonSteps)}x real time`;
 }
 
 export function formatHorizon(steps: number, seconds: number | null): string {

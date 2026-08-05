@@ -87,6 +87,7 @@ class CheckpointRegistry:
         self.dir = root / scenario_id
         self.schema_version = schema_version
         self.dir.mkdir(parents=True, exist_ok=True)
+        self._archive_incompatible_active()
 
     def _pt(self, episode: int) -> Path:
         return self.dir / f"checkpoint_ep{episode:06d}.pt"
@@ -210,6 +211,40 @@ class CheckpointRegistry:
         """Move the active run aside so reset starts an isolated, recoverable run."""
         files = sorted(self.dir.glob("checkpoint_ep*"))
         return self._archive(files)
+
+    def _archive_incompatible_active(self) -> Path | None:
+        """Preserve obsolete active pairs before their episode names are reused.
+
+        Schema-incompatible checkpoints are deliberately absent from ``list``.
+        Without this startup migration, however, a fresh run could silently
+        replace an old ``checkpoint_epNNNNNN`` pair with the same episode
+        number. Keep the files recoverable for the older experiment engine.
+        """
+        files: set[Path] = set()
+        old_schemas: set[int] = set()
+        for sidecar in sorted(self.dir.glob("checkpoint_ep*.json")):
+            try:
+                meta = _normalize_meta(json.loads(sidecar.read_text()))
+                old_schema = int(meta["schema_version"])
+            except (json.JSONDecodeError, OSError, KeyError, TypeError, ValueError):
+                continue
+            if old_schema == self.schema_version:
+                continue
+            old_schemas.add(old_schema)
+            files.add(sidecar)
+            checkpoint = sidecar.with_suffix(".pt")
+            if checkpoint.exists():
+                files.add(checkpoint)
+        if not files:
+            return None
+        versions = "-".join(str(version) for version in sorted(old_schemas))
+        archive = self._archive(
+            sorted(files), prefix=f"schema-{versions}-to-{self.schema_version}-")
+        log.warning(
+            "archived %d schema-incompatible checkpoint files in %s",
+            len(files), archive,
+        )
+        return archive
 
     def archive_after(self, episode: int) -> Path | None:
         """Preserve descendants before branching from an older checkpoint."""

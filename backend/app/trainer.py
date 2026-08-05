@@ -443,6 +443,9 @@ class Trainer:
                     self._emit_frame()
 
                 if done:
+                    # The regular 20 Hz throttle can otherwise skip the final
+                    # state entirely before the environment immediately resets.
+                    self._emit_frame(terminal=True)
                     self.episode += 1
                     checkpoint_due = self._on_episode_end() or checkpoint_due
                     if (self.episode >= self.max_episodes
@@ -597,12 +600,16 @@ class Trainer:
 
     # ----------------------------------------------------------------- emits
 
-    def _emit_frame(self) -> None:
+    def _emit_frame(self, *, terminal: bool = False) -> None:
+        terminal_summary = self.env.episode_summary() if terminal else {}
         self.emit({
             "type": "frame",
             "scenario_id": self.spec.id,
             "episode": self.episode,
             "episode_reward": round(self.env.episode_reward, 1),
+            "terminal": terminal,
+            "cause": terminal_summary.get("cause"),
+            "terminal_steps": terminal_summary.get("steps"),
             "learning": self._learning,
             **self.env.frame_payload(),
         })

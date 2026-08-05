@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import * as api from "../src/api/types.ts";
@@ -114,5 +115,58 @@ test("recent checkpoints are newest first regardless of API order", () => {
     api.recentCheckpoints([{ episode: 2 }, { episode: 10 }, { episode: 5 }])
       .map((checkpoint) => checkpoint.episode),
     [10, 5, 2],
+  );
+});
+
+test("terminal frames are held briefly and explain why the episode reset", () => {
+  const live = { type: "frame", scenario_id: "rally-ridge", episode: 8,
+    episode_reward: 0 };
+  const terminal = { type: "frame", scenario_id: "rally-ridge", episode: 7,
+    episode_reward: -15, terminal: true, cause: "stall", terminal_steps: 300 };
+  const held = { frame: terminal, receivedAt: 1_000 };
+
+  assert.equal(api.selectVisibleFrame(live, held, 1_349), terminal);
+  assert.equal(api.selectVisibleFrame(live, held, 1_350), live);
+  assert.equal(api.selectVisibleFrame(null, held, 1_350), null);
+  assert.equal(api.shouldCaptureTerminal(null, 1_000), true);
+  assert.equal(api.shouldCaptureTerminal(held, 1_999), false);
+  assert.equal(api.shouldCaptureTerminal(held, 2_000), true);
+  const finalTerminal = { ...terminal, episode: 8, cause: "collision" };
+  const latest = api.recordTerminalFrame(held, finalTerminal, 1_500);
+  assert.equal(latest.frame, finalTerminal);
+  assert.equal(latest.receivedAt, 1_000);
+  assert.equal(api.selectVisibleFrame(live, latest, 1_500), live);
+  assert.equal(api.selectVisibleFrame(live, latest, 1_500, undefined, true), finalTerminal);
+  assert.equal(api.displayedEpisodeNumber(live, 99), 9);
+  assert.equal(api.displayedEpisodeNumber(finalTerminal, 99), 9);
+  assert.equal(api.displayedEpisodeNumber(null, 99), 99);
+  assert.equal(api.formatTerminationCause("stall"), "No forward progress");
+  assert.equal(api.formatTerminationCause("wrong_way"), "Wrong-way travel");
+  assert.equal(api.formatEpisodeDuration(300, 1_500, 60), "12.0 simulated s");
+  assert.equal(api.formatSimulationRate(508, 1_500, 60), "20x real time");
+});
+
+test("terminal reset explanations are announced to assistive technology", () => {
+  const source = readFileSync(
+    new URL("../src/features/simulator/SceneCanvas.tsx", import.meta.url),
+    "utf8",
+  );
+  const learningLens = readFileSync(
+    new URL("../src/features/simulator/LearningLens.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    source,
+    /className="termination-notice"[^>]*role="status"[^>]*aria-live="polite"[^>]*aria-atomic="true"/s,
+  );
+  assert.match(
+    source,
+    /ctx\.fillText\(`EP \$\{displayedEpisodeNumber\(frame, 0\)\}`/,
+    "the canvas HUD must use the same one-based episode number",
+  );
+  assert.doesNotMatch(
+    learningLens,
+    /className="lens-status"[^>]*aria-live/,
+    "rapid Learning Lens updates must not duplicate terminal announcements",
   );
 });

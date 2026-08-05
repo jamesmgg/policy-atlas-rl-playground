@@ -32,6 +32,23 @@ BASE_OBS_DIM = 8 + len(LOOKAHEAD) + 1 + len(GRIP_LOOKAHEAD)
 CURV_SCALE = 80.0
 CORNER_CURV = 0.012                  # |curvature| above this counts as a corner
 CONTACT_DIST = 5.0
+DRIFT_TARGET_SLIP = math.radians(15.0)
+DRIFT_MAX_SLIP = math.radians(35.0)
+
+
+def drift_slip_quality(slip_angle: float) -> float:
+    """Score measured tire slip, peaking at a controllable 15-degree slide.
+
+    The drift input only changes vehicle grip; it is not evidence that the car
+    is actually drifting. A triangular band also avoids rewarding a spin more
+    than a controlled slide.
+    """
+    slip = abs(float(slip_angle))
+    if slip <= DRIFT_TARGET_SLIP:
+        return slip / DRIFT_TARGET_SLIP
+    if slip >= DRIFT_MAX_SLIP:
+        return 0.0
+    return (DRIFT_MAX_SLIP - slip) / (DRIFT_MAX_SLIP - DRIFT_TARGET_SLIP)
 
 
 @dataclass(frozen=True)
@@ -40,7 +57,7 @@ class RewardConfig:
     checkpoint: float = 3.0
     lap: float = 30.0
     time: float = -0.02              # per agent step
-    drift_corner: float = 0.01       # per step, scaled by drift intensity
+    drift_corner: float = 0.01       # per forward arc unit, scaled by real slip
     collision: float = -40.0
     stall: float = -15.0
     wrong_way: float = -20.0
@@ -191,7 +208,10 @@ class DrivingEnv:
         curv = float(track.curvature[self.idx])
         in_corner = abs(curv) > CORNER_CURV
         if in_corner:
-            reward += cfg.drift_corner * self.car.drift
+            # Positive forward travel and measured slip are both required;
+            # merely pressing the drift control is not physical drifting.
+            reward += (cfg.drift_corner * max(ds, 0.0)
+                       * drift_slip_quality(self.car.slip_angle))
             if cfg.style_coef > 0.0:
                 pts = (cfg.style_coef * (self.car.speed / self.params.max_speed)
                        * self.car.drift * min(abs(curv) / CORNER_CURV, 3.0))
@@ -329,11 +349,16 @@ class DrivingEnv:
         # remain valid endings for objectives that were already achieved.
         if self.cause in {"collision", "contact", "wrong_way", "stall"}:
             success = False
+        progress_fraction = min(
+            max(self.peak_progress / self.track.total_length, 0.0), 1.0)
         return {
             "reward": round(self.episode_reward, 2),
             "steps": self.steps,
             "cause": self.cause,
             "metric": metric,
+            "peak_progress": round(max(self.peak_progress, 0.0), 1),
+            "progress_fraction": round(progress_fraction, 3),
+            "failure_progress": None if success else round(progress_fraction, 3),
             "laps": self.laps,
             "best_lap": round(self.best_lap_time, 2) if self.best_lap_time else None,
             "success": success,

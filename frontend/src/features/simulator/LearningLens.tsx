@@ -78,7 +78,7 @@ export default function LearningLens() {
       </div>
 
       <div className="lens-footer">
-        <span className="lens-status" aria-live="polite">
+        <span className="lens-status">
           {lastEpisode
             ? `Last episode: ${lastEpisode.success ? "success" : lastEpisode.cause.replaceAll("_", " ")} · return ${lastEpisode.reward}`
             : status?.training ? "Collecting the first episode…" : "Start a run to inspect the learning loop."}

@@ -1,9 +1,10 @@
 import {
   createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
 } from "react";
+import { recordTerminalFrame } from "../api/types";
 import type {
   ArchivedRun, CheckpointMeta, ClientMessage, EpisodeRecord, FrameMsg, GhostLap,
-  PpoUpdateRecord, ScenarioInfo, ServerMessage, StatusMsg,
+  HeldTerminalFrame, PpoUpdateRecord, ScenarioInfo, ServerMessage, StatusMsg,
 } from "../api/types";
 
 const FLUSH_MS = 400;
@@ -29,6 +30,7 @@ export interface TrainingSocketValue {
   lastError: string | null;
   /** Latest live frame — read inside rAF loops, never triggers re-renders. */
   frameRef: React.RefObject<FrameMsg | null>;
+  terminalFrameRef: React.RefObject<HeldTerminalFrame | null>;
   /** Active ghost lap trajectory, with the time it was activated. */
   ghostRef: React.RefObject<{ lap: GhostLap; startedAt: number } | null>;
   startTraining(maxEpisodes: number, checkpointEveryN: number): void;
@@ -68,6 +70,7 @@ export function TrainingSocketProvider({ children }: { children: React.ReactNode
   const [lastError, setLastError] = useState<string | null>(null);
 
   const frameRef = useRef<FrameMsg | null>(null);
+  const terminalFrameRef = useRef<HeldTerminalFrame | null>(null);
   const ghostRef = useRef<{ lap: GhostLap; startedAt: number } | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const scenarioRef = useRef<string | null>(null);
@@ -91,6 +94,7 @@ export function TrainingSocketProvider({ children }: { children: React.ReactNode
     pendingPpo.current = [];
     rollingWindow.current = [];
     frameRef.current = null;
+    terminalFrameRef.current = null;
     ghostRef.current = null;
     setHistory([]);
     setPpo([]);
@@ -137,7 +141,14 @@ export function TrainingSocketProvider({ children }: { children: React.ReactNode
         switch (msg.type) {
           case "frame":
             if (sid && msg.scenario_id !== sid) return;
-            frameRef.current = msg;
+            if (msg.terminal) {
+              const receivedAt = performance.now();
+              terminalFrameRef.current = recordTerminalFrame(
+                terminalFrameRef.current, msg, receivedAt,
+              );
+            } else {
+              frameRef.current = msg;
+            }
             break;
           case "episode_end": {
             if (sid && msg.scenario_id !== sid) return;
@@ -173,6 +184,13 @@ export function TrainingSocketProvider({ children }: { children: React.ReactNode
             break;
           case "history": {
             if (sid && msg.scenario_id !== sid) return;
+            // History is an authoritative branch sync (connect, reset, load,
+            // or restore). Discard locally batched data from the old branch.
+            pendingEpisodes.current = [];
+            pendingPpo.current = [];
+            frameRef.current = null;
+            terminalFrameRef.current = null;
+            setPpo([]);
             const window: number[] = [];
             const withMeans = msg.history.map((h) => {
               window.push(h.reward);
@@ -262,14 +280,27 @@ export function TrainingSocketProvider({ children }: { children: React.ReactNode
     connected, connectionState, status, scenarios, currentScenario,
     scenarioId, scenarioKind, metricLabel, metricMode,
     history, ppo, checkpoints, archivedRuns, ghostEpisode, lastError,
-    frameRef, ghostRef,
+    frameRef, terminalFrameRef, ghostRef,
     startTraining: (maxEpisodes, checkpointEveryN) =>
       send({ type: "start_training", max_episodes: maxEpisodes, checkpoint_every_n: checkpointEveryN }),
     stopTraining: () => send({ type: "stop_training" }),
-    resetTraining: (seed) => send({ type: "reset_training", seed }),
+    resetTraining: (seed) => {
+      pendingEpisodes.current = [];
+      pendingPpo.current = [];
+      rollingWindow.current = [];
+      frameRef.current = null;
+      terminalFrameRef.current = null;
+      setHistory([]);
+      setPpo([]);
+      send({ type: "reset_training", seed });
+    },
     setGhost: (episode) => send({ type: "set_ghost", episode }),
     clearGhost: () => send({ type: "clear_ghost" }),
-    loadCheckpoint: (episode) => send({ type: "load_checkpoint", episode }),
+    loadCheckpoint: (episode) => {
+      frameRef.current = null;
+      terminalFrameRef.current = null;
+      send({ type: "load_checkpoint", episode });
+    },
     restoreArchivedRun: async (id) => {
       try {
         const response = await fetch(`/api/runs/${encodeURIComponent(id)}/restore`, {

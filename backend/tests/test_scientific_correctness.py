@@ -348,7 +348,7 @@ class TestExperimentContract(unittest.TestCase):
         dry = specs["apex-gp"].make_env(False)
         wet = specs["apex-gp-wet"].make_env(False)
         traffic = specs["traffic-rush"].make_env(False)
-        self.assertEqual(specs["traffic-rush"].checkpoint_schema, 3)
+        self.assertEqual(specs["traffic-rush"].checkpoint_schema, 4)
 
         self.assertGreaterEqual(dry.obs_dim, 17)  # base state + grip profile
         self.assertEqual(wet.obs_dim, dry.obs_dim)
@@ -372,6 +372,57 @@ class TestExperimentContract(unittest.TestCase):
         traffic.overtakes = len(traffic.features.bots)
         traffic.cause = "contact"
         self.assertFalse(traffic.episode_summary()["success"])
+
+    def test_stationary_drift_cannot_earn_a_corner_bonus(self) -> None:
+        from app.envs.driving import drift_slip_quality
+
+        spec = {spec.id: spec for spec in list_specs()}["rally-ridge"]
+        rally = spec.make_env(False)
+
+        self.assertEqual(drift_slip_quality(0.0), 0.0)
+        self.assertEqual(drift_slip_quality(math.radians(15.0)), 1.0)
+        self.assertEqual(drift_slip_quality(math.radians(35.0)), 0.0)
+        self.assertEqual(
+            drift_slip_quality(-math.radians(15.0)),
+            1.0,
+            "left and right drifts should be symmetric",
+        )
+        self.assertLessEqual(
+            rally.reward_cfg.drift_corner,
+            rally.reward_cfg.progress * 0.2,
+            "drift shaping must stay secondary to task progress",
+        )
+        self.assertGreater(abs(float(rally.track.curvature[rally.idx])), 0.012)
+        _, reward, done, _ = rally.step(np.array([0.0, 0.0, 1.0]))
+
+        self.assertFalse(done)
+        self.assertGreater(rally.car.drift, 0.0)
+        self.assertAlmostEqual(
+            reward,
+            rally.reward_cfg.time,
+            places=8,
+            msg="the drift control alone is not physical drifting",
+        )
+
+    def test_rally_failure_reports_normalized_peak_progress(self) -> None:
+        spec = {spec.id: spec for spec in list_specs()}["rally-ridge"]
+        self.assertEqual(
+            spec.checkpoint_schema,
+            3,
+            "changed reward and evaluation semantics require a fresh policy",
+        )
+        rally = spec.make_env(False)
+        rally.peak_progress = rally.track.total_length * 0.42
+        rally.cause = "stall"
+
+        failed = rally.episode_summary()
+        self.assertEqual(failed["failure_progress"], 0.42)
+
+        rally.laps = 1
+        rally.cause = "timeout"
+        successful = rally.episode_summary()
+        self.assertTrue(successful["success"])
+        self.assertIsNone(successful["failure_progress"])
 
 
 class TestEvaluationProtocol(unittest.TestCase):
@@ -485,15 +536,53 @@ class TestEvaluationProtocol(unittest.TestCase):
     def test_incompatible_checkpoint_schema_is_hidden_and_refused(self) -> None:
         agent = PPOAgent(2, 1, 0, torch.device("cpu"))
         with tempfile.TemporaryDirectory() as tmp:
+            # Construct the newer reader first so this test still exercises
+            # its load-time guard independently of startup migration.
+            new_registry = CheckpointRegistry(Path(tmp), "driving", schema_version=2)
             old_registry = CheckpointRegistry(Path(tmp), "driving", schema_version=1)
             old_registry.save(5, agent, [{"reward": 1.0}], {
                 "reward": 1.0, "metric": 1.0, "trajectory": [],
             })
-            new_registry = CheckpointRegistry(Path(tmp), "driving", schema_version=2)
 
             self.assertEqual(new_registry.list(), [])
             with self.assertRaises(IncompatibleCheckpointError):
                 new_registry.load_into(5, agent)
+
+    def test_schema_upgrade_archives_incompatible_active_checkpoint_before_reuse(self) -> None:
+        agent = PPOAgent(2, 1, 0, torch.device("cpu"))
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            old_registry = CheckpointRegistry(root, "driving", schema_version=1)
+            old_registry.save(5, agent, [{"reward": 1.0}], {
+                "reward": 1.0, "metric": 1.0, "trajectory": [],
+            })
+            old_checkpoint = old_registry._pt(5).read_bytes()
+            old_sidecar = old_registry._json(5).read_bytes()
+
+            new_registry = CheckpointRegistry(root, "driving", schema_version=2)
+
+            self.assertEqual(new_registry.list(), [])
+            archives = list((new_registry.dir / "archive").glob("schema-1-to-2-*"))
+            self.assertEqual(len(archives), 1)
+            self.assertEqual(
+                (archives[0] / "checkpoint_ep000005.pt").read_bytes(),
+                old_checkpoint,
+            )
+            self.assertEqual(
+                (archives[0] / "checkpoint_ep000005.json").read_bytes(),
+                old_sidecar,
+            )
+
+            # Reusing an episode number in the new schema must not overwrite
+            # the preserved experiment.
+            new_registry.save(5, agent, [{"reward": 2.0}], {
+                "reward": 2.0, "metric": 2.0, "trajectory": [],
+            })
+            self.assertEqual([meta["episode"] for meta in new_registry.list()], [5])
+            self.assertEqual(
+                (archives[0] / "checkpoint_ep000005.pt").read_bytes(),
+                old_checkpoint,
+            )
 
     def test_new_seeded_run_archives_old_checkpoints_recoverably(self) -> None:
         agent = PPOAgent(2, 1, 0, torch.device("cpu"))
@@ -659,12 +748,23 @@ class TestEvaluationProtocol(unittest.TestCase):
         trainer.checkpoint_every_n = 2
         trainer._stop = trainer_module.threading.Event()
         trainer._thread = None
-        trainer.emit = lambda message: None
+        messages = []
+        trainer.emit = messages.append
         trainer._save_checkpoint = lambda: None
 
         trainer._run()
 
         self.assertEqual(trainer._learning["observation"], [1.0, 2.0])
+        episode_end_index = next(
+            i for i, message in enumerate(messages)
+            if message["type"] == "episode_end"
+        )
+        terminal_frame_index = next(
+            i for i, message in enumerate(messages)
+            if message["type"] == "frame" and message.get("terminal")
+        )
+        self.assertLess(terminal_frame_index, episode_end_index)
+        self.assertEqual(messages[terminal_frame_index]["cause"], "done")
 
     def test_rng_state_round_trip_replays_all_training_streams(self) -> None:
         capture = getattr(trainer_module, "capture_rng_state", None)

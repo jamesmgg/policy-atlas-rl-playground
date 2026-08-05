@@ -38,7 +38,7 @@ def _driving_spec(id: str, name: str, group: str, description: str,
                   objective: str = "Complete clean laps as quickly as possible.",
                   success: str = "Complete at least one timed lap without leaving the circuit.",
                   difficulty: str = "Intermediate",
-                  checkpoint_schema: int = 2) -> ScenarioSpec:
+                  checkpoint_schema: int = 3) -> ScenarioSpec:
     reward_terms = [
         f"{reward.progress:g} × signed forward arc progress",
         f"{reward.time:g} time cost per control step",
@@ -49,6 +49,10 @@ def _driving_spec(id: str, name: str, group: str, description: str,
     if reward.style_coef:
         reward_terms.append(
             f"up to {reward.style_coef:g} × speed × drift × corner intensity")
+    if reward.drift_corner:
+        reward_terms.append(
+            f"up to {reward.drift_corner:g} x positive arc progress for "
+            "measured, controlled corner slip")
     if reward.overtake:
         reward_terms.append(f"+{reward.overtake:g} per clean overtake")
     if features.fuel:
@@ -138,7 +142,7 @@ DRIVING_SPECS: list[ScenarioSpec] = [
         "Rally car on a flowing dirt course. Loose grip, lives sideways.",
         "RALLY_RIDGE",
         params=physics.RALLY,
-        reward=RewardConfig(drift_corner=0.04), difficulty="Advanced"),
+        reward=RewardConfig(drift_corner=0.008), difficulty="Advanced"),
     _driving_spec(
         "kart-sprint", "Kart Sprint", "Vehicles",
         "A go-kart on a tight mini circuit. Slow, nimble, unforgiving.",
@@ -176,5 +180,5 @@ DRIVING_SPECS: list[ScenarioSpec] = [
         metric_label="overtakes", metric_mode="max",
         objective="Pass traffic without contact while maintaining forward progress.",
         success="Overtake all three traffic cars in one episode.",
-        difficulty="Advanced", checkpoint_schema=3),
+        difficulty="Advanced", checkpoint_schema=4),
 ]

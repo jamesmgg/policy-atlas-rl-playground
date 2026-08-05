@@ -1,4 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import {
+  displayedEpisodeNumber, formatEpisodeDuration, formatSimulationRate, formatTerminationCause,
+  selectVisibleFrame,
+} from "../../api/types";
 import type { FrameMsg, GenericObject, SceneData, StaticPrimitive, TrackGeometry, ZoneInfo } from "../../api/types";
 import { useTrainingSocket } from "../../hooks/useTrainingSocket";
 
@@ -162,7 +166,10 @@ function drawGenericObject(
 }
 
 export default function SceneCanvas() {
-  const { frameRef, ghostRef, ghostEpisode, status, scenarioId, currentScenario } = useTrainingSocket();
+  const {
+    frameRef, terminalFrameRef, ghostRef, ghostEpisode, status, ppo,
+    scenarioId, currentScenario,
+  } = useTrainingSocket();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const [scene, setScene] = useState<SceneData | null>(null);
@@ -178,11 +185,14 @@ export default function SceneCanvas() {
   }, []);
 
   useEffect(() => {
-    const update = () => setTelemetry(frameRef.current);
+    const update = () => setTelemetry(selectVisibleFrame(
+      frameRef.current, terminalFrameRef.current, performance.now(), undefined,
+      status?.training === false,
+    ));
     update();
     const timer = window.setInterval(update, 250);
     return () => window.clearInterval(timer);
-  }, [frameRef, scenarioId]);
+  }, [frameRef, terminalFrameRef, scenarioId, status?.training]);
 
   useEffect(() => {
     if (!scenarioId) return;
@@ -231,6 +241,7 @@ export default function SceneCanvas() {
     let lastSkidFade = performance.now();
     let banner: LapBanner | null = null;
     let prevLastLap: number | null | undefined;
+    let previousEpisode: number | null = null;
     let raf = 0;
     let timer = 0;
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -247,7 +258,16 @@ export default function SceneCanvas() {
         sctx.restore();
       }
 
-      const frame = frameRef.current;
+      const frame = selectVisibleFrame(
+        frameRef.current, terminalFrameRef.current, now, undefined,
+        status?.training === false,
+      );
+      if (frame && previousEpisode != null && frame.episode !== previousEpisode) {
+        liveTrail.length = 0;
+        sctx.clearRect(0, 0, W, H);
+        lastSkidFade = now;
+      }
+      if (frame) previousEpisode = frame.episode;
       const primary = frame?.car
         ? { x: frame.car.x, y: frame.car.y, drift: frame.car.drift }
         : frame?.objects?.length
@@ -333,7 +353,9 @@ export default function SceneCanvas() {
       cancelAnimationFrame(raf);
       clearTimeout(timer);
     };
-  }, [scene, frameRef, ghostRef]);
+  }, [scene, frameRef, terminalFrameRef, ghostRef, status?.training]);
+
+  const stepsPerSecond = ppo.at(-1)?.sps ?? 0;
 
   return (
     <section className="simulator-panel" aria-labelledby="simulator-title">
@@ -371,14 +393,40 @@ export default function SceneCanvas() {
       {ghostEpisode != null && (
           <div className="ghost-chip">Comparing episode {ghostEpisode}</div>
       )}
+        {telemetry?.terminal && telemetry.cause && (
+          <div
+            className="termination-notice"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            data-cause={telemetry.cause}
+          >
+            <span>Episode {displayedEpisodeNumber(telemetry, status?.episode ?? 0)} ended</span>
+            <strong>{formatTerminationCause(telemetry.cause)}</strong>
+            <small>
+              Ended after {formatEpisodeDuration(
+                telemetry.terminal_steps ?? 0,
+                currentScenario?.horizon_steps ?? 0,
+                currentScenario?.horizon_seconds ?? null,
+              )}
+            </small>
+          </div>
+        )}
         <div className="scene-telemetry" aria-label="Live simulator telemetry">
-          <span><small>Episode</small><strong>{telemetry?.episode ?? status?.episode ?? 0}</strong></span>
+          <span><small>Episode</small><strong>{displayedEpisodeNumber(
+            telemetry, status?.episode ?? 0,
+          )}</strong></span>
           <span><small>Return</small><strong>{telemetry?.episode_reward?.toFixed(1) ?? "—"}</strong></span>
           {telemetry?.car && <span><small>Speed</small><strong>{Math.round(telemetry.car.speed * 3.6)} km/h</strong></span>}
           {telemetry?.laps != null && <span><small>Laps</small><strong>{telemetry.laps}</strong></span>}
           {telemetry?.waypoints != null && <span><small>Waypoints</small><strong>{telemetry.waypoints} / 5</strong></span>}
           {telemetry?.balance_time != null && <span><small>Balanced</small><strong>{telemetry.balance_time.toFixed(2)} s</strong></span>}
           {telemetry?.peak_position != null && <span><small>Peak position</small><strong>{telemetry.peak_position.toFixed(3)}</strong></span>}
+          {status?.training && currentScenario && stepsPerSecond > 0 && (
+            <span><small>Simulation</small><strong>{formatSimulationRate(
+              stepsPerSecond, currentScenario.horizon_steps, currentScenario.horizon_seconds,
+            )}</strong></span>
+          )}
         </div>
       </div>
     </section>
@@ -578,7 +626,7 @@ function drawHud(ctx: CanvasRenderingContext2D, frame: FrameMsg, ghostEpisode: n
   ctx.font = "600 13px ui-monospace, monospace";
   ctx.fillStyle = "rgba(255,255,255,0.75)";
   let y = 22;
-  ctx.fillText(`EP ${frame.episode}`, 14, y); y += 18;
+  ctx.fillText(`EP ${displayedEpisodeNumber(frame, 0)}`, 14, y); y += 18;
   ctx.fillText(`R ${frame.episode_reward}`, 14, y); y += 18;
   if (frame.laps != null) { ctx.fillText(`LAP ${frame.laps}`, 14, y); y += 18; }
   if (frame.style != null) { ctx.fillText(`STYLE ${frame.style}`, 14, y); y += 18; }
