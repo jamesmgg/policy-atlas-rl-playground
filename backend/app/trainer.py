@@ -1,0 +1,653 @@
+"""Background training loop with scenario switching.
+
+Runs PPO as fast as the hardware allows in a daemon thread; the UI gets a
+throttled live view (~20 frames/s), an event per episode and per PPO update.
+Each scenario owns an independent agent, history and checkpoint directory;
+switching stops the thread, swaps everything, and restores that scenario's
+newest checkpoint. The active scenario persists in state.json on the volume.
+"""
+from __future__ import annotations
+
+import json
+import hashlib
+import logging
+import math
+import random
+import threading
+import time
+from functools import lru_cache
+from pathlib import Path
+from typing import Callable
+
+import numpy as np
+import torch
+
+from .checkpoints import CheckpointRegistry
+from .ppo import agent as ppo_defaults
+from .ppo.agent import PPOAgent
+from .ppo.buffer import RolloutBuffer
+from .scenarios import get_spec
+from .scenarios.registry import DEFAULT_SCENARIO
+from .settings import Settings
+
+log = logging.getLogger("trainer")
+
+ROLLOUT_STEPS = 2048
+GAMMA = 0.995
+GAE_LAMBDA = 0.95
+FRAME_INTERVAL = 0.05  # seconds between live frames sent to clients
+SWITCH_JOIN_TIMEOUT = 15.0
+EVALUATION_SUITE_VERSION = "policy-atlas-eval-v1"
+EVALUATION_SEED_BASE = 100_000
+
+
+@lru_cache(maxsize=1)
+def source_digest() -> str:
+    """Fingerprint the Python experiment engine stored with each checkpoint."""
+    root = Path(__file__).resolve().parent
+    digest = hashlib.sha256()
+    for path in sorted(root.rglob("*.py")):
+        digest.update(path.relative_to(root).as_posix().encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def seed_everything(seed: int) -> None:
+    """Seed every random stream used by the trainer and policy."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+
+def evaluation_seed(index: int) -> int:
+    """A fixed test suite makes independent training seeds comparable."""
+    return EVALUATION_SEED_BASE + index
+
+
+def evaluation_suite_id(episodes: int) -> str:
+    """The number of fixed starts is part of the comparison protocol."""
+    return f"{EVALUATION_SUITE_VERSION}-n{episodes}"
+
+
+def aggregate_evaluations(results: list[dict], metric_mode: str) -> dict:
+    """Aggregate repeated evaluation episodes without cherry-picking a run."""
+    del metric_mode  # direction is display metadata; evaluation reports the mean.
+    rewards = np.asarray([r["reward"] for r in results], dtype=np.float64)
+    metrics = np.asarray([r["metric"] for r in results if r.get("metric") is not None],
+                         dtype=np.float64)
+    failure_progress = np.asarray([
+        r["failure_progress"] for r in results
+        if r.get("failure_progress") is not None
+    ], dtype=np.float64)
+    successes = [bool(r.get("success", False)) for r in results]
+    success_rate = float(np.mean(successes)) if successes else None
+    success_ci_low, success_ci_high = wilson_interval(
+        sum(successes), len(successes))
+    return {
+        "episodes": len(results),
+        "reward_mean": float(rewards.mean()) if len(rewards) else 0.0,
+        "reward_std": float(rewards.std()) if len(rewards) else 0.0,
+        "metric": float(metrics.mean()) if len(metrics) else None,
+        "metric_std": float(metrics.std()) if len(metrics) else None,
+        "failure_progress": (float(failure_progress.mean())
+                             if len(failure_progress) else None),
+        "success_rate": success_rate,
+        "success_ci_low": success_ci_low,
+        "success_ci_high": success_ci_high,
+    }
+
+
+def wilson_interval(successes: int, total: int, z: float = 1.96
+                    ) -> tuple[float | None, float | None]:
+    if total <= 0:
+        return None, None
+    proportion = successes / total
+    denominator = 1.0 + z * z / total
+    center = (proportion + z * z / (2.0 * total)) / denominator
+    margin = z / denominator * math.sqrt(
+        proportion * (1.0 - proportion) / total
+        + z * z / (4.0 * total * total))
+    return max(0.0, center - margin), min(1.0, center + margin)
+
+
+def bootstrap_time_limit(reward: float, next_value: float, done: bool,
+                         info: dict, gamma: float = GAMMA) -> float:
+    """Apply time-limit bootstrapping without crossing an episode reset."""
+    if done and info.get("truncated", False):
+        return reward + gamma * next_value
+    return reward
+
+
+def learning_payload(observation: np.ndarray, action: np.ndarray,
+                     reward: float) -> dict:
+    """Compact one transition for the explanatory UI without flooding the WS."""
+    obs = np.nan_to_num(np.asarray(observation)[:6], nan=0.0,
+                        posinf=999.0, neginf=-999.0)
+    act = np.nan_to_num(np.asarray(action)[:8], nan=0.0,
+                        posinf=1.0, neginf=-1.0)
+    return {
+        "observation": [round(float(value), 3) for value in obs],
+        "action": [round(float(value), 3) for value in act],
+        "reward": round(float(reward), 3),
+    }
+
+
+def capture_rng_state(env) -> dict:
+    state = {
+        "python": random.getstate(),
+        "numpy": np.random.get_state(),
+        "torch": torch.get_rng_state(),
+        "cuda": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None,
+        "environment": env.rng.getstate() if hasattr(env, "rng") else None,
+    }
+    return state
+
+
+def restore_rng_state(state: dict, env) -> None:
+    random.setstate(state["python"])
+    np.random.set_state(state["numpy"])
+    torch.set_rng_state(state["torch"])
+    if state.get("cuda") is not None and torch.cuda.is_available():
+        torch.cuda.set_rng_state_all(state["cuda"])
+    if state.get("environment") is not None and hasattr(env, "rng"):
+        env.rng.setstate(state["environment"])
+
+
+class Trainer:
+    def __init__(self, settings: Settings):
+        self.settings = settings
+        if settings.use_gpu and torch.cuda.is_available():
+            self.device = torch.device("cuda")
+        else:
+            self.device = torch.device("cpu")
+        log.info("training device: %s", self.device)
+
+        self.emit: Callable[[dict], None] = lambda msg: None
+        self.max_episodes = settings.max_episodes
+        self.checkpoint_every_n = settings.checkpoint_every_n
+        self.seed = settings.seed
+        self.update_count = 0
+
+        self._thread: threading.Thread | None = None
+        self._stop = threading.Event()
+        self._lock = threading.Lock()
+
+        self._state_path = settings.checkpoint_dir / "state.json"
+        self._load_scenario(self._read_active_scenario())
+
+    # ---------------------------------------------------------- scenario state
+
+    def _read_active_scenario(self) -> str:
+        try:
+            scenario_id = json.loads(self._state_path.read_text())["active_scenario"]
+            get_spec(scenario_id)
+            return scenario_id
+        except (OSError, json.JSONDecodeError, KeyError):
+            return DEFAULT_SCENARIO
+
+    def _write_active_scenario(self) -> None:
+        self._state_path.parent.mkdir(parents=True, exist_ok=True)
+        self._state_path.write_text(json.dumps({"active_scenario": self.spec.id}))
+
+    def _load_scenario(self, scenario_id: str) -> None:
+        """Build env/agent/registry for a scenario. Caller holds the lock (or init)."""
+        self.spec = get_spec(scenario_id)
+        seed_everything(self.seed)
+        self.env = self.spec.make_env(True)
+        if hasattr(self.env, "rng"):
+            self.env.rng.seed(self.seed)
+            self.env.reset()
+        self.agent = PPOAgent(self.env.obs_dim, self.env.n_continuous,
+                              self.env.n_binary, self.device)
+        self.registry = CheckpointRegistry(
+            self.settings.checkpoint_dir, self.spec.id, self.spec.checkpoint_schema)
+        self.episode = 0
+        self.total_steps = 0
+        self.update_count = 0
+        self.sps = 0.0
+        self.history = []
+        self.best_reward: float | None = None
+        self.best_metric: float | None = None
+        self.ghost: dict | None = None
+        self._learning: dict | None = None
+        self._restore_latest()
+        self.run_start_episode = self.episode
+        self.run_target_episode = self.episode
+        self._write_active_scenario()
+
+    def switch_scenario(self, scenario_id: str) -> bool:
+        get_spec(scenario_id)  # raises KeyError for unknown ids
+        with self._lock:
+            if scenario_id == self.spec.id:
+                return True
+            if self.running:
+                self._stop.set()
+                self._thread.join(timeout=SWITCH_JOIN_TIMEOUT)
+                if self._thread.is_alive():
+                    log.error("training thread did not stop within %ss",
+                              SWITCH_JOIN_TIMEOUT)
+                    return False
+            self._load_scenario(scenario_id)
+            self.emit({"type": "scenario_changed", **self.spec.info()})
+            self._emit_status()
+            self.emit({"type": "checkpoint_list", "scenario_id": self.spec.id,
+                       "checkpoints": self.registry.list()})
+            self.emit({"type": "history", "scenario_id": self.spec.id,
+                       "history": decimate(self.history)})
+            self.emit({"type": "ghost_clear"})
+            return True
+
+    # ---------------------------------------------------------------- control
+
+    @property
+    def running(self) -> bool:
+        return self._thread is not None and self._thread.is_alive()
+
+    def start(self, max_episodes: int | None = None,
+              checkpoint_every_n: int | None = None) -> bool:
+        with self._lock:
+            if self.running:
+                return False
+            if max_episodes is not None:
+                target = max(self.episode + 1, max_episodes)
+            else:
+                target = max(self.episode + 1, self.max_episodes)
+            if not (target == self.run_target_episode
+                    and self.episode < self.run_target_episode):
+                self.run_start_episode = self.episode
+            self.run_target_episode = target
+            self.max_episodes = target
+            if checkpoint_every_n is not None:
+                self.checkpoint_every_n = max(1, checkpoint_every_n)
+            self._stop.clear()
+            self._thread = threading.Thread(target=self._run, daemon=True,
+                                            name="ppo-trainer")
+            self._thread.start()
+            return True
+
+    def stop(self) -> None:
+        self._stop.set()
+
+    def shutdown(self) -> None:
+        """Finish the current episode and persist it before process shutdown."""
+        self._stop.set()
+        thread = self._thread
+        if thread is not None and thread.is_alive():
+            thread.join(timeout=SWITCH_JOIN_TIMEOUT)
+            if thread.is_alive():
+                log.error("training thread did not stop before shutdown timeout")
+
+    def reset_agent(self, seed: int | None = None) -> bool:
+        """Reinitialize weights and history for the active scenario. Only when stopped."""
+        with self._lock:
+            if self.running:
+                return False
+            if seed is not None:
+                self.seed = max(0, min(int(seed), 2 ** 32 - 1))
+            self.registry.archive_current()
+            seed_everything(self.seed)
+            env = self.env
+            if hasattr(env, "rng"):
+                env.rng.seed(self.seed)
+            self.agent = PPOAgent(env.obs_dim, env.n_continuous, env.n_binary,
+                                  self.device)
+            self.episode = 0
+            self.total_steps = 0
+            self.update_count = 0
+            self.run_start_episode = 0
+            self.run_target_episode = 0
+            self.history = []
+            self.best_reward = None
+            self.best_metric = None
+            self.ghost = None
+            self._learning = None
+            env.reset()
+            self._emit_status()
+            self.emit({"type": "history", "scenario_id": self.spec.id, "history": []})
+            self.emit({"type": "checkpoint_list", "scenario_id": self.spec.id,
+                       "checkpoints": []})
+            self.emit({"type": "ghost_clear"})
+            return True
+
+    def load_checkpoint(self, episode: int) -> bool:
+        with self._lock:
+            if self.running:
+                return False
+            data = self.registry.load_into(episode, self.agent)
+            # Loading an older policy creates a new branch. Preserve its newer
+            # descendants before their episode-numbered files can be replaced.
+            self.registry.archive_after(episode)
+            self.history = data.get("history", [])
+            self.episode = episode
+            self.run_start_episode = episode
+            self.run_target_episode = episode
+            stored_steps = data.get("total_steps")
+            self.total_steps = int(
+                stored_steps if stored_steps is not None
+                else sum(h.get("steps", 0) for h in self.history))
+            self.update_count = int(data.get("update_count", 0))
+            if data.get("meta", {}).get("seed") is not None:
+                self.seed = int(data["meta"]["seed"])
+                seed_everything(self.seed)
+            if data.get("rng_state"):
+                restore_rng_state(data["rng_state"], self.env)
+            self.ghost = None
+            self._recompute_bests()
+            self._emit_status()
+            self.emit({"type": "history", "scenario_id": self.spec.id,
+                       "history": decimate(self.history)})
+            self.emit({"type": "checkpoint_list", "scenario_id": self.spec.id,
+                       "checkpoints": self.registry.list()})
+            self.emit({"type": "ghost_clear"})
+            return True
+
+    def set_ghost(self, episode: int) -> bool:
+        data = self.registry.load(episode)
+        trajectory = data.get("trajectory") or []
+        if not trajectory:
+            return False
+        self.ghost = {"episode": episode, "dt": self.env.dt,
+                      "trajectory": trajectory}
+        self.emit({"type": "ghost_lap", **self.ghost})
+        return True
+
+    def clear_ghost(self) -> None:
+        self.ghost = None
+        self.emit({"type": "ghost_clear"})
+
+    def restore_archive(self, archive_id: str) -> bool:
+        """Swap a recoverable run branch into the active workspace."""
+        with self._lock:
+            if self.running or not self.registry.restore_archive(archive_id):
+                return False
+            scenario_id = self.spec.id
+            self._load_scenario(scenario_id)
+            self.emit({"type": "scenario_changed", **self.spec.info()})
+            self._emit_status()
+            self.emit({"type": "checkpoint_list", "scenario_id": self.spec.id,
+                       "checkpoints": self.registry.list()})
+            self.emit({"type": "history", "scenario_id": self.spec.id,
+                       "history": decimate(self.history)})
+            self.emit({"type": "ghost_clear"})
+            return True
+
+    def status(self) -> dict:
+        return {
+            "type": "status",
+            "scenario_id": self.spec.id,
+            "scenario_kind": self.spec.kind,
+            "metric_label": self.spec.metric_label,
+            "metric_mode": self.spec.metric_mode,
+            "training": self.running,
+            "episode": self.episode,
+            "max_episodes": self.max_episodes,
+            "run_start_episode": getattr(self, "run_start_episode", self.episode),
+            "run_target_episode": getattr(self, "run_target_episode", self.episode),
+            "checkpoint_every_n": self.checkpoint_every_n,
+            "total_steps": self.total_steps,
+            "sps": round(self.sps),
+            "seed": self.seed,
+            "update_count": self.update_count,
+            "eval_episodes": self.settings.eval_episodes,
+            "evaluation_suite": evaluation_suite_id(self.settings.eval_episodes),
+            "evaluation_seed_base": EVALUATION_SEED_BASE,
+            "engine_source_sha256": source_digest(),
+            "best_reward": self.best_reward,
+            "best_metric": self.best_metric,
+            "device": str(self.device),
+            "ghost_episode": self.ghost["episode"] if self.ghost else None,
+        }
+
+    # ------------------------------------------------------------- train loop
+
+    def _run(self) -> None:
+        self._emit_status()
+        env = self.env
+        # Update after at least ROLLOUT_STEPS, at the next episode boundary.
+        # The extra capacity makes checkpoint cadence independent of PPO batch
+        # boundaries while ensuring a saved state is exactly resumable.
+        buffer = RolloutBuffer(
+            ROLLOUT_STEPS + env.max_steps, env.obs_dim, self.agent.act_dim)
+        obs = env.reset()
+        done = False
+        last_frame = 0.0
+
+        while not self._stop.is_set() and self.episode < self.max_episodes:
+            buffer.reset()
+            t0 = time.perf_counter()
+            checkpoint_due = False
+            # A pause/switch request finishes the current fixed-size rollout
+            # and then stops at an episode boundary. Pause timing therefore
+            # cannot change PPO minibatch/update boundaries.
+            while not buffer.full:
+                action, log_prob, value = self.agent.select_action(obs)
+                next_obs, reward, done, info = env.step(action)
+                # Show the state that actually produced this action. Pairing the
+                # action with next_obs would make the explanatory policy loop
+                # one transition out of phase.
+                self._learning = learning_payload(obs, action, reward)
+                buffer_reward = reward
+                if done and info.get("truncated", False):
+                    buffer_reward = bootstrap_time_limit(
+                        reward, self.agent.get_value(next_obs), done, info)
+                buffer.add(obs, action, log_prob, buffer_reward, done, value)
+                self.total_steps += 1
+
+                now = time.monotonic()
+                if now - last_frame >= FRAME_INTERVAL:
+                    last_frame = now
+                    self._emit_frame()
+
+                if done:
+                    self.episode += 1
+                    checkpoint_due = self._on_episode_end() or checkpoint_due
+                    if (self.episode >= self.max_episodes
+                            or buffer.ptr >= ROLLOUT_STEPS):
+                        break
+                    obs = env.reset()
+                    done = False
+                else:
+                    obs = next_obs
+
+            if buffer.ptr > 0:
+                last_value = 0.0 if done else self.agent.get_value(obs)
+                buffer.compute_gae(last_value, done, gamma=GAMMA,
+                                   gae_lambda=GAE_LAMBDA)
+                metrics = self.agent.update(buffer)
+                self.update_count += 1
+                self.sps = buffer.ptr / max(time.perf_counter() - t0, 1e-6)
+                self.emit({"type": "ppo_update", "scenario_id": self.spec.id,
+                           "episode": self.episode,
+                           "total_steps": self.total_steps,
+                           "update": self.update_count,
+                           "sps": round(self.sps),
+                           **{k: round(v, 5) for k, v in metrics.items()}})
+            should_save = done and (
+                checkpoint_due or self._stop.is_set()
+                or self.episode >= self.max_episodes
+            )
+            if should_save:
+                self._save_checkpoint()
+            # Checkpoints capture RNG state before this reset. A restored
+            # trainer also begins with exactly one reset, reproducing the same
+            # pending initial condition.
+            if done and not self._stop.is_set() and self.episode < self.max_episodes:
+                obs = env.reset()
+                done = False
+
+        final_status = self.status()
+        final_status["training"] = False
+        self.emit(final_status)
+        log.info("[%s] training stopped at episode %d", self.spec.id, self.episode)
+
+    def _on_episode_end(self) -> bool:
+        entry = {"episode": self.episode, **self.env.episode_summary()}
+        self.history.append(entry)
+        if self.best_reward is None or entry["reward"] > self.best_reward:
+            self.best_reward = entry["reward"]
+        self._update_best_metric(entry.get("metric"))
+
+        saved = self.episode % self.checkpoint_every_n == 0
+        self.emit({"type": "episode_end", "scenario_id": self.spec.id,
+                   **entry, "checkpoint_due": saved})
+        return saved
+
+    def _update_best_metric(self, metric: float | None) -> None:
+        if metric is None:
+            return
+        if self.best_metric is None:
+            self.best_metric = metric
+        elif self.spec.metric_mode == "min":
+            self.best_metric = min(self.best_metric, metric)
+        else:
+            self.best_metric = max(self.best_metric, metric)
+
+    def _save_checkpoint(self) -> None:
+        rng_state = capture_rng_state(self.env)
+        try:
+            eval_result = self._run_eval()
+        finally:
+            restore_rng_state(rng_state, self.env)
+        eval_result["update_count"] = self.update_count
+        eval_result["total_steps"] = self.total_steps
+        eval_result["protocol"] = {
+            "algorithm": "PPO",
+            "version": 2,
+            "rollout_steps": ROLLOUT_STEPS,
+            "episode_aligned_rollouts": True,
+            "gamma": GAMMA,
+            "gae_lambda": GAE_LAMBDA,
+            "learning_rate": ppo_defaults.LR,
+            "clip_epsilon": ppo_defaults.CLIP_EPS,
+            "entropy_coefficient": ppo_defaults.ENT_COEF,
+            "value_coefficient": ppo_defaults.VF_COEF,
+            "update_epochs": ppo_defaults.UPDATE_EPOCHS,
+            "minibatch_size": ppo_defaults.MINIBATCH_SIZE,
+            "target_kl": ppo_defaults.TARGET_KL,
+            "evaluation_episodes": self.settings.eval_episodes,
+            "evaluation_suite": evaluation_suite_id(self.settings.eval_episodes),
+            "evaluation_seed_base": EVALUATION_SEED_BASE,
+            "deterministic_evaluation": True,
+            "engine_source_sha256": source_digest(),
+            "reproducibility_scope": (
+                "RNG-exact continuation on the saved runtime; bitwise identity "
+                "is not guaranteed across devices or dependency builds"
+            ),
+            "device": str(self.device),
+            "torch_version": str(torch.__version__),
+        }
+        eval_result["rng_state"] = rng_state
+        meta = self.registry.save(self.episode, self.agent, self.history, eval_result)
+        log.info("[%s] checkpoint ep%d: eval_reward=%.1f metric=%s",
+                 self.spec.id, meta.episode, meta.eval_reward, meta.eval_metric)
+        self.emit({"type": "checkpoint_list", "scenario_id": self.spec.id,
+                   "checkpoints": self.registry.list()})
+
+    def _run_eval(self) -> dict:
+        results: list[dict] = []
+        for i in range(self.settings.eval_episodes):
+            env = self.spec.make_env(True)
+            if hasattr(env, "rng"):
+                env.rng.seed(evaluation_seed(i))
+            obs = env.reset()
+            for _ in range(env.max_steps):
+                action, _, _ = self.agent.select_action(obs, deterministic=True)
+                obs, _, done, _ = env.step(action)
+                if done:
+                    break
+            summary = env.episode_summary()
+            results.append({
+                "reward": env.episode_reward,
+                "metric": summary.get("metric"),
+                "failure_progress": summary.get("failure_progress"),
+                "success": summary.get("success", False),
+            })
+
+        # A fixed canonical start remains the comparable ghost replay while the
+        # reported score comes from the fixed, versioned test starts above.
+        canonical = self.spec.make_env(False)
+        obs = canonical.reset()
+        trajectory: list[list[float]] = []
+        for _ in range(canonical.max_steps):
+            action, _, _ = self.agent.select_action(obs, deterministic=True)
+            obs, _, done, _ = canonical.step(action)
+            trajectory.append(canonical.ghost_sample())
+            if done:
+                break
+
+        aggregate = aggregate_evaluations(results, self.spec.metric_mode)
+        return {
+            "reward": aggregate["reward_mean"],
+            "reward_std": aggregate["reward_std"],
+            "metric": aggregate["metric"],
+            "metric_std": aggregate["metric_std"],
+            "failure_progress": aggregate["failure_progress"],
+            "episodes": aggregate["episodes"],
+            "success_rate": aggregate["success_rate"],
+            "success_ci_low": aggregate["success_ci_low"],
+            "success_ci_high": aggregate["success_ci_high"],
+            "evaluation_suite": evaluation_suite_id(self.settings.eval_episodes),
+            "seed": self.seed,
+            "trajectory": trajectory,
+        }
+
+    # ----------------------------------------------------------------- emits
+
+    def _emit_frame(self) -> None:
+        self.emit({
+            "type": "frame",
+            "scenario_id": self.spec.id,
+            "episode": self.episode,
+            "episode_reward": round(self.env.episode_reward, 1),
+            "learning": self._learning,
+            **self.env.frame_payload(),
+        })
+
+    def _emit_status(self) -> None:
+        self.emit(self.status())
+
+    # ----------------------------------------------------------------- misc
+
+    def _restore_latest(self) -> None:
+        for meta in reversed(self.registry.list()):
+            latest = meta["episode"]
+            try:
+                data = self.registry.load_into(latest, self.agent)
+                self.history = data.get("history", [])
+                self.episode = latest
+                stored_steps = data.get("total_steps")
+                self.total_steps = int(
+                    stored_steps if stored_steps is not None
+                    else sum(h.get("steps", 0) for h in self.history))
+                self.update_count = int(data.get("update_count", 0))
+                if data.get("meta", {}).get("seed") is not None:
+                    self.seed = int(data["meta"]["seed"])
+                    seed_everything(self.seed)
+                if data.get("rng_state"):
+                    restore_rng_state(data["rng_state"], self.env)
+                self._recompute_bests()
+                log.info("[%s] restored checkpoint ep%d", self.spec.id, latest)
+                return
+            except Exception:
+                log.exception("[%s] quarantining invalid checkpoint ep%d",
+                              self.spec.id, latest)
+                self.registry.quarantine_episode(latest)
+
+    def _recompute_bests(self) -> None:
+        rewards = [h["reward"] for h in self.history]
+        self.best_reward = max(rewards) if rewards else None
+        self.best_metric = None
+        for h in self.history:
+            # Legacy histories used "best_lap" before metrics were generalized.
+            self._update_best_metric(h.get("metric", h.get("best_lap")))
+
+
+def decimate(history: list[dict], max_points: int = 2000) -> list[dict]:
+    if len(history) <= max_points:
+        return history
+    stride = len(history) / max_points
+    return [history[int(i * stride)] for i in range(max_points)]

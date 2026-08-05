@@ -1,0 +1,170 @@
+"""2D lunar lander: main + side thrusters, fixed terrain with a flat pad,
+limited fuel (engines die when dry — the ship falls, episode plays out)."""
+from __future__ import annotations
+
+import random
+from dataclasses import dataclass, field
+import math
+
+import numpy as np
+
+DT = 0.04
+G = 50.0           # world units/s^2 (1000x700 world)
+A_MAIN = 90.0
+A_SIDE = 18.0
+ALPHA_SIDE = 4.0   # rad/s^2
+FUEL_RATE = 1.0 / 12.0   # full burn empties the tank in ~12 s
+
+# Piecewise-linear heightfield (y-down: ground at larger y). Pad is flat.
+TERRAIN: list[tuple[float, float]] = [
+    (0, 520), (90, 480), (180, 540), (270, 500), (360, 560),
+    (455, 620), (545, 620),     # landing pad
+    (640, 560), (730, 580), (820, 500), (910, 540), (1000, 490),
+]
+PAD_X0, PAD_X1 = 455.0, 545.0
+PAD_Y = 620.0
+PAD_CX = (PAD_X0 + PAD_X1) / 2
+
+SAFE_VX, SAFE_VY, SAFE_THETA = 8.0, 14.0, 0.25
+
+
+def wrap_angle(theta: float) -> float:
+    """Represent physically equivalent attitudes on [-pi, pi)."""
+    return (theta + math.pi) % (2.0 * math.pi) - math.pi
+
+
+def terrain_y(x: float) -> float:
+    pts = TERRAIN
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+        if x0 <= x <= x1:
+            t = (x - x0) / (x1 - x0)
+            return y0 + (y1 - y0) * t
+    return PAD_Y
+
+
+def scene() -> dict:
+    return {
+        "kind": "generic",
+        "bounds": [1000, 700],
+        "primary_shape": "lander",
+        "statics": [
+            {"shape": "terrain", "points": [[x, y] for x, y in TERRAIN]},
+            {"shape": "flag", "x": PAD_X0, "y": PAD_Y},
+            {"shape": "flag", "x": PAD_X1, "y": PAD_Y},
+        ],
+    }
+
+
+@dataclass
+class LanderEnv:
+    jitter: bool = True
+    rng: random.Random = field(default_factory=random.Random)
+
+    obs_dim = 8
+    n_continuous = 2
+    n_binary = 0
+    max_steps = 600
+    dt = DT
+
+    def __post_init__(self):
+        self.reset()
+
+    def reset(self) -> np.ndarray:
+        self.x, self.y = 500.0, 120.0
+        self.vx = self.rng.uniform(-15.0, 15.0) if self.jitter else 0.0
+        self.vy = 0.0
+        self.theta = self.rng.uniform(-0.15, 0.15) if self.jitter else 0.0
+        self.omega = 0.0
+        self.fuel = 1.0
+        self.steps = 0
+        self.episode_reward = 0.0
+        self.landed = False
+        self.cause = "running"
+        self._u_main = 0.0
+        self._phi_prev = self._phi()
+        return self._obs()
+
+    def _phi(self) -> float:
+        dist = math.hypot(self.x - PAD_CX, self.y - PAD_Y)
+        v = math.hypot(self.vx, self.vy)
+        return 0.012 * dist + 0.04 * v + 0.4 * abs(self.theta)
+
+    def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, dict]:
+        u_main = float(np.clip((action[0] + 1.0) / 2.0, 0.0, 1.0))
+        u_side = float(np.clip(action[1], -1.0, 1.0))
+        if self.fuel <= 0.0:
+            u_main = u_side = 0.0
+        self._u_main = u_main
+
+        self.omega += u_side * ALPHA_SIDE * DT
+        self.theta = wrap_angle(self.theta + self.omega * DT)
+        # Body-up in y-down coords is (sin t, -cos t).
+        self.vx += (u_main * A_MAIN * math.sin(self.theta)
+                    + u_side * A_SIDE * math.cos(self.theta)) * DT
+        self.vy += (-u_main * A_MAIN * math.cos(self.theta) + G) * DT
+        self.x += self.vx * DT
+        self.y += self.vy * DT
+        self.fuel = max(self.fuel - (u_main + 0.15 * abs(u_side)) * FUEL_RATE * DT, 0.0)
+        self.steps += 1
+
+        phi = self._phi()
+        reward = self._phi_prev - phi - 0.03 * u_main
+        self._phi_prev = phi
+
+        done = False
+        if self.y >= terrain_y(self.x):
+            done = True
+            on_pad = PAD_X0 <= self.x <= PAD_X1
+            soft = (abs(self.vx) < SAFE_VX and self.vy < SAFE_VY
+                    and abs(self.theta) < SAFE_THETA)
+            if on_pad and soft:
+                reward += 100.0
+                self.landed = True
+                self.cause = "landed"
+            else:
+                reward -= 100.0
+                self.cause = "crash"
+        elif self.x < 0 or self.x > 1000 or self.y < 0:
+            reward -= 100.0
+            done, self.cause = True, "out_of_bounds"
+        elif self.steps >= self.max_steps:
+            done, self.cause = True, "timeout"
+
+        self.episode_reward += reward
+        return self._obs(), reward, done, {"truncated": done and self.cause == "timeout"}
+
+    def _obs(self) -> np.ndarray:
+        return np.array([
+            (self.x - PAD_CX) / 300.0,
+            (self.y - PAD_Y) / 300.0,
+            self.vx / 60.0,
+            self.vy / 60.0,
+            math.sin(self.theta),
+            math.cos(self.theta),
+            self.omega / 3.0,
+            self.fuel,
+        ], dtype=np.float32)
+
+    def frame_payload(self) -> dict:
+        return {
+            "objects": [{"shape": "lander", "x": round(self.x, 1),
+                         "y": round(self.y, 1), "rot": round(self.theta, 3),
+                         "flame": round(self._u_main, 2)}],
+            "fuel": round(self.fuel, 3),
+        }
+
+    def episode_summary(self) -> dict:
+        dist = math.hypot(self.x - PAD_CX, self.y - PAD_Y)
+        return {
+            "reward": round(self.episode_reward, 2),
+            "steps": self.steps,
+            "cause": self.cause,
+            # A crash at pad center must never tie a safe touchdown. The fixed
+            # failure offset preserves distance ordering among unsuccessful runs.
+            "metric": 0.0 if self.landed else round(100.0 + dist, 1),
+            "success": self.landed,
+        }
+
+    def ghost_sample(self) -> list[float]:
+        return [round(self.x, 1), round(self.y, 1), round(self.theta, 3),
+                0.0, round(math.hypot(self.vx, self.vy), 1)]

@@ -1,0 +1,32 @@
+services:
+  rl-backend:
+    build:
+      context: ./backend
+    image: rl-simulator-backend:local
+    container_name: rl-simulator-backend
+    restart: unless-stopped
+    expose:
+      - "8901"
+    environment:
+      PORT: "8901"
+      CHECKPOINT_DIR: /app/data/checkpoints
+      CHECKPOINT_EVERY_N: "${CHECKPOINT_EVERY_N:-50}"
+      MAX_EPISODES: "${MAX_EPISODES:-5000}"
+      USE_GPU: "${USE_GPU:-0}"
+    volumes:
+      - rl-checkpoints:/app/data/checkpoints
+
+  rl-frontend:
+    build:
+      context: ./frontend
+    image: rl-simulator-frontend:local
+    container_name: rl-simulator-frontend
+    restart: unless-stopped
+    ports:
+      - "8900:80"
+    depends_on:
+      rl-backend:
+        condition: service_healthy
+
+volumes:
+  rl-checkpoints:
