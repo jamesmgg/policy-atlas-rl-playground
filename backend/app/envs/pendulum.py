@@ -34,7 +34,7 @@ class PendulumEnv:
     jitter: bool = True
     rng: random.Random = field(default_factory=random.Random)
 
-    obs_dim = 3
+    obs_dim = 4
     n_continuous = 1
     n_binary = 0
     max_steps = 400
@@ -70,11 +70,16 @@ class PendulumEnv:
             self._recent.pop(0)
 
         done = self.steps >= self.max_steps
-        return self._obs(), reward, done, {"truncated": done}
+        return self._obs(), reward, done, {
+            "truncated": done,
+            "task_deadline": done,
+        }
 
     def _obs(self) -> np.ndarray:
         return np.array([math.cos(self.theta), math.sin(self.theta),
-                         self.theta_dot / MAX_SPEED], dtype=np.float32)
+                         self.theta_dot / MAX_SPEED,
+                         max(0.0, 1.0 - self.steps / self.max_steps)],
+                        dtype=np.float32)
 
     def frame_payload(self) -> dict:
         return {

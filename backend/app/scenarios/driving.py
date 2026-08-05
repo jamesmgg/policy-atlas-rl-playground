@@ -38,7 +38,7 @@ def _driving_spec(id: str, name: str, group: str, description: str,
                   objective: str = "Complete clean laps as quickly as possible.",
                   success: str = "Complete at least one timed lap without leaving the circuit.",
                   difficulty: str = "Intermediate",
-                  checkpoint_schema: int = 3) -> ScenarioSpec:
+                  checkpoint_schema: int = 6) -> ScenarioSpec:
     reward_terms = [
         f"{reward.progress:g} × signed forward arc progress",
         f"{reward.time:g} time cost per control step",
@@ -48,7 +48,8 @@ def _driving_spec(id: str, name: str, group: str, description: str,
     ]
     if reward.style_coef:
         reward_terms.append(
-            f"up to {reward.style_coef:g} × speed × drift × corner intensity")
+            f"up to {reward.style_coef:g} × forward distance × speed × "
+            "measured slip × corner intensity")
     if reward.drift_corner:
         reward_terms.append(
             f"up to {reward.drift_corner:g} x positive arc progress for "
@@ -70,6 +71,10 @@ def _driving_spec(id: str, name: str, group: str, description: str,
         "curvature +8 m", "curvature +20 m", "curvature +40 m",
         "curvature +75 m", "curvature +120 m", "current surface grip",
         "surface grip +20 m", "surface grip +75 m", "surface grip +120 m",
+        "sin track phase", "cos track phase",
+        "forward course progress / lap length", "wrong-way margin / 25",
+        "progress since stall anchor / threshold", "stall counter / limit",
+        "objective completion fraction",
     ]
     if features.fuel:
         observation_dimensions.append("fuel fraction")
@@ -78,7 +83,9 @@ def _driving_spec(id: str, name: str, group: str, description: str,
             f"traffic {index + 1} signed arc gap / 150",
             f"traffic {index + 1} relative speed / max",
             f"traffic {index + 1} lateral lane fraction",
+            f"traffic {index + 1} already passed",
         ))
+    observation_dimensions.append("remaining horizon fraction")
     return ScenarioSpec(
         id=id, name=name, group=group, kind="driving", description=description,
         metric_label=metric_label, metric_mode=metric_mode,
@@ -86,6 +93,9 @@ def _driving_spec(id: str, name: str, group: str, description: str,
             _track(track_name), params=params, reward_cfg=reward,
             features=features, jitter=jitter),
         scene=lambda: _scene(track_name, features),
+        training_factory=lambda: DrivingEnv(
+            _track(track_name), params=params, reward_cfg=reward,
+            features=features, jitter=True, random_start=True),
         objective=objective,
         success=success,
         observations=("speed and lateral slip", "track offset and heading error",
@@ -180,5 +190,5 @@ DRIVING_SPECS: list[ScenarioSpec] = [
         metric_label="overtakes", metric_mode="max",
         objective="Pass traffic without contact while maintaining forward progress.",
         success="Overtake all three traffic cars in one episode.",
-        difficulty="Advanced", checkpoint_schema=4),
+        difficulty="Advanced", checkpoint_schema=7),
 ]

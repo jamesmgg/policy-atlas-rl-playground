@@ -155,12 +155,15 @@ export default function TrainingControls() {
         </button>
       </div>
 
-      <dl className="run-stats">
-        <div><dt>Best training return</dt><dd>{status?.best_reward?.toFixed(1) ?? "—"}</dd></div>
-        <div><dt>{metricLabel}</dt><dd>{formatMetric(status?.best_metric, metricLabel)}</dd></div>
-        <div><dt>Latest success rate</dt><dd>{latestEvaluation?.success_rate != null ? `${Math.round(latestEvaluation.success_rate * 100)}%` : "Not evaluated"}</dd></div>
-        <div><dt>Compute</dt><dd>{status ? `${status.device.toUpperCase()} · ${status.sps.toLocaleString()} steps/s` : "Connecting"}</dd></div>
-      </dl>
+      <details className="run-statistics">
+        <summary>Show run statistics</summary>
+        <dl className="run-stats">
+          <div><dt>Best training return</dt><dd>{status?.best_reward?.toFixed(1) ?? "—"}</dd></div>
+          <div><dt>{metricLabel}</dt><dd>{formatMetric(status?.best_metric, metricLabel)}</dd></div>
+          <div><dt>Latest success rate</dt><dd>{latestEvaluation?.success_rate != null ? `${Math.round(latestEvaluation.success_rate * 100)}%` : "Not evaluated"}</dd></div>
+          <div><dt>Compute</dt><dd>{status ? `${status.device.toUpperCase()} · ${status.sps.toLocaleString()} steps/s` : "Connecting"}</dd></div>
+        </dl>
+      </details>
 
       {lastError && (
         <div className="error-banner" role="alert">

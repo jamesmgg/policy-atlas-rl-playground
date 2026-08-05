@@ -137,7 +137,7 @@ def targeted_invariants() -> None:
     traffic = SCENARIOS["traffic-rush"].make_env(False)
     far = traffic.s_prev + traffic.track.total_length * 0.5
     traffic._bot_arcs = [traffic.s_prev + 10.0, far, far + 50.0]
-    traffic._bot_armed = [True, True, True]
+    traffic._bot_passed = [False, False, False]
     traffic._bot_prev_gap = [traffic._bot_gap(i) for i in range(3)]
     traffic.s_prev += 25.0  # car arc jumps past bot 0
     gained = traffic._step_bots()

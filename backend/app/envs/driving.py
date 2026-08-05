@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import math
 import random
-from collections import deque
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -28,6 +27,7 @@ STALL_MIN_PROGRESS = 12.0            # arc units
 LOOKAHEAD = (8.0, 20.0, 40.0, 75.0, 120.0)
 GRIP_LOOKAHEAD = (20.0, 75.0, 120.0)
 BASE_OBS_DIM = 8 + len(LOOKAHEAD) + 1 + len(GRIP_LOOKAHEAD)
+TASK_OBS_DIM = 7
 
 CURV_SCALE = 80.0
 CORNER_CURV = 0.012                  # |curvature| above this counts as a corner
@@ -61,7 +61,7 @@ class RewardConfig:
     collision: float = -40.0
     stall: float = -15.0
     wrong_way: float = -20.0
-    style_coef: float = 0.0          # drift-trial style points per step
+    style_coef: float = 0.0          # style per forward arc unit at real slip
     overtake: float = 0.0
     contact: float = 0.0
     fuel_empty: float = 0.0
@@ -103,6 +103,7 @@ class DrivingEnv:
     reward_cfg: RewardConfig = field(default_factory=RewardConfig)
     features: DrivingFeatures = field(default_factory=DrivingFeatures)
     jitter: bool = True
+    random_start: bool = False
     rng: random.Random = field(default_factory=random.Random)
 
     n_continuous = 2
@@ -112,8 +113,10 @@ class DrivingEnv:
 
     def __post_init__(self):
         self.obs_dim = (BASE_OBS_DIM
+                        + TASK_OBS_DIM
                         + (1 if self.features.fuel else 0)
-                        + (3 * len(self.features.bots)))
+                        + (4 * len(self.features.bots))
+                        + 1)
         # Per-sample grip from global surface + zones.
         grip = np.full(self.track.n, self.features.global_grip)
         for z in self.features.zones:
@@ -130,7 +133,7 @@ class DrivingEnv:
 
     def reset(self) -> np.ndarray:
         track = self.track
-        idx = 0
+        idx = self.rng.choice(track.checkpoints) if self.random_start else 0
         heading = heading_at(track, idx)
         x, y = track.centerline[idx]
         if self.jitter:
@@ -155,9 +158,13 @@ class DrivingEnv:
         self.style = 0.0
         self.overtakes = 0
         self.cause = "running"
-        self._progress_log: deque[float] = deque(maxlen=STALL_WINDOW)
-        self._bot_arcs = [b.start_frac * track.total_length for b in self.features.bots]
-        self._bot_armed = [True] * len(self.features.bots)
+        self._stall_anchor_progress = 0.0
+        self._stall_steps = 0
+        self._bot_arcs = [
+            (self.s_prev + b.start_frac * track.total_length) % track.total_length
+            for b in self.features.bots
+        ]
+        self._bot_passed = [False] * len(self.features.bots)
         self._bot_prev_gap = [self._bot_gap(i) for i in range(len(self.features.bots))]
         return self._obs()
 
@@ -189,7 +196,11 @@ class DrivingEnv:
         self.s_prev = s_new
         self.progress += ds
         self.peak_progress = max(self.peak_progress, self.progress)
-        self._progress_log.append(self.progress)
+        if self.progress - self._stall_anchor_progress >= STALL_MIN_PROGRESS:
+            self._stall_anchor_progress = self.progress
+            self._stall_steps = 0
+        else:
+            self._stall_steps += 1
 
         reward = cfg.progress * ds + cfg.time
 
@@ -213,8 +224,10 @@ class DrivingEnv:
             reward += (cfg.drift_corner * max(ds, 0.0)
                        * drift_slip_quality(self.car.slip_angle))
             if cfg.style_coef > 0.0:
-                pts = (cfg.style_coef * (self.car.speed / self.params.max_speed)
-                       * self.car.drift * min(abs(curv) / CORNER_CURV, 3.0))
+                pts = (cfg.style_coef * max(ds, 0.0)
+                       * (self.car.speed / self.params.max_speed)
+                       * drift_slip_quality(self.car.slip_angle)
+                       * min(abs(curv) / CORNER_CURV, 3.0))
                 self.style += pts
                 reward += pts
 
@@ -240,15 +253,20 @@ class DrivingEnv:
         elif self.progress < self.peak_progress - 25.0:
             reward += cfg.wrong_way
             done, self.cause = True, "wrong_way"
-        elif (len(self._progress_log) == STALL_WINDOW
-              and self.progress - self._progress_log[0] < STALL_MIN_PROGRESS):
+        elif self._stall_steps >= STALL_WINDOW:
             reward += cfg.stall
             done, self.cause = True, "stall"
+        elif self._objective_reached():
+            done, self.cause = True, "complete"
         elif self.steps >= MAX_AGENT_STEPS:
             done, self.cause = True, "timeout"
 
         self.episode_reward += reward
-        return self._obs(), reward, done, {"truncated": done and self.cause == "timeout"}
+        deadline = done and self.cause == "timeout"
+        return self._obs(), reward, done, {
+            "truncated": deadline,
+            "task_deadline": deadline,
+        }
 
     # ------------------------------------------------------------------ bots
 
@@ -279,12 +297,10 @@ class DrivingEnv:
             g = self._bot_gap(i)
             prev = self._bot_prev_gap[i]
             # Car passes bot: small positive gap wraps to almost-L.
-            if self._bot_armed[i] and prev < 30.0 and g > L - 30.0:
-                self.overtakes += 1
+            if not self._bot_passed[i] and prev < 30.0 and g > L - 30.0:
+                self._bot_passed[i] = True
+                self.overtakes = sum(self._bot_passed)
                 reward += self.reward_cfg.overtake
-                self._bot_armed[i] = False
-            elif not self._bot_armed[i] and 60.0 < g < L * 0.5:
-                self._bot_armed[i] = True  # car has fallen back / lapped around
             self._bot_prev_gap[i] = g
         return reward
 
@@ -296,6 +312,28 @@ class DrivingEnv:
         return False
 
     # ----------------------------------------------------------------- protocol
+
+    def _objective_reached(self) -> bool:
+        kind = self.features.metric
+        if kind == "style":
+            return self.style >= 10.0
+        if kind == "overtakes":
+            return bool(self._bot_passed) and all(self._bot_passed)
+        if kind == "lap":
+            return self.laps >= 1
+        # Eco GP measures its full fuel-limited trajectory after the first lap.
+        return False
+
+    def _objective_fraction(self) -> float:
+        """Expose the cumulative task state used by success termination."""
+        kind = self.features.metric
+        if kind == "style":
+            return float(np.clip(self.style / 10.0, 0.0, 1.0))
+        if kind == "overtakes":
+            total = len(self._bot_passed)
+            return sum(self._bot_passed) / total if total else 0.0
+        return float(np.clip(
+            self.progress / self.track.total_length, 0.0, 1.0))
 
     def frame_payload(self) -> dict:
         car = self.car
@@ -406,6 +444,19 @@ class DrivingEnv:
         for dist in GRIP_LOOKAHEAD:
             obs[cursor] = float(self._grip[track.index_ahead(idx, dist)])
             cursor += 1
+        phase = 2.0 * math.pi * self.s_prev / track.total_length
+        obs[cursor] = math.sin(phase)
+        obs[cursor + 1] = math.cos(phase)
+        obs[cursor + 2] = float(np.clip(
+            self.progress / track.total_length, -1.0, 4.0))
+        obs[cursor + 3] = float(np.clip(
+            (self.progress - self.peak_progress) / 25.0, -2.0, 0.0))
+        obs[cursor + 4] = float(np.clip(
+            (self.progress - self._stall_anchor_progress)
+            / STALL_MIN_PROGRESS, -2.0, 2.0))
+        obs[cursor + 5] = min(self._stall_steps / STALL_WINDOW, 1.0)
+        obs[cursor + 6] = self._objective_fraction()
+        cursor += TASK_OBS_DIM
         if self.fuel is not None:
             obs[cursor] = self.fuel
             cursor += 1
@@ -415,5 +466,7 @@ class DrivingEnv:
                 obs[cursor] = float(np.clip(gap / 150.0, -1.0, 1.0))
                 obs[cursor + 1] = (bot.speed - car.v_long) / p.max_speed
                 obs[cursor + 2] = bot.lat_frac
-                cursor += 3
+                obs[cursor + 3] = float(self._bot_passed[i])
+                cursor += 4
+        obs[cursor] = max(0.0, 1.0 - self.steps / self.max_steps)
         return obs

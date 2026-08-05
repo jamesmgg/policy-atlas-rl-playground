@@ -50,7 +50,7 @@ class CartPoleEnv:
     jitter: bool = True
     rng: random.Random = field(default_factory=random.Random)
 
-    obs_dim = 4
+    obs_dim = 5
     n_continuous = 1
     n_binary = 0
     max_steps = 500
@@ -97,7 +97,11 @@ class CartPoleEnv:
         elif done:
             self.cause = "balanced"
         self.episode_reward += reward
-        return self._obs(), reward, done, {"truncated": done and not failed}
+        deadline = done and not failed
+        return self._obs(), reward, done, {
+            "truncated": deadline,
+            "task_deadline": deadline,
+        }
 
     def _obs(self) -> np.ndarray:
         return np.array([
@@ -105,6 +109,7 @@ class CartPoleEnv:
             self.x_dot / 3.0,
             self.theta / THETA_THRESHOLD,
             self.theta_dot / 3.5,
+            max(0.0, 1.0 - self.steps / self.max_steps),
         ], dtype=np.float32)
 
     def frame_payload(self) -> dict:

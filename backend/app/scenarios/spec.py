@@ -17,6 +17,7 @@ class ScenarioSpec:
     metric_mode: str                 # "min" (lap times) | "max" (scores)
     make_env: Callable[[bool], Env]  # arg: jitter (False for deterministic eval)
     scene: Callable[[], dict]        # static geometry for the frontend
+    training_factory: Callable[[], Env] | None = None
     objective: str = "Maximize expected return."
     success: str = "Complete the task before the time limit."
     observations: tuple[str, ...] = ("agent state", "task state")
@@ -31,6 +32,12 @@ class ScenarioSpec:
     # incompatibly. Old checkpoints remain on disk but are hidden rather than
     # loaded or compared under a different scientific contract.
     checkpoint_schema: int = 1
+
+    def make_training_env(self) -> Env:
+        """Build the learning environment without changing evaluation starts."""
+        if self.training_factory is not None:
+            return self.training_factory()
+        return self.make_env(True)
 
     def info(self) -> dict:
         return {

@@ -39,6 +39,7 @@ FRAME_INTERVAL = 0.05  # seconds between live frames sent to clients
 SWITCH_JOIN_TIMEOUT = 15.0
 EVALUATION_SUITE_VERSION = "policy-atlas-eval-v1"
 EVALUATION_SEED_BASE = 100_000
+TRAINING_REWARD_SCALE = 0.01
 
 
 @lru_cache(maxsize=1)
@@ -116,10 +117,24 @@ def wilson_interval(successes: int, total: int, z: float = 1.96
 
 def bootstrap_time_limit(reward: float, next_value: float, done: bool,
                          info: dict, gamma: float = GAMMA) -> float:
-    """Apply time-limit bootstrapping without crossing an episode reset."""
-    if done and info.get("truncated", False):
+    """Bootstrap only external truncations, never an intrinsic task deadline."""
+    if (done and info.get("truncated", False)
+            and not info.get("task_deadline", False)):
         return reward + gamma * next_value
     return reward
+
+
+def training_reward(reward: float, next_value: float, done: bool,
+                    info: dict) -> float:
+    """Map display rewards into stable critic units before any bootstrap.
+
+    Multiplying every reward by one positive constant preserves the policy
+    objective. Raw environment returns remain untouched for the UI, ranking,
+    and evaluation reports.
+    """
+    scaled_reward = reward * TRAINING_REWARD_SCALE
+    return bootstrap_time_limit(
+        scaled_reward, next_value, done, info, gamma=GAMMA)
 
 
 def learning_payload(observation: np.ndarray, action: np.ndarray,
@@ -197,7 +212,7 @@ class Trainer:
         """Build env/agent/registry for a scenario. Caller holds the lock (or init)."""
         self.spec = get_spec(scenario_id)
         seed_everything(self.seed)
-        self.env = self.spec.make_env(True)
+        self.env = self.spec.make_training_env()
         if hasattr(self.env, "rng"):
             self.env.rng.seed(self.seed)
             self.env.reset()
@@ -214,6 +229,7 @@ class Trainer:
         self.best_metric: float | None = None
         self.ghost: dict | None = None
         self._learning: dict | None = None
+        self.latest_update_metrics: dict[str, float] | None = None
         self._restore_latest()
         self.run_start_episode = self.episode
         self.run_target_episode = self.episode
@@ -305,6 +321,7 @@ class Trainer:
             self.best_metric = None
             self.ghost = None
             self._learning = None
+            self.latest_update_metrics = None
             env.reset()
             self._emit_status()
             self.emit({"type": "history", "scenario_id": self.spec.id, "history": []})
@@ -335,6 +352,8 @@ class Trainer:
                 seed_everything(self.seed)
             if data.get("rng_state"):
                 restore_rng_state(data["rng_state"], self.env)
+            self.latest_update_metrics = data.get("meta", {}).get(
+                "training_diagnostics")
             self.ghost = None
             self._recompute_bests()
             self._emit_status()
@@ -400,6 +419,7 @@ class Trainer:
             "best_metric": self.best_metric,
             "device": str(self.device),
             "ghost_episode": self.ghost["episode"] if self.ghost else None,
+            "ppo_diagnostics": getattr(self, "latest_update_metrics", None),
         }
 
     # ------------------------------------------------------------- train loop
@@ -430,10 +450,12 @@ class Trainer:
                 # action with next_obs would make the explanatory policy loop
                 # one transition out of phase.
                 self._learning = learning_payload(obs, action, reward)
-                buffer_reward = reward
-                if done and info.get("truncated", False):
-                    buffer_reward = bootstrap_time_limit(
-                        reward, self.agent.get_value(next_obs), done, info)
+                next_value = (
+                    self.agent.get_value(next_obs)
+                    if done and info.get("truncated", False) else 0.0
+                )
+                buffer_reward = training_reward(
+                    reward, next_value, done, info)
                 buffer.add(obs, action, log_prob, buffer_reward, done, value)
                 self.total_steps += 1
 
@@ -463,12 +485,15 @@ class Trainer:
                 metrics = self.agent.update(buffer)
                 self.update_count += 1
                 self.sps = buffer.ptr / max(time.perf_counter() - t0, 1e-6)
+                self.latest_update_metrics = {
+                    key: round(value, 5) for key, value in metrics.items()
+                }
                 self.emit({"type": "ppo_update", "scenario_id": self.spec.id,
                            "episode": self.episode,
                            "total_steps": self.total_steps,
                            "update": self.update_count,
                            "sps": round(self.sps),
-                           **{k: round(v, 5) for k, v in metrics.items()}})
+                           **self.latest_update_metrics})
             should_save = done and (
                 checkpoint_due or self._stop.is_set()
                 or self.episode >= self.max_episodes
@@ -517,9 +542,11 @@ class Trainer:
             restore_rng_state(rng_state, self.env)
         eval_result["update_count"] = self.update_count
         eval_result["total_steps"] = self.total_steps
+        eval_result["training_diagnostics"] = getattr(
+            self, "latest_update_metrics", None)
         eval_result["protocol"] = {
             "algorithm": "PPO",
-            "version": 2,
+            "version": 3,
             "rollout_steps": ROLLOUT_STEPS,
             "episode_aligned_rollouts": True,
             "gamma": GAMMA,
@@ -528,6 +555,13 @@ class Trainer:
             "clip_epsilon": ppo_defaults.CLIP_EPS,
             "entropy_coefficient": ppo_defaults.ENT_COEF,
             "value_coefficient": ppo_defaults.VF_COEF,
+            "training_reward_scale": TRAINING_REWARD_SCALE,
+            "value_loss_scale": "rollout return RMS",
+            "training_start_distribution": (
+                "uniform track checkpoints"
+                if getattr(self.env, "random_start", False)
+                else "scenario default starts"
+            ),
             "update_epochs": ppo_defaults.UPDATE_EPOCHS,
             "minibatch_size": ppo_defaults.MINIBATCH_SIZE,
             "target_kl": ppo_defaults.TARGET_KL,
@@ -636,6 +670,8 @@ class Trainer:
                     seed_everything(self.seed)
                 if data.get("rng_state"):
                     restore_rng_state(data["rng_state"], self.env)
+                self.latest_update_metrics = data.get("meta", {}).get(
+                    "training_diagnostics")
                 self._recompute_bests()
                 log.info("[%s] restored checkpoint ep%d", self.spec.id, latest)
                 return

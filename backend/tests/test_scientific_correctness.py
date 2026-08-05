@@ -24,10 +24,13 @@ sys.path.insert(0, str(Path(__file__).parents[1]))
 from app.ppo.buffer import RolloutBuffer
 from app.ppo.network import ActorCritic
 from app.ppo.agent import PPOAgent
+from app.ppo import agent as agent_module
 from app.checkpoints import (
     CheckpointIntegrityError,
     CheckpointRegistry,
     IncompatibleCheckpointError,
+    _metadata_sha256,
+    _sha256,
 )
 from app.settings import Settings
 from app.scenarios import list_specs
@@ -52,7 +55,7 @@ class TestRolloutBoundaries(unittest.TestCase):
         np.testing.assert_allclose(buffer.advantages, [3.0, 2.0, -2.0])
         np.testing.assert_allclose(buffer.returns, [3.0, 2.0, 8.0])
 
-    def test_time_limit_bootstraps_value_but_natural_terminal_does_not(self) -> None:
+    def test_intrinsic_deadline_is_terminal_but_external_truncation_bootstraps(self) -> None:
         bootstrap = getattr(trainer_module, "bootstrap_time_limit", None)
         self.assertTrue(callable(bootstrap), "bootstrap_time_limit is missing")
         self.assertEqual(
@@ -65,13 +68,50 @@ class TestRolloutBoundaries(unittest.TestCase):
                       info={"truncated": False}, gamma=0.9),
             2.0,
         )
+        self.assertEqual(
+            bootstrap(2.0, next_value=10.0, done=True,
+                      info={"truncated": True, "task_deadline": True}, gamma=0.9),
+            2.0,
+            "a declared puzzle deadline has no unobserved continuation value",
+        )
 
-    def test_environment_marks_time_limit_as_truncated(self) -> None:
-        pendulum = {s.id: s for s in list_specs()}["pendulum-swingup"].make_env(False)
-        pendulum.steps = pendulum.max_steps - 1
-        _, _, done, info = pendulum.step(np.array([0.0]))
-        self.assertTrue(done)
-        self.assertTrue(info.get("truncated"))
+    def test_training_reward_scale_is_explicit_and_precedes_bootstrapping(self) -> None:
+        training_reward = getattr(trainer_module, "training_reward", None)
+        self.assertTrue(callable(training_reward), "training_reward is missing")
+        self.assertAlmostEqual(
+            training_reward(250.0, next_value=3.0, done=False, info={}),
+            2.5,
+        )
+        self.assertAlmostEqual(
+            training_reward(
+                250.0,
+                next_value=3.0,
+                done=True,
+                info={"truncated": True, "task_deadline": True},
+            ),
+            2.5,
+            msg="intrinsic deadlines must remain terminal after reward scaling",
+        )
+        self.assertAlmostEqual(
+            training_reward(
+                250.0,
+                next_value=3.0,
+                done=True,
+                info={"truncated": True, "task_deadline": False},
+            ),
+            2.5 + trainer_module.GAMMA * 3.0,
+            msg="an external truncation bootstraps in scaled critic units",
+        )
+
+    def test_every_fixed_horizon_is_marked_as_an_intrinsic_deadline(self) -> None:
+        for spec in list_specs():
+            with self.subTest(scenario=spec.id):
+                env = spec.make_env(False)
+                env.steps = env.max_steps - 1
+                action = np.zeros(env.n_continuous + env.n_binary)
+                _, _, done, info = env.step(action)
+                self.assertTrue(done)
+                self.assertTrue(info.get("task_deadline"))
 
     def test_partial_rollout_uses_only_the_samples_that_were_collected(self) -> None:
         buffer = RolloutBuffer(capacity=8, obs_dim=1, act_dim=1)
@@ -162,6 +202,67 @@ class TestRolloutBoundaries(unittest.TestCase):
 
 
 class TestBoundedPolicy(unittest.TestCase):
+    def test_continuous_exploration_has_no_forced_entropy_pressure(self) -> None:
+        self.assertEqual(agent_module.ENT_COEF, 0.0)
+        agent = PPOAgent(3, 2, 0, torch.device("cpu"))
+        exploration_stats = getattr(agent, "exploration_stats", None)
+        self.assertTrue(callable(exploration_stats), "exploration diagnostics missing")
+        stats = exploration_stats()
+        expected = math.exp(-0.5)
+        self.assertAlmostEqual(stats["action_std_mean"], expected, places=6)
+        self.assertAlmostEqual(stats["action_std_min"], expected, places=6)
+        self.assertAlmostEqual(stats["action_std_max"], expected, places=6)
+        self.assertAlmostEqual(stats["action_std_0"], expected, places=6)
+        self.assertAlmostEqual(stats["action_std_1"], expected, places=6)
+
+    def test_critic_diagnostics_report_calibration_and_bias(self) -> None:
+        diagnostics = getattr(agent_module, "critic_diagnostics", None)
+        self.assertTrue(callable(diagnostics), "critic diagnostics missing")
+        stats = diagnostics(
+            np.array([1.0, 2.0, 3.0]),
+            np.array([0.5, 1.0, 1.5]),
+        )
+        self.assertAlmostEqual(stats["value_bias"], -1.0)
+        self.assertLess(stats["explained_variance"], 1.0)
+
+    def test_value_loss_is_invariant_to_reward_units(self) -> None:
+        value_loss = getattr(agent_module, "scale_aware_value_loss", None)
+        self.assertTrue(callable(value_loss), "scale_aware_value_loss is missing")
+        old = torch.tensor([0.0, 2.0, 4.0, 6.0])
+        new = torch.tensor([1.0, 0.0, 7.0, 2.0], requires_grad=True)
+        returns = torch.tensor([0.0, 10.0, 20.0, 30.0])
+
+        base_loss, base_scale, base_clip_fraction = value_loss(
+            new, old, returns, clip_epsilon=0.2)
+        scaled_loss, scaled_scale, scaled_clip_fraction = value_loss(
+            new * 100.0, old * 100.0, returns * 100.0, clip_epsilon=0.2)
+
+        torch.testing.assert_close(base_loss, scaled_loss)
+        torch.testing.assert_close(scaled_scale, base_scale * 100.0)
+        torch.testing.assert_close(base_clip_fraction, scaled_clip_fraction)
+        _, constant_scale, _ = value_loss(
+            torch.full((4,), 10.0), torch.zeros(4), torch.full((4,), 100.0),
+            clip_epsilon=0.2,
+        )
+        torch.testing.assert_close(constant_scale, torch.tensor(100.0))
+        base_loss.backward()
+        self.assertTrue(torch.all(torch.isfinite(new.grad)).item())
+
+    def test_value_loss_accepts_one_normalizer_for_the_whole_rollout(self) -> None:
+        first_loss, first_scale, _ = agent_module.scale_aware_value_loss(
+            torch.tensor([1.0]), torch.tensor([0.0]), torch.tensor([1.0]),
+            target_scale=25.0,
+        )
+        rare_loss, rare_scale, _ = agent_module.scale_aware_value_loss(
+            torch.tensor([90.0]), torch.tensor([80.0]), torch.tensor([100.0]),
+            target_scale=25.0,
+        )
+
+        torch.testing.assert_close(first_scale, torch.tensor(25.0))
+        torch.testing.assert_close(rare_scale, torch.tensor(25.0))
+        self.assertTrue(torch.isfinite(first_loss))
+        self.assertTrue(torch.isfinite(rare_loss))
+
     def test_continuous_actions_are_bounded_and_log_prob_is_recomputable(self) -> None:
         torch.manual_seed(41)
         policy = ActorCritic(obs_dim=4, n_continuous=2, n_binary=1,
@@ -254,6 +355,17 @@ class TestExperimentContract(unittest.TestCase):
             "canonical MountainCar has discrete control steps, not physical seconds",
         )
 
+    def test_finite_horizon_state_exposes_remaining_time(self) -> None:
+        for spec in list_specs():
+            with self.subTest(scenario=spec.id):
+                env = spec.make_env(False)
+                initial = env.reset()
+                self.assertIn("remaining", spec.observation_dimensions[-1])
+                self.assertAlmostEqual(float(initial[-1]), 1.0, places=6)
+                env.steps = env.max_steps // 2
+                midpoint = env._obs()
+                self.assertAlmostEqual(float(midpoint[-1]), 0.5, places=2)
+
     def test_classic_control_library_includes_cartpole_and_mountain_car(self) -> None:
         specs = {spec.id: spec for spec in list_specs()}
         self.assertIn("cartpole-balance", specs)
@@ -285,8 +397,8 @@ class TestExperimentContract(unittest.TestCase):
         spec = {s.id: s for s in list_specs()}["mountain-car"]
         self.assertEqual(
             spec.checkpoint_schema,
-            2,
-            "a changed metric meaning must not reuse peak-position checkpoints",
+            3,
+            "changed metric and finite-horizon observations require a fresh policy",
         )
         mountain = spec.make_env(False)
         mountain.control_effort = 3.25
@@ -343,21 +455,184 @@ class TestExperimentContract(unittest.TestCase):
         self.assertGreaterEqual(env.theta, -math.pi)
         self.assertLess(env.theta, math.pi)
 
+    def test_lander_rejects_high_speed_contact_in_either_vertical_direction(self) -> None:
+        from app.envs.lander import LanderEnv, PAD_CX, PAD_Y
+
+        env = LanderEnv(jitter=False)
+        env.x, env.y = PAD_CX, PAD_Y + 5.0
+        env.vx, env.vy = 0.0, -100.0
+        env.theta = env.omega = 0.0
+
+        _, _, done, _ = env.step(np.array([-1.0, 0.0]))
+
+        self.assertTrue(done)
+        self.assertFalse(env.landed)
+        self.assertEqual(env.cause, "crash")
+
+    def test_pendulum_catalog_horizon_matches_runtime(self) -> None:
+        spec = {spec.id: spec for spec in list_specs()}["pendulum-swingup"]
+        env = spec.make_env(False)
+
+        self.assertEqual(spec.horizon_seconds, env.max_steps * env.dt)
+        self.assertTrue(any(
+            "16-second horizon" in condition
+            for condition in spec.termination_conditions
+        ))
+
     def test_driving_observation_exposes_surface_and_every_traffic_car(self) -> None:
         specs = {spec.id: spec for spec in list_specs()}
         dry = specs["apex-gp"].make_env(False)
         wet = specs["apex-gp-wet"].make_env(False)
         traffic = specs["traffic-rush"].make_env(False)
-        self.assertEqual(specs["traffic-rush"].checkpoint_schema, 4)
+        self.assertEqual(specs["traffic-rush"].checkpoint_schema, 7)
 
         self.assertGreaterEqual(dry.obs_dim, 17)  # base state + grip profile
         self.assertEqual(wet.obs_dim, dry.obs_dim)
-        self.assertEqual(traffic.obs_dim - dry.obs_dim, 9)  # 3 values x 3 bots
+        self.assertEqual(traffic.obs_dim - dry.obs_dim, 12)  # 4 values x 3 bots
 
+        first_bot = dry.obs_dim - 1  # traffic fields precede the shared time field
         traffic._bot_arcs[0] = (traffic.s_prev - 2.0) % traffic.track.total_length
         self.assertLess(
-            float(traffic._obs()[dry.obs_dim]), 0.0,
+            float(traffic._obs()[first_bot]), 0.0,
             "a nearby rear traffic car must not look like distant clear road",
+        )
+        traffic._bot_passed[0] = True
+        self.assertEqual(float(traffic._obs()[first_bot + 3]), 1.0)
+
+    def test_driving_observation_exposes_reward_and_termination_state(self) -> None:
+        spec = {spec.id: spec for spec in list_specs()}["drift-trial"]
+        env = spec.make_env(False)
+        dimensions = list(spec.observation_dimensions)
+        required = (
+            "sin track phase",
+            "cos track phase",
+            "forward course progress / lap length",
+            "wrong-way margin / 25",
+            "progress since stall anchor / threshold",
+            "stall counter / limit",
+            "objective completion fraction",
+        )
+        for dimension in required:
+            self.assertIn(dimension, dimensions)
+
+        env.s_prev = env.track.total_length * 0.25
+        env.progress = env.track.total_length * 0.4
+        env.peak_progress = env.progress + 12.5
+        env._stall_anchor_progress = env.progress - 6.0
+        env._stall_steps = 150
+        env.style = 5.0
+        observation = env._obs()
+
+        self.assertAlmostEqual(
+            float(observation[dimensions.index("sin track phase")]), 1.0,
+            places=5,
+        )
+        self.assertAlmostEqual(
+            float(observation[dimensions.index("cos track phase")]), 0.0,
+            places=5,
+        )
+        self.assertAlmostEqual(
+            float(observation[dimensions.index(
+                "forward course progress / lap length")]), 0.4,
+            places=5,
+        )
+        self.assertAlmostEqual(
+            float(observation[dimensions.index("wrong-way margin / 25")]), -0.5,
+            places=5,
+        )
+        self.assertAlmostEqual(
+            float(observation[dimensions.index(
+                "progress since stall anchor / threshold")]), 0.5,
+            places=5,
+        )
+        self.assertAlmostEqual(
+            float(observation[dimensions.index("stall counter / limit")]), 0.5,
+            places=5,
+        )
+        self.assertAlmostEqual(
+            float(observation[dimensions.index("objective completion fraction")]),
+            0.5,
+            places=5,
+        )
+
+        eco_spec = {spec.id: spec for spec in list_specs()}["eco-gp"]
+        eco = eco_spec.make_env(False)
+        eco.progress = 1.5 * eco.track.total_length
+        eco_observation = eco._obs()
+        self.assertAlmostEqual(
+            float(eco_observation[list(eco_spec.observation_dimensions).index(
+                "forward course progress / lap length")]),
+            1.5,
+            places=5,
+            msg="multi-lap Eco state must not collapse to the one-lap boundary",
+        )
+
+    def test_driving_stall_rule_is_an_explicit_observed_counter(self) -> None:
+        from app.envs.driving import STALL_WINDOW
+
+        spec = {spec.id: spec for spec in list_specs()}["apex-gp"]
+        env = spec.make_env(False)
+        self.assertFalse(hasattr(env, "_progress_log"))
+        env._stall_steps = STALL_WINDOW - 1
+
+        _, _, done, _ = env.step(np.zeros(3))
+
+        self.assertTrue(done)
+        self.assertEqual(env.cause, "stall")
+
+    def test_randomized_driving_start_samples_track_checkpoints(self) -> None:
+        training = {spec.id: spec for spec in list_specs()}[
+            "rally-ridge"
+        ].make_env(False)
+        self.assertTrue(
+            hasattr(training, "random_start"),
+            "DrivingEnv has no training start-distribution control",
+        )
+        training.random_start = True
+        training.jitter = True
+        training.rng.seed(42)
+
+        starts = set()
+        for _ in range(48):
+            training.reset()
+            starts.add(training.idx)
+
+        self.assertTrue(starts.issubset(set(training.track.checkpoints)))
+        self.assertGreaterEqual(len(starts), len(training.track.checkpoints) // 2)
+
+    def test_randomized_traffic_start_preserves_relative_bot_gaps(self) -> None:
+        traffic = {spec.id: spec for spec in list_specs()}[
+            "traffic-rush"
+        ].make_env(False)
+        traffic.random_start = True
+        traffic.rng.seed(7)
+        traffic.reset()
+        self.assertNotEqual(traffic.idx, 0, "test seed must exercise a moved start")
+
+        for index, bot in enumerate(traffic.features.bots):
+            with self.subTest(bot=index):
+                self.assertAlmostEqual(
+                    traffic._bot_gap(index),
+                    bot.start_frac * traffic.track.total_length,
+                    places=6,
+                )
+
+    def test_only_driving_training_factory_enables_random_starts(self) -> None:
+        specs = {spec.id: spec for spec in list_specs()}
+        driving = specs["rally-ridge"]
+        make_training_env = getattr(driving, "make_training_env", None)
+        self.assertTrue(callable(make_training_env), "training factory is missing")
+
+        training = make_training_env()
+        fixed_suite = driving.make_env(True)
+        canonical = driving.make_env(False)
+
+        self.assertTrue(training.random_start)
+        self.assertFalse(fixed_suite.random_start)
+        self.assertFalse(canonical.random_start)
+        self.assertFalse(
+            getattr(specs["cartpole-balance"].make_training_env(),
+                    "random_start", False),
         )
 
     def test_terminal_driving_failure_cannot_be_reported_as_success(self) -> None:
@@ -404,12 +679,74 @@ class TestExperimentContract(unittest.TestCase):
             msg="the drift control alone is not physical drifting",
         )
 
+    def test_drift_trial_style_requires_forward_measured_slip(self) -> None:
+        from app.physics import CarState
+        from app.track import heading_at
+
+        spec = {spec.id: spec for spec in list_specs()}["drift-trial"]
+        trial = spec.make_env(False)
+        idx = int(np.argmax(np.abs(trial.track.curvature)))
+        x, y = trial.track.centerline[idx]
+        heading = heading_at(trial.track, idx)
+
+        def place(v_long: float, v_lat: float) -> None:
+            trial.car = CarState(
+                x=float(x), y=float(y), heading=heading,
+                v_long=v_long, v_lat=v_lat, omega=0.0, drift=1.0,
+            )
+            trial.idx = idx
+            trial.s_prev = float(trial.track.arc[idx])
+            trial.style = 0.0
+
+        place(20.0, 0.0)
+        trial.step(np.array([0.0, 0.0, 1.0]))
+        self.assertEqual(trial.style, 0.0, "a drift button is not tire slip")
+
+        place(-20.0, math.tan(math.radians(15.0)) * 20.0)
+        trial.step(np.array([0.0, 0.0, 1.0]))
+        self.assertEqual(trial.style, 0.0, "reverse travel cannot farm style")
+
+        place(20.0, math.tan(math.radians(15.0)) * 20.0)
+        trial.step(np.array([0.0, 0.0, 1.0]))
+        self.assertGreater(trial.style, 0.0)
+
+    def test_traffic_rewards_each_bot_identity_only_once(self) -> None:
+        traffic = {spec.id: spec for spec in list_specs()}["traffic-rush"].make_env(False)
+        length = traffic.track.total_length
+        far = traffic.s_prev + length * 0.5
+        traffic._bot_arcs = [traffic.s_prev + 10.0, far, far + 50.0]
+        traffic._bot_prev_gap = [traffic._bot_gap(i) for i in range(3)]
+        traffic.s_prev += 25.0
+
+        self.assertGreater(traffic._step_bots(), 0.0)
+        self.assertEqual(traffic.overtakes, 1)
+
+        traffic._bot_arcs[0] = traffic.s_prev + 100.0
+        traffic._bot_prev_gap[0] = 100.0
+        traffic._step_bots()  # the legacy implementation re-arms bot zero
+        traffic._bot_arcs[0] = traffic.s_prev + 10.0
+        traffic._bot_prev_gap[0] = 10.0
+        traffic.s_prev += 25.0
+        self.assertEqual(traffic._step_bots(), 0.0)
+        self.assertEqual(traffic.overtakes, 1)
+
+    def test_completed_driving_objective_ends_before_a_later_crash(self) -> None:
+        specs = {spec.id: spec for spec in list_specs()}
+        apex = specs["apex-gp"].make_env(False)
+        apex.laps = 1
+
+        _, _, done, _ = apex.step(np.zeros(3))
+
+        self.assertTrue(done)
+        self.assertEqual(apex.cause, "complete")
+        self.assertTrue(apex.episode_summary()["success"])
+
     def test_rally_failure_reports_normalized_peak_progress(self) -> None:
         spec = {spec.id: spec for spec in list_specs()}["rally-ridge"]
         self.assertEqual(
             spec.checkpoint_schema,
-            3,
-            "changed reward and evaluation semantics require a fresh policy",
+            6,
+            "changed reward, evaluation, and observation semantics require a fresh policy",
         )
         rally = spec.make_env(False)
         rally.peak_progress = rally.track.total_length * 0.42
@@ -426,6 +763,53 @@ class TestExperimentContract(unittest.TestCase):
 
 
 class TestEvaluationProtocol(unittest.TestCase):
+    def test_checkpoint_protocol_discloses_learning_scale_and_revision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            trainer = trainer_module.Trainer(Settings(
+                port=8901,
+                checkpoint_dir=Path(tmp),
+                checkpoint_every_n=25,
+                max_episodes=10,
+                use_gpu=False,
+                seed=42,
+                eval_episodes=1,
+            ))
+            trainer._run_eval = lambda: {
+                "reward": 0.0, "reward_std": 0.0,
+                "metric": None, "metric_std": None,
+                "failure_progress": 0.0, "episodes": 1,
+                "success_rate": 0.0,
+                "success_ci_low": 0.0, "success_ci_high": 1.0,
+                "evaluation_suite": "test-suite", "seed": 42,
+                "trajectory": [],
+            }
+            trainer._save_checkpoint()
+            protocol = trainer.registry.list()[0]["protocol"]
+
+        self.assertEqual(protocol["version"], 3)
+        self.assertEqual(protocol["training_reward_scale"], 0.01)
+        self.assertEqual(protocol["entropy_coefficient"], 0.0)
+        self.assertEqual(protocol["value_loss_scale"], "rollout return RMS")
+        self.assertEqual(
+            protocol["training_start_distribution"],
+            "uniform track checkpoints",
+        )
+
+    def test_trainer_uses_training_factory_for_driving_environment(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            trainer = trainer_module.Trainer(Settings(
+                port=8901,
+                checkpoint_dir=Path(tmp),
+                checkpoint_every_n=25,
+                max_episodes=10,
+                use_gpu=False,
+                seed=42,
+                eval_episodes=1,
+            ))
+
+        self.assertEqual(trainer.spec.id, "apex-gp")
+        self.assertTrue(trainer.env.random_start)
+
     def test_evaluation_summary_reports_dispersion_and_success_rate(self) -> None:
         aggregate = getattr(trainer_module, "aggregate_evaluations", None)
         self.assertTrue(callable(aggregate), "aggregate_evaluations is missing")
@@ -495,6 +879,11 @@ class TestEvaluationProtocol(unittest.TestCase):
                 "total_steps": 4096,
                 "protocol": {"algorithm": "PPO", "gamma": 0.995,
                              "rollout_steps": 2048},
+                "training_diagnostics": {
+                    "explained_variance": 0.42,
+                    "value_bias": -0.17,
+                    "action_std_mean": 0.31,
+                },
                 "trajectory": [],
             })
             meta = registry.list()[0]
@@ -510,6 +899,27 @@ class TestEvaluationProtocol(unittest.TestCase):
         self.assertEqual(meta["update_count"], 17)
         self.assertEqual(meta["total_steps"], 4096)
         self.assertEqual(meta["protocol"]["gamma"], 0.995)
+        self.assertEqual(meta["training_diagnostics"]["explained_variance"], 0.42)
+
+    def test_status_exposes_latest_optimizer_diagnostics(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            trainer = trainer_module.Trainer(Settings(
+                port=8901,
+                checkpoint_dir=Path(tmp),
+                checkpoint_every_n=25,
+                max_episodes=10,
+                use_gpu=False,
+                seed=42,
+                eval_episodes=1,
+            ))
+            trainer.latest_update_metrics = {
+                "explained_variance": 0.25,
+                "value_bias": -0.5,
+                "action_std_mean": 0.4,
+            }
+            status = trainer.status()
+
+        self.assertEqual(status["ppo_diagnostics"]["explained_variance"], 0.25)
 
     def test_tampered_sidecar_is_hidden_and_refused_on_load(self) -> None:
         agent = PPOAgent(2, 1, 0, torch.device("cpu"))
@@ -532,6 +942,32 @@ class TestEvaluationProtocol(unittest.TestCase):
             self.assertEqual(registry.list(), [])
             with self.assertRaises(CheckpointIntegrityError):
                 registry.load(5)
+
+    def test_same_schema_checkpoint_signed_before_optional_field_is_added(self) -> None:
+        agent = PPOAgent(2, 1, 0, torch.device("cpu"))
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = CheckpointRegistry(Path(tmp), "test", schema_version=1)
+            registry.save(5, agent, [{"reward": 1.0}], {
+                "reward": 12.0, "metric": 4.0, "trajectory": [],
+            })
+            sidecar = registry._json(5)
+            tensor = registry._pt(5)
+
+            payload = json.loads(sidecar.read_text())
+            payload.pop("training_diagnostics")
+            payload["metadata_sha256"] = _metadata_sha256(payload)
+            data = torch.load(tensor, map_location="cpu", weights_only=False)
+            data["meta"].pop("training_diagnostics")
+            data["meta"]["metadata_sha256"] = _metadata_sha256(data["meta"])
+            torch.save(data, tensor)
+            payload["checkpoint_sha256"] = _sha256(tensor)
+            sidecar.write_text(json.dumps(payload))
+
+            listed = registry.list()
+            self.assertEqual(len(listed), 1)
+            self.assertIsNone(listed[0]["training_diagnostics"])
+            loaded = registry.load(5)
+            self.assertNotIn("training_diagnostics", loaded["meta"])
 
     def test_incompatible_checkpoint_schema_is_hidden_and_refused(self) -> None:
         agent = PPOAgent(2, 1, 0, torch.device("cpu"))
@@ -572,6 +1008,11 @@ class TestEvaluationProtocol(unittest.TestCase):
                 (archives[0] / "checkpoint_ep000005.json").read_bytes(),
                 old_sidecar,
             )
+            listed = new_registry.list_archives()
+            self.assertEqual(len(listed), 1)
+            self.assertFalse(listed[0]["compatible"])
+            self.assertEqual(listed[0]["schema_version"], 1)
+            self.assertFalse(new_registry.restore_archive(listed[0]["id"]))
 
             # Reusing an episode number in the new schema must not overwrite
             # the preserved experiment.
@@ -611,9 +1052,28 @@ class TestEvaluationProtocol(unittest.TestCase):
             self.assertEqual(runs[0]["id"], archive_id)
             self.assertEqual(runs[0]["latest_episode"], 5)
             self.assertEqual(runs[0]["checkpoints"], 1)
+            self.assertTrue(runs[0]["compatible"])
+            self.assertEqual(runs[0]["schema_version"], 1)
             self.assertTrue(registry.restore_archive(archive_id))
             self.assertEqual([m["episode"] for m in registry.list()], [5])
             self.assertEqual(registry.list_archives(), [])
+
+    def test_malformed_unsigned_archive_is_ignored_without_hiding_other_runs(self) -> None:
+        agent = PPOAgent(2, 1, 0, torch.device("cpu"))
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = CheckpointRegistry(Path(tmp), "test")
+            registry.save(5, agent, [{"reward": 1.0}], {
+                "reward": 1.0, "metric": 1.0, "trajectory": [],
+            })
+            valid_archive = registry.archive_current()
+            malformed = registry.dir / "archive" / "malformed"
+            malformed.mkdir()
+            (malformed / "checkpoint_ep000010.json").write_text("{}")
+            (malformed / "checkpoint_ep000010.pt").write_bytes(b"not-a-checkpoint")
+
+            runs = registry.list_archives()
+
+            self.assertEqual([run["id"] for run in runs], [valid_archive.name])
 
     def test_corrupt_archive_is_rejected_before_the_active_branch_moves(self) -> None:
         agent = PPOAgent(2, 1, 0, torch.device("cpu"))

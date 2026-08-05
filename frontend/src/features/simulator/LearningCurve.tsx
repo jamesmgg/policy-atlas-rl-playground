@@ -6,11 +6,11 @@ import {
 import type { PpoUpdateRecord } from "../../api/types";
 import { useTrainingSocket } from "../../hooks/useTrainingSocket";
 
-const CHART_GRID = "#d8e1de";
-const CHART_TEXT = "#52645f";
+const CHART_GRID = "#29414c";
+const CHART_TEXT = "#8ea29e";
 const TOOLTIP_STYLE = {
-  background: "#ffffff", border: "1px solid #c7d5d1", borderRadius: 10,
-  boxShadow: "0 10px 30px rgba(23,39,37,.12)", fontSize: 12,
+  background: "#10232f", border: "1px solid #29414c", borderRadius: 10,
+  boxShadow: "0 10px 30px rgba(0,0,0,.28)", color: "#edf4f1", fontSize: 12,
 };
 
 function DiagnosticChart({
@@ -19,7 +19,8 @@ function DiagnosticChart({
   title: string;
   description: string;
   data: PpoUpdateRecord[];
-  dataKey: "entropy" | "approx_kl" | "policy_loss";
+  dataKey: "entropy" | "approx_kl" | "policy_loss" | "explained_variance"
+    | "value_bias" | "action_std_mean";
   color: string;
   reference?: number;
 }) {
@@ -33,7 +34,7 @@ function DiagnosticChart({
             label={{ value: "PPO update", position: "insideBottomRight", offset: -2, fill: CHART_TEXT, fontSize: 10 }} />
           <YAxis stroke={CHART_TEXT} fontSize={10} tickLine={false} axisLine={false} />
           <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={(value) => `Update ${value}`} />
-          {reference != null && <ReferenceLine y={reference} stroke="#c95663" strokeDasharray="4 4" />}
+          {reference != null && <ReferenceLine y={reference} stroke="#ef7e8a" strokeDasharray="4 4" />}
           <Line dataKey={dataKey} stroke={color} dot={false} strokeWidth={2}
             isAnimationActive={false} name={title} />
         </ComposedChart>
@@ -107,13 +108,13 @@ export default function LearningCurve() {
                   label={{ value: "Return", angle: -90, position: "insideLeft", fill: CHART_TEXT, fontSize: 11 }} />
                 <YAxis yAxisId="success" orientation="right" domain={[0, 100]} hide />
                 <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={(value) => `Episode ${value}`} />
-                <Area yAxisId="return" dataKey="reward" stroke="none" fill="rgba(53,103,200,.10)"
+                <Area yAxisId="return" dataKey="reward" stroke="none" fill="rgba(120,167,243,.13)"
                   isAnimationActive={false} name="Episode return" />
-                <Line yAxisId="return" dataKey="reward" stroke="rgba(53,103,200,.3)" dot={false}
+                <Line yAxisId="return" dataKey="reward" stroke="rgba(120,167,243,.35)" dot={false}
                   strokeWidth={1} isAnimationActive={false} name="Episode return" />
-                <Line yAxisId="return" dataKey="rollingMean" stroke="#3567c8" dot={false}
+                <Line yAxisId="return" dataKey="rollingMean" stroke="#78a7f3" dot={false}
                   strokeWidth={2.5} isAnimationActive={false} name="20-episode mean" />
-                <Line yAxisId="success" dataKey="successMean" stroke="#236b61" dot={false}
+                <Line yAxisId="success" dataKey="successMean" stroke="#78b9ad" dot={false}
                   strokeWidth={1.8} strokeDasharray="5 4" isAnimationActive={false} name="Success rate (%)" />
               </ComposedChart>
             </ResponsiveContainer>
@@ -143,11 +144,17 @@ export default function LearningCurve() {
       ) : (
         <div className="diagnostic-grid">
           <DiagnosticChart title="Squashed entropy" description="Executed-action exploration; collapse trends downward."
-            data={ppo} dataKey="entropy" color="#8b5bb1" />
+            data={ppo} dataKey="entropy" color="#bd8ddd" />
           <DiagnosticChart title="Approximate KL" description="How far the policy moved; red line is the early-stop target."
-            data={ppo} dataKey="approx_kl" color="#a85b12" reference={0.03} />
+            data={ppo} dataKey="approx_kl" color="#d8aa5e" reference={0.03} />
           <DiagnosticChart title="Policy loss" description="Optimization signal; scale is meaningful only within this run."
-            data={ppo} dataKey="policy_loss" color="#3567c8" />
+            data={ppo} dataKey="policy_loss" color="#78a7f3" />
+          <DiagnosticChart title="Critic explained variance" description="Above zero means value estimates explain some return variation."
+            data={ppo} dataKey="explained_variance" color="#78b9ad" reference={0} />
+          <DiagnosticChart title="Critic value bias" description="Mean value minus return in disclosed training-reward units."
+            data={ppo} dataKey="value_bias" color="#ef7e8a" reference={0} />
+          <DiagnosticChart title="Action spread" description="Mean latent Gaussian standard deviation; lower values mean finer control."
+            data={ppo} dataKey="action_std_mean" color="#d8aa5e" />
         </div>
       )}
     </section>

@@ -36,7 +36,7 @@ class DroneEnv:
     jitter: bool = True
     rng: random.Random = field(default_factory=random.Random)
 
-    obs_dim = 8
+    obs_dim = 9
     n_continuous = 2
     n_binary = 0
     max_steps = 900
@@ -101,7 +101,11 @@ class DroneEnv:
         self._d_prev = d
 
         self.episode_reward += reward
-        return self._obs(), reward, done, {"truncated": done and self.cause == "timeout"}
+        deadline = done and self.cause == "timeout"
+        return self._obs(), reward, done, {
+            "truncated": deadline,
+            "task_deadline": deadline,
+        }
 
     def _obs(self) -> np.ndarray:
         wx, wy = self._target()
@@ -114,6 +118,7 @@ class DroneEnv:
             math.cos(self.theta),
             self.omega / 4.0,
             self.k / len(WAYPOINTS),
+            max(0.0, 1.0 - self.steps / self.max_steps),
         ], dtype=np.float32)
 
     def frame_payload(self) -> dict:

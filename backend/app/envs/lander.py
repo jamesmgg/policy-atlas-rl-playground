@@ -60,7 +60,7 @@ class LanderEnv:
     jitter: bool = True
     rng: random.Random = field(default_factory=random.Random)
 
-    obs_dim = 8
+    obs_dim = 9
     n_continuous = 2
     n_binary = 0
     max_steps = 600
@@ -115,7 +115,7 @@ class LanderEnv:
         if self.y >= terrain_y(self.x):
             done = True
             on_pad = PAD_X0 <= self.x <= PAD_X1
-            soft = (abs(self.vx) < SAFE_VX and self.vy < SAFE_VY
+            soft = (abs(self.vx) < SAFE_VX and abs(self.vy) < SAFE_VY
                     and abs(self.theta) < SAFE_THETA)
             if on_pad and soft:
                 reward += 100.0
@@ -131,7 +131,11 @@ class LanderEnv:
             done, self.cause = True, "timeout"
 
         self.episode_reward += reward
-        return self._obs(), reward, done, {"truncated": done and self.cause == "timeout"}
+        deadline = done and self.cause == "timeout"
+        return self._obs(), reward, done, {
+            "truncated": deadline,
+            "task_deadline": deadline,
+        }
 
     def _obs(self) -> np.ndarray:
         return np.array([
@@ -143,6 +147,7 @@ class LanderEnv:
             math.cos(self.theta),
             self.omega / 3.0,
             self.fuel,
+            max(0.0, 1.0 - self.steps / self.max_steps),
         ], dtype=np.float32)
 
     def frame_payload(self) -> dict:

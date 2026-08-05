@@ -42,7 +42,7 @@ class MountainCarEnv:
     jitter: bool = True
     rng: random.Random = field(default_factory=random.Random)
 
-    obs_dim = 2
+    obs_dim = 3
     n_continuous = 1
     n_binary = 0
     max_steps = 999
@@ -83,12 +83,17 @@ class MountainCarEnv:
         elif done:
             self.cause = "timeout"
         self.episode_reward += reward
-        return self._obs(), reward, done, {"truncated": done and not reached}
+        deadline = done and not reached
+        return self._obs(), reward, done, {
+            "truncated": deadline,
+            "task_deadline": deadline,
+        }
 
     def _obs(self) -> np.ndarray:
         return np.array([
             2.0 * (self.position - MIN_POSITION) / (MAX_POSITION - MIN_POSITION) - 1.0,
             self.velocity / MAX_SPEED,
+            max(0.0, 1.0 - self.steps / self.max_steps),
         ], dtype=np.float32)
 
     def frame_payload(self) -> dict:

@@ -12,11 +12,60 @@ from .network import ActorCritic
 LR = 3e-4
 CLIP_EPS = 0.2
 VF_COEF = 0.5
-ENT_COEF = 0.01
+ENT_COEF = 0.0
 MAX_GRAD_NORM = 0.5
 UPDATE_EPOCHS = 10
 MINIBATCH_SIZE = 256
 TARGET_KL = 0.03
+
+
+def critic_diagnostics(
+    targets: np.ndarray,
+    predictions: np.ndarray,
+) -> dict[str, float]:
+    """Calibration signals in the critic's disclosed training-reward units."""
+    target_variance = float(np.var(targets))
+    explained_variance = (
+        1.0 - float(np.var(targets - predictions)) / target_variance
+        if target_variance > 1e-8 else 0.0
+    )
+    return {
+        "explained_variance": explained_variance,
+        "value_bias": float(np.mean(predictions - targets)),
+    }
+
+
+def scale_aware_value_loss(
+    new_value: torch.Tensor,
+    old_value: torch.Tensor,
+    returns: torch.Tensor,
+    *,
+    clip_epsilon: float = CLIP_EPS,
+    target_scale: float | torch.Tensor | None = None,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Clipped critic loss expressed in rollout-return RMS units.
+
+    PPO's advantages are already normalized, but the shared critic previously
+    saw raw targets ranging from fractions to thousands across experiments.
+    One rollout-level scale is reused for every shuffled minibatch so a rare
+    high-return sample cannot change critic weighting merely because of which
+    batch it lands in.
+    """
+    if target_scale is None:
+        scale = returns.square().mean().sqrt().detach().clamp_min(1.0)
+    else:
+        scale = torch.as_tensor(
+            target_scale, dtype=returns.dtype, device=returns.device,
+        ).detach().clamp_min(1.0)
+    clip_width = clip_epsilon * scale
+    value_delta = new_value - old_value
+    clipped_value = old_value + torch.clamp(
+        value_delta, -clip_width, clip_width)
+    raw_error = (new_value - returns) / scale
+    clipped_error = (clipped_value - returns) / scale
+    loss = 0.5 * torch.max(raw_error.square(), clipped_error.square()).mean()
+    clip_fraction = (value_delta.detach().abs() > clip_width).float().mean()
+    return loss, scale, clip_fraction
 
 
 class PPOAgent:
@@ -34,6 +83,21 @@ class PPOAgent:
         return self.n_continuous + self.n_binary
 
     @torch.no_grad()
+    def exploration_stats(self) -> dict[str, float]:
+        """Report latent continuous-action spread without changing sampling."""
+        std = torch.exp(self.network.log_std.clamp(-3.0, 0.7))
+        stats = {
+            "action_std_mean": float(std.mean().item()),
+            "action_std_min": float(std.min().item()),
+            "action_std_max": float(std.max().item()),
+        }
+        stats.update({
+            f"action_std_{index}": float(value)
+            for index, value in enumerate(std.cpu().tolist())
+        })
+        return stats
+
+    @torch.no_grad()
     def select_action(self, obs: np.ndarray, deterministic: bool = False
                       ) -> tuple[np.ndarray, float, float]:
         t = torch.as_tensor(obs, device=self.device).unsqueeze(0)
@@ -48,6 +112,12 @@ class PPOAgent:
 
     def update(self, buffer: RolloutBuffer) -> dict[str, float]:
         pg_losses, v_losses, entropies, kls, clip_fracs = [], [], [], [], []
+        value_scales, value_clip_fracs = [], []
+        targets = buffer.returns[:buffer.ptr]
+        predictions = buffer.values[:buffer.ptr]
+        calibration = critic_diagnostics(targets, predictions)
+        rollout_value_scale = max(
+            float(np.sqrt(np.mean(np.square(targets)))), 1.0)
         for _ in range(UPDATE_EPOCHS):
             stop = False
             for batch in buffer.minibatches(MINIBATCH_SIZE, self.device):
@@ -69,12 +139,9 @@ class PPOAgent:
                     -adv * torch.clamp(ratio, 1 - CLIP_EPS, 1 + CLIP_EPS),
                 ).mean()
 
-                v_clipped = batch["values"] + torch.clamp(
-                    new_value - batch["values"], -CLIP_EPS, CLIP_EPS)
-                v_loss = 0.5 * torch.max(
-                    (new_value - batch["returns"]) ** 2,
-                    (v_clipped - batch["returns"]) ** 2,
-                ).mean()
+                v_loss, value_scale, value_clip_fraction = scale_aware_value_loss(
+                    new_value, batch["values"], batch["returns"],
+                    target_scale=rollout_value_scale)
 
                 loss = pg_loss + VF_COEF * v_loss - ENT_COEF * entropy.mean()
 
@@ -85,6 +152,8 @@ class PPOAgent:
 
                 pg_losses.append(pg_loss.item())
                 v_losses.append(v_loss.item())
+                value_scales.append(value_scale.item())
+                value_clip_fracs.append(value_clip_fraction.item())
                 entropies.append(entropy.mean().item())
                 if approx_kl > TARGET_KL:
                     stop = True
@@ -98,6 +167,10 @@ class PPOAgent:
             "entropy": float(np.mean(entropies)),
             "approx_kl": float(np.mean(kls)),
             "clip_frac": float(np.mean(clip_fracs)),
+            "value_scale": float(np.mean(value_scales)),
+            "value_clip_frac": float(np.mean(value_clip_fracs)),
+            **calibration,
+            **self.exploration_stats(),
         }
 
     def state_dict(self) -> dict:

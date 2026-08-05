@@ -170,3 +170,132 @@ test("terminal reset explanations are announced to assistive technology", () => 
     "rapid Learning Lens updates must not duplicate terminal announcements",
   );
 });
+
+test("the active experiment is visualization first with diagnostics collapsed", () => {
+  const source = readFileSync(
+    new URL("../src/features/simulator/SimulatorPage.tsx", import.meta.url),
+    "utf8",
+  );
+  const simulator = source.indexOf("<SceneCanvas />");
+  const topRuns = source.indexOf("<Leaderboard />");
+  const diagnostics = source.indexOf('<details className="technical-drawer">');
+
+  assert.ok(simulator >= 0, "the live simulator must remain on the experiment page");
+  assert.ok(topRuns > simulator, "top runs must immediately follow the visualization");
+  assert.ok(diagnostics > topRuns, "technical diagnostics belong after the top runs");
+  assert.match(source, /<summary>Show learning diagnostics<\/summary>/);
+  assert.ok(source.indexOf("<LearningLens />", diagnostics) > diagnostics);
+  assert.ok(source.indexOf("<LearningCurve />", diagnostics) > diagnostics);
+});
+
+test("the top three evaluated runs receive accessible medal treatments", () => {
+  const source = readFileSync(
+    new URL("../src/features/simulator/Leaderboard.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /className="checkpoint-podium"/);
+  assert.match(source, /Gold medal, first place/);
+  assert.match(source, /Silver medal, second place/);
+  assert.match(source, /Bronze medal, third place/);
+  assert.match(source, /<details className="checkpoint-details">/);
+});
+
+test("Policy Atlas declares a dark instrument theme", () => {
+  const styles = readFileSync(
+    new URL("../src/styles/app.css", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(styles, /color-scheme:\s*dark/);
+  assert.match(styles, /--lab-fog:\s*#07131c/i);
+  assert.match(
+    styles,
+    /background-size:\s*auto,\s*32px 32px,\s*32px 32px/,
+    "the ambient glow must not tile with the instrument grid",
+  );
+});
+
+test("optimizer telemetry types include critic calibration and exploration", () => {
+  const source = readFileSync(
+    new URL("../src/api/types.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /explained_variance:\s*number/);
+  assert.match(source, /value_bias:\s*number/);
+  assert.match(source, /value_clip_frac:\s*number/);
+  assert.match(source, /action_std_mean:\s*number/);
+
+  const diagnostics = readFileSync(
+    new URL("../src/features/simulator/LearningCurve.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(diagnostics, /title="Critic explained variance"/);
+  assert.match(diagnostics, /title="Critic value bias"/);
+  assert.match(diagnostics, /title="Action spread"/);
+});
+
+test("older checkpoint schemas remain visible but cannot be restored", () => {
+  const types = readFileSync(
+    new URL("../src/api/types.ts", import.meta.url),
+    "utf8",
+  );
+  const leaderboard = readFileSync(
+    new URL("../src/features/simulator/Leaderboard.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(types, /compatible:\s*boolean/);
+  assert.match(types, /schema_version:\s*number/);
+  assert.match(leaderboard, /training \|\| !run\.compatible/);
+  assert.match(leaderboard, /Older scientific protocol/);
+});
+
+test("saved optimizer diagnostics survive reconnects and restored branches", () => {
+  const diagnostics = {
+    policy_loss: -0.02,
+    value_loss: 0.4,
+    entropy: 1.1,
+    approx_kl: 0.01,
+    clip_frac: 0.08,
+    value_scale: 12,
+    value_clip_frac: 0.03,
+    explained_variance: 0.72,
+    value_bias: -0.4,
+    action_std_mean: 0.5,
+    action_std_min: 0.4,
+    action_std_max: 0.6,
+  };
+  const record = api.ppoRecordFromStatus({
+    scenario_id: "rally-ridge",
+    episode: 250,
+    total_steps: 75_000,
+    update_count: 31,
+    sps: 2_500,
+    ppo_diagnostics: diagnostics,
+  });
+
+  assert.deepEqual(record, {
+    scenario_id: "rally-ridge",
+    episode: 250,
+    total_steps: 75_000,
+    update: 31,
+    sps: 2_500,
+    ...diagnostics,
+  });
+  assert.equal(api.ppoRecordFromStatus({
+    scenario_id: "rally-ridge", episode: 0, total_steps: 0,
+    update_count: 0, sps: 0, ppo_diagnostics: null,
+  }), null);
+  assert.equal(api.ppoRecordFromStatus({
+    scenario_id: "rally-ridge", episode: 20, total_steps: 100,
+    update_count: 1, sps: 1, ppo_diagnostics: { policy_loss: 0.1 },
+  }), null, "a partial legacy payload must not fabricate a chart point");
+
+  const hook = readFileSync(
+    new URL("../src/hooks/useTrainingSocket.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(hook, /ppoRecordFromStatus\(msg\)/);
+});

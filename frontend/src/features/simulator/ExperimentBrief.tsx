@@ -25,7 +25,7 @@ export default function ExperimentBrief() {
         <p><strong>Success:</strong> {currentScenario.success}</p>
       </div>
 
-      <details className="contract-details" open>
+      <details className="contract-details">
         <summary>Agent–environment contract</summary>
         <div className="contract-grid">
           <div>

@@ -1,7 +1,7 @@
 import {
   createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
 } from "react";
-import { recordTerminalFrame } from "../api/types";
+import { ppoRecordFromStatus, recordTerminalFrame } from "../api/types";
 import type {
   ArchivedRun, CheckpointMeta, ClientMessage, EpisodeRecord, FrameMsg, GhostLap,
   HeldTerminalFrame, PpoUpdateRecord, ScenarioInfo, ServerMessage, StatusMsg,
@@ -76,6 +76,7 @@ export function TrainingSocketProvider({ children }: { children: React.ReactNode
   const scenarioRef = useRef<string | null>(null);
   const pendingEpisodes = useRef<EpisodeRecord[]>([]);
   const pendingPpo = useRef<PpoUpdateRecord[]>([]);
+  const persistedPpo = useRef<PpoUpdateRecord | null>(null);
   const rollingWindow = useRef<number[]>([]);
   const connectedOnce = useRef(false);
 
@@ -92,6 +93,7 @@ export function TrainingSocketProvider({ children }: { children: React.ReactNode
   const clearScenarioState = useCallback(() => {
     pendingEpisodes.current = [];
     pendingPpo.current = [];
+    persistedPpo.current = null;
     rollingWindow.current = [];
     frameRef.current = null;
     terminalFrameRef.current = null;
@@ -161,9 +163,18 @@ export function TrainingSocketProvider({ children }: { children: React.ReactNode
           }
           case "ppo_update":
             if (sid && msg.scenario_id !== sid) return;
+            persistedPpo.current = msg;
             pendingPpo.current.push(msg);
             break;
-          case "status":
+          case "status": {
+            const savedRecord = ppoRecordFromStatus(msg);
+            persistedPpo.current = savedRecord;
+            if (savedRecord) {
+              setPpo((previous) => previous.some((record) => (
+                record.scenario_id === savedRecord.scenario_id
+                && record.update === savedRecord.update
+              )) ? previous : previous.concat(savedRecord).slice(-MAX_PPO_POINTS));
+            }
             setStatus(msg);
             setGhostEpisode(msg.ghost_episode);
             setScenarioKind(msg.scenario_kind);
@@ -174,6 +185,7 @@ export function TrainingSocketProvider({ children }: { children: React.ReactNode
               setScenarioId(msg.scenario_id);
             }
             break;
+          }
           case "scenario_changed":
             scenarioRef.current = msg.id;
             setScenarioId(msg.id);
@@ -190,7 +202,8 @@ export function TrainingSocketProvider({ children }: { children: React.ReactNode
             pendingPpo.current = [];
             frameRef.current = null;
             terminalFrameRef.current = null;
-            setPpo([]);
+            setPpo(persistedPpo.current?.scenario_id === msg.scenario_id
+              ? [persistedPpo.current] : []);
             const window: number[] = [];
             const withMeans = msg.history.map((h) => {
               window.push(h.reward);

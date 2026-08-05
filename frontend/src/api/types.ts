@@ -99,7 +99,19 @@ export interface PpoUpdateRecord {
   entropy: number;
   approx_kl: number;
   clip_frac: number;
+  value_scale: number;
+  value_clip_frac: number;
+  explained_variance: number;
+  value_bias: number;
+  action_std_mean: number;
+  action_std_min: number;
+  action_std_max: number;
+  action_std_0?: number;
+  action_std_1?: number;
 }
+
+export type PpoDiagnostics = Omit<PpoUpdateRecord,
+  "scenario_id" | "episode" | "total_steps" | "update" | "sps">;
 
 export interface CheckpointMeta {
   episode: number;
@@ -130,6 +142,7 @@ export interface CheckpointMeta {
     gae_lambda: number;
     [key: string]: string | number | boolean;
   } | null;
+  training_diagnostics: Partial<PpoDiagnostics> | null;
   metadata_sha256: string | null;
   checkpoint_sha256: string | null;
 }
@@ -158,6 +171,7 @@ export interface StatusMsg {
   best_metric: number | null;
   device: string;
   ghost_episode: number | null;
+  ppo_diagnostics: Partial<PpoDiagnostics> | null;
 }
 
 export interface ScenarioProgress {
@@ -173,6 +187,8 @@ export interface ArchivedRun {
   checkpoints: number;
   seed: number | null;
   timestamp: string | null;
+  schema_version: number;
+  compatible: boolean;
 }
 
 export interface ScenarioInfo {
@@ -194,6 +210,30 @@ export interface ScenarioInfo {
   horizon_steps: number;
   horizon_seconds: number | null;
   progress: ScenarioProgress | null;
+}
+
+const REQUIRED_PPO_DIAGNOSTICS = [
+  "policy_loss", "value_loss", "entropy", "approx_kl", "clip_frac",
+  "value_scale", "value_clip_frac", "explained_variance", "value_bias",
+  "action_std_mean", "action_std_min", "action_std_max",
+] as const satisfies readonly (keyof PpoDiagnostics)[];
+
+/** Rebuild the latest chart point persisted in status/checkpoint metadata. */
+export function ppoRecordFromStatus(status: Pick<StatusMsg,
+  "scenario_id" | "episode" | "total_steps" | "update_count" | "sps" | "ppo_diagnostics"
+>): PpoUpdateRecord | null {
+  const diagnostics = status.ppo_diagnostics;
+  if (!diagnostics || !REQUIRED_PPO_DIAGNOSTICS.every((key) => (
+    typeof diagnostics[key] === "number" && Number.isFinite(diagnostics[key])
+  ))) return null;
+  return {
+    ...diagnostics,
+    scenario_id: status.scenario_id,
+    episode: status.episode,
+    total_steps: status.total_steps,
+    update: status.update_count,
+    sps: status.sps,
+  } as PpoUpdateRecord;
 }
 
 // trajectory rows: [x, y, rotation, drift, speed]

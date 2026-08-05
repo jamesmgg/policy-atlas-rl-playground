@@ -53,6 +53,7 @@ class CheckpointMeta:
     n_continuous: int | None = None
     n_binary: int | None = None
     protocol: dict | None = None
+    training_diagnostics: dict | None = None
     metadata_sha256: str | None = None
     checkpoint_sha256: str | None = None
 
@@ -77,6 +78,7 @@ def _normalize_meta(m: dict) -> dict:
     m.setdefault("n_continuous", None)
     m.setdefault("n_binary", None)
     m.setdefault("protocol", None)
+    m.setdefault("training_diagnostics", None)
     m.setdefault("metadata_sha256", None)
     m.setdefault("checkpoint_sha256", None)
     return m
@@ -125,6 +127,7 @@ class CheckpointRegistry:
             n_continuous=agent.n_continuous,
             n_binary=agent.n_binary,
             protocol=eval_result.get("protocol"),
+            training_diagnostics=eval_result.get("training_diagnostics"),
         )
         meta.metadata_sha256 = _metadata_sha256(asdict(meta))
         final_pt = self._pt(episode)
@@ -157,10 +160,14 @@ class CheckpointRegistry:
         metas = []
         for path in sorted(self.dir.glob("checkpoint_ep*.json")):
             try:
-                meta = _normalize_meta(json.loads(path.read_text()))
+                raw_meta = json.loads(path.read_text())
+                # Verify the exact shape that was originally signed before
+                # adding defaults introduced by a newer reader.
+                if not _metadata_is_valid(raw_meta):
+                    continue
+                meta = _normalize_meta(raw_meta)
                 episode = int(meta["episode"])
-                if (_metadata_is_valid(meta)
-                        and int(meta["schema_version"]) == self.schema_version
+                if (int(meta["schema_version"]) == self.schema_version
                         and self._pt(episode).exists()):
                     metas.append(meta)
             except (json.JSONDecodeError, OSError, KeyError, TypeError, ValueError):
@@ -177,10 +184,11 @@ class CheckpointRegistry:
     def _load_pair(self, sidecar_path: Path, checkpoint_path: Path,
                    episode: int) -> dict:
         """Validate and load one checkpoint pair without mutating an agent."""
-        meta = _normalize_meta(json.loads(sidecar_path.read_text()))
-        if not _metadata_is_valid(meta):
+        raw_meta = json.loads(sidecar_path.read_text())
+        if not _metadata_is_valid(raw_meta):
             raise CheckpointIntegrityError(
                 f"checkpoint episode {episode} metadata failed its SHA-256 check")
+        meta = _normalize_meta(raw_meta)
         if int(meta["schema_version"]) != self.schema_version:
             raise IncompatibleCheckpointError(
                 f"checkpoint schema {meta['schema_version']} is incompatible "
@@ -192,10 +200,11 @@ class CheckpointRegistry:
         data = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
         embedded = data.get("meta")
         if isinstance(embedded, dict):
-            embedded = _normalize_meta(dict(embedded))
-            if not _metadata_is_valid(embedded):
+            raw_embedded = dict(embedded)
+            if not _metadata_is_valid(raw_embedded):
                 raise CheckpointIntegrityError(
                     f"checkpoint episode {episode} embedded metadata is invalid")
+            embedded = _normalize_meta(raw_embedded)
             if _comparable_metadata(meta) != _comparable_metadata(embedded):
                 raise CheckpointIntegrityError(
                     f"checkpoint episode {episode} sidecar metadata does not "
@@ -272,22 +281,29 @@ class CheckpointRegistry:
             metas = []
             for sidecar in sorted(directory.glob("checkpoint_ep*.json")):
                 try:
-                    meta = _normalize_meta(json.loads(sidecar.read_text()))
+                    raw_meta = json.loads(sidecar.read_text())
                     pt = directory / sidecar.with_suffix(".pt").name
-                    if (_metadata_is_valid(meta)
-                            and int(meta["schema_version"]) == self.schema_version
-                            and pt.exists()):
-                        metas.append(meta)
+                    # Validate the exact historical shape before adding modern
+                    # defaults; otherwise a new optional field would alter an
+                    # older sidecar's committed metadata hash.
+                    if _metadata_is_valid(raw_meta) and pt.exists():
+                        normalized = _normalize_meta(raw_meta)
+                        normalized["episode"] = int(normalized["episode"])
+                        metas.append(normalized)
                 except (json.JSONDecodeError, OSError, KeyError, ValueError):
                     continue
             if metas:
                 latest = max(metas, key=lambda item: item["episode"])
+                schemas = {int(meta["schema_version"]) for meta in metas}
+                compatible = schemas == {self.schema_version}
                 runs.append({
                     "id": directory.name,
                     "latest_episode": latest["episode"],
                     "checkpoints": len(metas),
                     "seed": latest.get("seed"),
                     "timestamp": latest.get("timestamp"),
+                    "schema_version": int(latest["schema_version"]),
+                    "compatible": compatible,
                 })
         return runs
 
@@ -296,7 +312,10 @@ class CheckpointRegistry:
         if Path(archive_id).name != archive_id:
             return False
         target = self.dir / "archive" / archive_id
-        runs = {run["id"] for run in self.list_archives()}
+        runs = {
+            run["id"] for run in self.list_archives()
+            if run.get("compatible", False)
+        }
         if archive_id not in runs or not target.is_dir():
             return False
         files = sorted(target.glob("checkpoint_ep*"))

@@ -6,11 +6,9 @@ import ScenarioSwitcher from "./ScenarioSwitcher";
 import SceneCanvas from "./SceneCanvas";
 import TrainingControls from "./TrainingControls";
 import { useTrainingSocket } from "../../hooks/useTrainingSocket";
-import { formatHorizon } from "../../api/types";
 
 export default function SimulatorPage() {
   const { connectionState, currentScenario, scenarios, status } = useTrainingSocket();
-  const direction = currentScenario?.metric_mode === "min" ? "Lower is better" : "Higher is better";
 
   return (
     <div className="app-shell">
@@ -35,13 +33,6 @@ export default function SimulatorPage() {
       </header>
 
       <div className="workspace">
-        <ScenarioSwitcher />
-
-        <aside className="experiment-inspector" aria-label="Experiment setup">
-          <ExperimentBrief />
-          <TrainingControls />
-        </aside>
-
         <main className="experiment-stage" id="experiment-stage">
           <section className="experiment-heading" aria-labelledby="experiment-title">
             <div>
@@ -52,20 +43,25 @@ export default function SimulatorPage() {
               <h1 id="experiment-title">{currentScenario?.name ?? "Opening experiment…"}</h1>
               <p>{currentScenario?.description ?? "Loading the environment and its experiment contract."}</p>
             </div>
-            {currentScenario && (
-              <dl className="heading-facts">
-                <div><dt>Primary measure</dt><dd>{currentScenario.metric_label}</dd></div>
-                <div><dt>Direction</dt><dd>{direction}</dd></div>
-                <div><dt>Horizon</dt><dd>{formatHorizon(currentScenario.horizon_steps, currentScenario.horizon_seconds)}</dd></div>
-              </dl>
-            )}
           </section>
 
           <SceneCanvas />
-          <LearningLens />
-          <LearningCurve />
           <Leaderboard />
+          <details className="technical-drawer">
+            <summary>Show learning diagnostics</summary>
+            <div className="technical-drawer-content">
+              <LearningLens />
+              <LearningCurve />
+            </div>
+          </details>
         </main>
+
+        <ScenarioSwitcher />
+
+        <aside className="experiment-inspector" aria-label="Experiment setup">
+          <ExperimentBrief />
+          <TrainingControls />
+        </aside>
       </div>
 
       <footer className="app-footer">

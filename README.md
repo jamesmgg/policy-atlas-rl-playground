@@ -35,9 +35,18 @@ recoverable from the checkpoint archive.
 ## Scientific safeguards
 
 - Generalized advantage estimation cuts traces at the correct transition and
-  bootstraps time-limit truncations rather than treating them as failures.
+  distinguishes external truncations from intrinsic puzzle deadlines.
+- Finite-horizon observations expose remaining time. Driving policies also see
+  track phase, cumulative objective state, wrong-way margin, recent progress,
+  and one-time traffic-pass state used by rewards or termination.
 - PPO uses a tanh-squashed Gaussian and applies the matching log-probability
   correction, so sampled actions and optimized likelihoods agree.
+- Raw scores remain unchanged for people and leaderboards; PPO receives the
+  same rewards multiplied by a disclosed positive constant so critic targets
+  remain numerically well-conditioned. Constant entropy pressure is disabled,
+  allowing continuous controls to become precise.
+- Critic explained variance, value bias, value clipping, and action spread are
+  emitted live and stored with each checkpoint.
 - Partial rollouts are learned from instead of silently discarded.
 - Training, environment, and evaluation random-number state is seeded and saved
   with each policy for reproducible continuation.
@@ -49,6 +58,11 @@ recoverable from the checkpoint archive.
   independent training seeds are directly comparable. Reports include mean, standard
   deviation, success rate, a 95% Wilson interval, evaluation count, seed, and
   update count.
+- Driving training samples measured-arc checkpoints across the whole course;
+  selection and replay retain their fixed start-line distributions.
+- The benchmark campaign freezes checkpoint selection before an optional
+  100-start holdout at a disjoint seed range. Holdout outcomes cannot affect
+  early stopping or checkpoint choice.
 - A fixed canonical rollout is retained only for comparable ghost playback; it
   is not presented as the statistical evaluation result.
 - The UI ranks only checkpoints from the same versioned evaluation suite and
@@ -64,9 +78,11 @@ the observation exposed to PPO.
 
 ## Interface
 
-The experiment library scales through family filters and search. Every
+The dark experiment library scales through family filters and search. Every
 experiment publishes its exact observation dimensions, reward terms, and
-termination conditions. The active workspace combines:
+termination conditions. The active workspace leads with the simulator, then a
+gold/silver/bronze policy podium; technical evidence is collapsed by default.
+It also combines:
 
 - an experiment brief and reproducibility settings;
 - a responsive simulator with fullscreen mode;
@@ -109,6 +125,11 @@ docker run --rm -v "$PWD/backend:/app" -w /app \
 npm --prefix frontend test
 npm --prefix frontend run build
 ```
+
+Fresh campaigns can be capped at 2,000 episodes and stopped after two
+consecutive statistically qualifying checkpoints. See
+[`docs/benchmark-campaigns.md`](docs/benchmark-campaigns.md) for the exact solve
+contract, read-only checkpoint-volume holdout, and Docker commands.
 
 With the stack running, `npm --prefix frontend run test:live` verifies the
 catalog → scenario switch → live frame → PPO update → fixed-suite evaluation →
