@@ -9,7 +9,7 @@ The playground currently contains 16 experiments across four families:
 
 - driving tasks, including wet grip, traffic, endurance, efficiency, and drift;
 - control benchmarks: a continuous-force CartPole variant and Continuous Mountain Car;
-- aerospace tasks: Lunar Lander and Drone Hover;
+- aerospace tasks: Lunar Lander and a five-waypoint Drone Course;
 - classic control: Pendulum Swing-up.
 
 Each experiment describes its objective, success condition, observation space,
@@ -58,9 +58,13 @@ recoverable from the checkpoint archive.
   independent training seeds are directly comparable. Reports include mean, standard
   deviation, success rate, a 95% Wilson interval, evaluation count, seed, and
   update count.
-- Driving training uses a disclosed 75% start-line / 25% measured-checkpoint
-  mixture, retaining canonical-start competence while covering the course;
-  selection and replay keep their fixed start-line distributions.
+- Driving training uses a disclosed 75% canonical / 25% rolling-checkpoint
+  mixture. Rolling states reconstruct speed, clock, task progress, fuel, and
+  traffic from a curvature/grip braking envelope; selection and replay keep
+  their unchanged fixed start-line distributions.
+- Lunar Lander rehearses safe touchdown and braking approaches on half of
+  training resets, and Drone Course rehearses later waypoint segments on half.
+  These curriculum states are fully observed and never enter fixed evaluation.
 - The benchmark campaign freezes checkpoint selection before an optional
   100-start holdout at a disjoint seed range. Holdout outcomes cannot affect
   early stopping or checkpoint choice.

@@ -27,6 +27,30 @@ PAD_CX = (PAD_X0 + PAD_X1) / 2
 
 SAFE_VX, SAFE_VY, SAFE_THETA = 8.0, 14.0, 0.25
 
+# Half of training episodes retain the evaluation start distribution. A short
+# terminal-rehearsal band makes the sparse successful touchdown discoverable;
+# a wider approach band connects that skill back toward the full descent.
+STANDARD_START_PROBABILITY = 0.5
+TOUCHDOWN_START_PROBABILITY = 0.25
+APPROACH_START_PROBABILITY = 0.25
+TOUCHDOWN_ALTITUDE_MIN, TOUCHDOWN_ALTITUDE_MAX = 5.0, 18.0
+TOUCHDOWN_X_OFFSET_MAX = 20.0
+TOUCHDOWN_VX_MAX = 3.0
+TOUCHDOWN_VY_MIN, TOUCHDOWN_VY_MAX = 0.0, 6.0
+TOUCHDOWN_THETA_MAX = 0.08
+TOUCHDOWN_OMEGA_MAX = 0.05
+APPROACH_ALTITUDE_MIN, APPROACH_ALTITUDE_MAX = 30.0, 180.0
+APPROACH_X_OFFSET_MAX = 35.0
+APPROACH_VX_MAX = 6.0
+APPROACH_VY_MIN, APPROACH_VY_MAX = 2.0, 18.0
+APPROACH_THETA_MAX = 0.18
+APPROACH_OMEGA_MAX = 0.25
+TRAINING_START_DISTRIBUTION = (
+    "50% standard high-altitude starts; 25% touchdown rehearsal 5-18 units "
+    "above the pad; 25% braking approaches 30-180 units above the pad; all "
+    "sampled states expose velocity, tilt, time, and fuel"
+)
+
 
 def wrap_angle(theta: float) -> float:
     """Represent physically equivalent attitudes on [-pi, pi)."""
@@ -58,6 +82,7 @@ def scene() -> dict:
 @dataclass
 class LanderEnv:
     jitter: bool = True
+    approach_curriculum: bool = False
     rng: random.Random = field(default_factory=random.Random)
 
     obs_dim = 9
@@ -81,8 +106,64 @@ class LanderEnv:
         self.landed = False
         self.cause = "running"
         self._u_main = 0.0
+        self._start_kind = "standard"
+        if self.approach_curriculum:
+            start_draw = self.rng.random()
+            if start_draw >= STANDARD_START_PROBABILITY:
+                if start_draw < (STANDARD_START_PROBABILITY
+                                 + TOUCHDOWN_START_PROBABILITY):
+                    self._reset_touchdown()
+                else:
+                    self._reset_approach()
         self._phi_prev = self._phi()
         return self._obs()
+
+    def _reset_touchdown(self) -> None:
+        self._reset_sampled_approach(
+            kind="touchdown",
+            altitude_min=TOUCHDOWN_ALTITUDE_MIN,
+            altitude_max=TOUCHDOWN_ALTITUDE_MAX,
+            x_offset_max=TOUCHDOWN_X_OFFSET_MAX,
+            vx_max=TOUCHDOWN_VX_MAX,
+            vy_min=TOUCHDOWN_VY_MIN,
+            vy_max=TOUCHDOWN_VY_MAX,
+            theta_max=TOUCHDOWN_THETA_MAX,
+            omega_max=TOUCHDOWN_OMEGA_MAX,
+        )
+
+    def _reset_approach(self) -> None:
+        """Sample a fully observed, dynamically plausible landing approach."""
+        self._reset_sampled_approach(
+            kind="approach",
+            altitude_min=APPROACH_ALTITUDE_MIN,
+            altitude_max=APPROACH_ALTITUDE_MAX,
+            x_offset_max=APPROACH_X_OFFSET_MAX,
+            vx_max=APPROACH_VX_MAX,
+            vy_min=APPROACH_VY_MIN,
+            vy_max=APPROACH_VY_MAX,
+            theta_max=APPROACH_THETA_MAX,
+            omega_max=APPROACH_OMEGA_MAX,
+        )
+
+    def _reset_sampled_approach(
+        self, *, kind: str, altitude_min: float, altitude_max: float,
+        x_offset_max: float, vx_max: float, vy_min: float, vy_max: float,
+        theta_max: float, omega_max: float,
+    ) -> None:
+        altitude = self.rng.uniform(altitude_min, altitude_max)
+        self.x = PAD_CX + self.rng.uniform(-x_offset_max, x_offset_max)
+        self.y = PAD_Y - altitude
+        self.vx = self.rng.uniform(-vx_max, vx_max)
+        self.vy = self.rng.uniform(vy_min, vy_max)
+        self.theta = self.rng.uniform(-theta_max, theta_max)
+        self.omega = self.rng.uniform(-omega_max, omega_max)
+
+        descent_fraction = (self.y - 120.0) / (PAD_Y - 120.0)
+        self.steps = round(180.0 * descent_fraction)
+        fuel_high = 1.0 - 0.1 * descent_fraction
+        fuel_low = 1.0 - 0.5 * descent_fraction
+        self.fuel = self.rng.uniform(fuel_low, fuel_high)
+        self._start_kind = kind
 
     def _phi(self) -> float:
         dist = math.hypot(self.x - PAD_CX, self.y - PAD_Y)

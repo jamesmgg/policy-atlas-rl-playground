@@ -18,6 +18,7 @@ class ScenarioSpec:
     make_env: Callable[[bool], Env]  # arg: jitter (False for deterministic eval)
     scene: Callable[[], dict]        # static geometry for the frontend
     training_factory: Callable[[], Env] | None = None
+    training_start_distribution: str = "scenario default starts"
     objective: str = "Maximize expected return."
     success: str = "Complete the task before the time limit."
     observations: tuple[str, ...] = ("agent state", "task state")
@@ -49,6 +50,7 @@ class ScenarioSpec:
             "observation_dimensions": list(self.observation_dimensions),
             "reward_terms": list(self.reward_terms),
             "termination_conditions": list(self.termination_conditions),
+            "training_start_distribution": self.training_start_distribution,
             "difficulty": self.difficulty,
             "horizon_steps": self.horizon_steps,
             "horizon_seconds": self.horizon_seconds,

@@ -18,6 +18,11 @@ WAYPOINTS: list[tuple[float, float]] = [
     (250, 500), (700, 420), (450, 180), (820, 160), (150, 250),
 ]
 START = (500.0, 560.0)
+CANONICAL_START_PROBABILITY = 0.5
+TRAINING_START_DISTRIBUTION = (
+    "50% canonical full-course start; 50% uniform later waypoint "
+    "segments (targets 2-5) from the preceding waypoint"
+)
 
 
 def scene() -> dict:
@@ -34,6 +39,7 @@ def scene() -> dict:
 @dataclass
 class DroneEnv:
     jitter: bool = True
+    waypoint_start_curriculum: bool = False
     rng: random.Random = field(default_factory=random.Random)
 
     obs_dim = 9
@@ -47,11 +53,15 @@ class DroneEnv:
 
     def reset(self) -> np.ndarray:
         self.x, self.y = START
+        self.k = 0
+        if (self.waypoint_start_curriculum
+                and self.rng.random() >= CANONICAL_START_PROBABILITY):
+            self.k = self.rng.randrange(1, len(WAYPOINTS))
+            self.x, self.y = WAYPOINTS[self.k - 1]
         if self.jitter:
             self.x += self.rng.uniform(-30.0, 30.0)
         self.vx = self.vy = 0.0
         self.theta = self.omega = 0.0
-        self.k = 0
         self.steps = 0
         self.episode_reward = 0.0
         self.cause = "running"

@@ -27,13 +27,28 @@ STALL_MIN_PROGRESS = 12.0            # arc units
 LOOKAHEAD = (8.0, 20.0, 40.0, 75.0, 120.0)
 GRIP_LOOKAHEAD = (20.0, 75.0, 120.0)
 BASE_OBS_DIM = 8 + len(LOOKAHEAD) + 1 + len(GRIP_LOOKAHEAD)
-TASK_OBS_DIM = 7
+TASK_OBS_DIM = 8
 
 CURV_SCALE = 80.0
 CORNER_CURV = 0.012                  # |curvature| above this counts as a corner
 CONTACT_DIST = 5.0
 DRIFT_TARGET_SLIP = math.radians(15.0)
 DRIFT_MAX_SLIP = math.radians(35.0)
+STYLE_TARGET = 10.0
+
+# Training-only rolling starts reconstruct a conservative, dynamically
+# plausible mid-lap state. The speed envelope combines the local lateral-grip
+# limit with a closed-loop backward braking pass, so a fast straight before a
+# corner inherits the downstream limit. The other constants make the
+# curriculum assumptions explicit and reproducible in scenario metadata.
+ROLLING_SPEED_MIN_FRACTION = 0.70
+ROLLING_SPEED_MAX_FRACTION = 0.90
+ROLLING_REFERENCE_SPEED_FRACTION = 0.80
+ROLLING_REFERENCE_THROTTLE = 0.65
+ROLLING_HEADING_JITTER = 0.02
+ROLLING_LATERAL_JITTER_FRACTION = 0.12
+ROLLING_LATERAL_JITTER_MAX = 1.25
+ROLLING_TIME_MARGIN_STEPS = 25       # one simulated second for rounding/control
 
 
 def drift_slip_quality(slip_angle: float) -> float:
@@ -129,6 +144,10 @@ class DrivingEnv:
                 grip[i0:] *= z.grip_scale
                 grip[:i1 + 1] *= z.grip_scale
         self._grip = grip
+        self._rolling_speed_envelope = self._build_rolling_speed_envelope()
+        self._rolling_elapsed_seconds, self._rolling_lap_seconds = (
+            self._build_reference_clock()
+        )
         self.car: CarState = None  # type: ignore[assignment]
         self.reset()
 
@@ -138,41 +157,177 @@ class DrivingEnv:
             not self.random_start
             or self.rng.random() < self.start_line_probability
         )
-        candidates = track.checkpoints[1:] or track.checkpoints
-        idx = 0 if start_line else self.rng.choice(candidates)
+        checkpoint_candidates = list(range(1, len(track.checkpoints)))
+        checkpoint_index = (
+            0 if start_line or not checkpoint_candidates
+            else self.rng.choice(checkpoint_candidates)
+        )
+        start_line = checkpoint_index == 0
+        idx = 0 if start_line else track.checkpoints[checkpoint_index]
         heading = heading_at(track, idx)
         x, y = track.centerline[idx]
         if self.jitter:
-            heading += self.rng.uniform(-0.05, 0.05)
             nx, ny = track.normals[idx]
-            off = self.rng.uniform(-3.0, 3.0)
+            if start_line:
+                # Preserve the canonical evaluation RNG sequence and bounds.
+                heading += self.rng.uniform(-0.05, 0.05)
+                off = self.rng.uniform(-3.0, 3.0)
+            else:
+                heading += self.rng.uniform(
+                    -ROLLING_HEADING_JITTER, ROLLING_HEADING_JITTER)
+                lateral_limit = min(
+                    ROLLING_LATERAL_JITTER_MAX,
+                    float(track.half_widths[idx])
+                    * ROLLING_LATERAL_JITTER_FRACTION,
+                )
+                off = self.rng.uniform(-lateral_limit, lateral_limit)
             x, y = x + nx * off, y + ny * off
+        if start_line:
+            rolling_speed = 0.0
+            rolling_omega = 0.0
+            course_progress = 0.0
+            elapsed_steps = 0
+            next_checkpoint = 1
+        else:
+            speed_limit = self.rolling_speed_limit(idx)
+            rolling_speed = speed_limit * self.rng.uniform(
+                ROLLING_SPEED_MIN_FRACTION, ROLLING_SPEED_MAX_FRACTION)
+            yaw_cap = (self.params.a_yaw_cap_normal * self._grip[idx]
+                       / max(rolling_speed, 2.0))
+            rolling_omega = float(np.clip(
+                rolling_speed * track.curvature[idx], -yaw_cap, yaw_cap))
+            course_progress = float(track.checkpoint_arcs[checkpoint_index])
+            elapsed_steps = self._rolling_start_steps(idx)
+            next_checkpoint = checkpoint_index + 1
         self.car = CarState(x=float(x), y=float(y), heading=heading,
-                            v_long=0.0, v_lat=0.0, omega=0.0, drift=0.0)
+                            v_long=rolling_speed, v_lat=0.0,
+                            omega=rolling_omega, drift=0.0)
         self.idx = idx
         self.s_prev = float(track.arc[idx])
-        self.progress = 0.0
-        self.peak_progress = 0.0
-        self.next_cp = 1
+        self.progress = course_progress
+        self.peak_progress = course_progress
+        self.next_cp = next_checkpoint
         self.laps = 0
-        self.steps = 0
+        self.steps = elapsed_steps
         self.lap_start_step = 0
         self.best_lap_time: float | None = None
         self.last_lap_time: float | None = None
         self.episode_reward = 0.0
-        self.fuel = 1.0 if self.features.fuel else None
-        self.style = 0.0
-        self.overtakes = 0
+        elapsed = self.steps * DT_AGENT
+        if self.features.fuel:
+            self.fuel = max(
+                1.0 - self.features.fuel.rate
+                * ROLLING_REFERENCE_THROTTLE ** 2 * elapsed,
+                0.0,
+            )
+        else:
+            self.fuel = None
+        # Drift rolling states assume a successful proportional prefix. This
+        # is curriculum state, is visible through objective completion, and
+        # grants no reset-time reward.
+        self.style = (
+            STYLE_TARGET * course_progress / track.total_length
+            if not start_line and self.features.metric == "style"
+            else 0.0
+        )
         self.cause = "running"
-        self._stall_anchor_progress = 0.0
+        self._stall_anchor_progress = course_progress
         self._stall_steps = 0
-        self._bot_arcs = [
-            (self.s_prev + b.start_frac * track.total_length) % track.total_length
-            for b in self.features.bots
-        ]
-        self._bot_passed = [False] * len(self.features.bots)
+        if start_line:
+            self._bot_arcs = [
+                (self.s_prev + b.start_frac * track.total_length)
+                % track.total_length
+                for b in self.features.bots
+            ]
+            self._bot_passed = [False] * len(self.features.bots)
+        else:
+            unwrapped_bot_arcs = [
+                b.start_frac * track.total_length + b.speed * elapsed
+                for b in self.features.bots
+            ]
+            self._bot_arcs = [s % track.total_length
+                              for s in unwrapped_bot_arcs]
+            self._bot_passed = [course_progress > s
+                                for s in unwrapped_bot_arcs]
+        self.overtakes = sum(self._bot_passed)
         self._bot_prev_gap = [self._bot_gap(i) for i in range(len(self.features.bots))]
         return self._obs()
+
+    # ------------------------------------------------------ rolling curriculum
+
+    def _build_rolling_speed_envelope(self) -> np.ndarray:
+        """Closed-loop curvature/grip speed cap with backward braking limits."""
+        track = self.track
+        curvature = np.abs(track.curvature)
+        lateral_cap = np.minimum(
+            self.params.a_lat_grip_normal,
+            self.params.a_yaw_cap_normal,
+        ) * self._grip
+        envelope = np.full(track.n, self.params.max_speed, dtype=np.float64)
+        turning = curvature > 1e-9
+        envelope[turning] = np.minimum(
+            envelope[turning],
+            np.sqrt(lateral_cap[turning] / curvature[turning]),
+        )
+        segment_lengths = (
+            np.roll(track.arc, -1) - track.arc
+        ) % track.total_length
+        for _ in range(8):
+            changed = False
+            for index in range(track.n - 1, -1, -1):
+                following = (index + 1) % track.n
+                braking = self.params.max_brake * max(
+                    min(float(self._grip[index]),
+                        float(self._grip[following])),
+                    0.05,
+                )
+                allowed = math.sqrt(
+                    envelope[following] ** 2
+                    + 2.0 * braking * segment_lengths[index]
+                )
+                if allowed + 1e-9 < envelope[index]:
+                    envelope[index] = allowed
+                    changed = True
+            if not changed:
+                break
+        return envelope
+
+    def _build_reference_clock(self) -> tuple[np.ndarray, float]:
+        """Integrate a disclosed 80%-of-envelope reference lap clock."""
+        track = self.track
+        segment_lengths = (
+            np.roll(track.arc, -1) - track.arc
+        ) % track.total_length
+        speed = np.maximum(
+            self._rolling_speed_envelope * ROLLING_REFERENCE_SPEED_FRACTION,
+            1e-3,
+        )
+        following_speed = np.roll(speed, -1)
+        segment_seconds = (
+            2.0 * segment_lengths / np.maximum(speed + following_speed, 1e-3)
+        )
+        elapsed = np.zeros(track.n, dtype=np.float64)
+        if track.n > 1:
+            elapsed[1:] = np.cumsum(segment_seconds[:-1])
+        return elapsed, float(np.sum(segment_seconds))
+
+    def rolling_speed_limit(self, idx: int) -> float:
+        return float(self._rolling_speed_envelope[idx])
+
+    def rolling_remaining_steps(self, idx: int) -> int:
+        remaining_seconds = max(
+            self._rolling_lap_seconds - self._rolling_elapsed_seconds[idx],
+            0.0,
+        )
+        return int(math.ceil(remaining_seconds / DT_AGENT))
+
+    def _rolling_start_steps(self, idx: int) -> int:
+        elapsed = int(round(self._rolling_elapsed_seconds[idx] / DT_AGENT))
+        latest_safe = (
+            self.max_steps - self.rolling_remaining_steps(idx)
+            - ROLLING_TIME_MARGIN_STEPS
+        )
+        return max(0, min(elapsed, latest_safe))
 
     # ------------------------------------------------------------------ step
 
@@ -322,7 +477,7 @@ class DrivingEnv:
     def _objective_reached(self) -> bool:
         kind = self.features.metric
         if kind == "style":
-            return self.style >= 10.0
+            return self.style >= STYLE_TARGET
         if kind == "overtakes":
             return bool(self._bot_passed) and all(self._bot_passed)
         if kind == "lap":
@@ -334,7 +489,7 @@ class DrivingEnv:
         """Expose the cumulative task state used by success termination."""
         kind = self.features.metric
         if kind == "style":
-            return float(np.clip(self.style / 10.0, 0.0, 1.0))
+            return float(np.clip(self.style / STYLE_TARGET, 0.0, 1.0))
         if kind == "overtakes":
             total = len(self._bot_passed)
             return sum(self._bot_passed) / total if total else 0.0
@@ -381,7 +536,7 @@ class DrivingEnv:
         else:
             metric = round(self.best_lap_time, 2) if self.best_lap_time else None
         if kind == "style":
-            success = self.style >= 10.0
+            success = self.style >= STYLE_TARGET
         elif kind == "tank":
             success = self.progress >= self.track.total_length
         elif kind == "overtakes":
@@ -456,12 +611,14 @@ class DrivingEnv:
         obs[cursor + 2] = float(np.clip(
             self.progress / track.total_length, -1.0, 4.0))
         obs[cursor + 3] = float(np.clip(
-            (self.progress - self.peak_progress) / 25.0, -2.0, 0.0))
+            self._cp_threshold() / track.total_length, 0.0, 5.0))
         obs[cursor + 4] = float(np.clip(
+            (self.progress - self.peak_progress) / 25.0, -2.0, 0.0))
+        obs[cursor + 5] = float(np.clip(
             (self.progress - self._stall_anchor_progress)
             / STALL_MIN_PROGRESS, -2.0, 2.0))
-        obs[cursor + 5] = min(self._stall_steps / STALL_WINDOW, 1.0)
-        obs[cursor + 6] = self._objective_fraction()
+        obs[cursor + 6] = min(self._stall_steps / STALL_WINDOW, 1.0)
+        obs[cursor + 7] = self._objective_fraction()
         cursor += TASK_OBS_DIM
         if self.fuel is not None:
             obs[cursor] = self.fuel

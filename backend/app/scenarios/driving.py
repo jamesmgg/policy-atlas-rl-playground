@@ -38,7 +38,7 @@ def _driving_spec(id: str, name: str, group: str, description: str,
                   objective: str = "Complete clean laps as quickly as possible.",
                   success: str = "Complete at least one timed lap without leaving the circuit.",
                   difficulty: str = "Intermediate",
-                  checkpoint_schema: int = 6) -> ScenarioSpec:
+                  checkpoint_schema: int = 7) -> ScenarioSpec:
     reward_terms = [
         f"{reward.progress:g} × signed forward arc progress",
         f"{reward.time:g} time cost per control step",
@@ -72,7 +72,9 @@ def _driving_spec(id: str, name: str, group: str, description: str,
         "curvature +75 m", "curvature +120 m", "current surface grip",
         "surface grip +20 m", "surface grip +75 m", "surface grip +120 m",
         "sin track phase", "cos track phase",
-        "forward course progress / lap length", "wrong-way margin / 25",
+        "forward course progress / lap length",
+        "next checkpoint course progress / lap length",
+        "wrong-way margin / 25",
         "progress since stall anchor / threshold", "stall counter / limit",
         "objective completion fraction",
     ]
@@ -97,6 +99,13 @@ def _driving_spec(id: str, name: str, group: str, description: str,
             _track(track_name), params=params, reward_cfg=reward,
             features=features, jitter=True, random_start=True,
             start_line_probability=0.75),
+        training_start_distribution=(
+            "75% canonical start; 25% uniform checkpoints 1..N-1 as "
+            "rolling states at 70-90% of the curvature/grip backward-braking "
+            "envelope; clock integrates an 80% envelope with a 1-second "
+            "reserve; 65% throttle-equivalent fuel; time-advanced traffic "
+            "and pass masks; assumed proportional style prefix; no reset reward"
+        ),
         objective=objective,
         success=success,
         observations=("speed and lateral slip", "track offset and heading error",
@@ -191,5 +200,5 @@ DRIVING_SPECS: list[ScenarioSpec] = [
         metric_label="overtakes", metric_mode="max",
         objective="Pass traffic without contact while maintaining forward progress.",
         success="Overtake all three traffic cars in one episode.",
-        difficulty="Advanced", checkpoint_schema=7),
+        difficulty="Advanced", checkpoint_schema=8),
 ]

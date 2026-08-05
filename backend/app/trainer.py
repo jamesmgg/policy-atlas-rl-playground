@@ -558,9 +558,11 @@ class Trainer:
             "training_reward_scale": TRAINING_REWARD_SCALE,
             "value_loss_scale": "rollout return RMS",
             "training_start_distribution": (
-                "75% start line, 25% uniform measured track checkpoints"
-                if getattr(self.env, "random_start", False)
-                else "scenario default starts"
+                getattr(
+                    self.spec,
+                    "training_start_distribution",
+                    "scenario default starts",
+                )
             ),
             "update_epochs": ppo_defaults.UPDATE_EPOCHS,
             "minibatch_size": ppo_defaults.MINIBATCH_SIZE,

@@ -98,6 +98,10 @@ success rate and interval, metric and dispersion, failure progress, evaluation
 suite, engine digest, separately labelled selection and holdout evidence, and
 per-scenario terminal state.
 
+Completed runs also retain a compact `checkpoint_trace` with every fixed-suite
+score and optimizer diagnostic. This makes transient solves, regressions, and
+plateaus auditable instead of preserving only the final checkpoint.
+
 The API request timeout defaults to 180 seconds because the single trainer may
 be CPU-bound while it runs a ten-episode checkpoint evaluation. Override it
 with `--request-timeout` only when diagnosing unusually slow hardware.

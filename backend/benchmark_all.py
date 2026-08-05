@@ -68,6 +68,27 @@ def checkpoint_result(checkpoint: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def checkpoint_trace_result(checkpoint: dict[str, Any]) -> dict[str, Any]:
+    """Keep the learning curve without repeating immutable run metadata."""
+    return {
+        "episode": checkpoint.get("episode"),
+        "total_steps": checkpoint.get("total_steps"),
+        "updates": checkpoint.get("update_count"),
+        "mean_training_reward": checkpoint.get("mean_reward"),
+        "success_rate": checkpoint.get("success_rate"),
+        "success_ci_low": checkpoint.get("success_ci_low"),
+        "success_ci_high": checkpoint.get("success_ci_high"),
+        "eval_reward": checkpoint.get("eval_reward"),
+        "eval_reward_std": checkpoint.get("eval_reward_std"),
+        "metric": checkpoint.get("eval_metric"),
+        "metric_std": checkpoint.get("eval_metric_std"),
+        "failure_progress": checkpoint.get("eval_failure_progress"),
+        "training_diagnostics": checkpoint.get("training_diagnostics"),
+        "metadata_sha256": checkpoint.get("metadata_sha256"),
+        "checkpoint_sha256": checkpoint.get("checkpoint_sha256"),
+    }
+
+
 def _qualifies(
     checkpoint: dict[str, Any],
     criteria: SolveCriteria,
@@ -596,6 +617,12 @@ class BenchmarkRunner:
                 checkpoints, key=lambda checkpoint: int(checkpoint["episode"])))
             if checkpoints else None
         )
+        checkpoint_trace = [
+            checkpoint_trace_result(checkpoint)
+            for checkpoint in sorted(
+                checkpoints, key=lambda checkpoint: int(checkpoint["episode"])
+            )
+        ]
         completed = int(status.get("episode") or 0)
         if solve is not None:
             state = "solved"
@@ -642,6 +669,7 @@ class BenchmarkRunner:
             "earliest_solve": solve,
             "selection": selection,
             "final_checkpoint": final_checkpoint,
+            "checkpoint_trace": checkpoint_trace,
             "checkpoints_observed": len(checkpoints),
             "checkpoints_seen_total": len(all_checkpoints),
             "started_at": started_at,

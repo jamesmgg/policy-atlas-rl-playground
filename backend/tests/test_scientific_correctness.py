@@ -484,7 +484,7 @@ class TestExperimentContract(unittest.TestCase):
         dry = specs["apex-gp"].make_env(False)
         wet = specs["apex-gp-wet"].make_env(False)
         traffic = specs["traffic-rush"].make_env(False)
-        self.assertEqual(specs["traffic-rush"].checkpoint_schema, 7)
+        self.assertEqual(specs["traffic-rush"].checkpoint_schema, 8)
 
         self.assertGreaterEqual(dry.obs_dim, 17)  # base state + grip profile
         self.assertEqual(wet.obs_dim, dry.obs_dim)
@@ -604,7 +604,7 @@ class TestExperimentContract(unittest.TestCase):
             len(set(starts) - {0}), len(training.track.checkpoints) // 2,
         )
 
-    def test_randomized_traffic_start_preserves_relative_bot_gaps(self) -> None:
+    def test_randomized_traffic_start_advances_world_state_consistently(self) -> None:
         traffic = {spec.id: spec for spec in list_specs()}[
             "traffic-rush"
         ].make_env(False)
@@ -613,11 +613,16 @@ class TestExperimentContract(unittest.TestCase):
         traffic.reset()
         self.assertNotEqual(traffic.idx, 0, "test seed must exercise a moved start")
 
+        elapsed = traffic.steps * traffic.dt
         for index, bot in enumerate(traffic.features.bots):
+            bot_arc = (
+                bot.start_frac * traffic.track.total_length
+                + bot.speed * elapsed
+            ) % traffic.track.total_length
             with self.subTest(bot=index):
                 self.assertAlmostEqual(
                     traffic._bot_gap(index),
-                    bot.start_frac * traffic.track.total_length,
+                    (bot_arc - traffic.s_prev) % traffic.track.total_length,
                     places=6,
                 )
 
@@ -749,7 +754,7 @@ class TestExperimentContract(unittest.TestCase):
         spec = {spec.id: spec for spec in list_specs()}["rally-ridge"]
         self.assertEqual(
             spec.checkpoint_schema,
-            6,
+            7,
             "changed reward, evaluation, and observation semantics require a fresh policy",
         )
         rally = spec.make_env(False)
@@ -796,7 +801,7 @@ class TestEvaluationProtocol(unittest.TestCase):
         self.assertEqual(protocol["value_loss_scale"], "rollout return RMS")
         self.assertEqual(
             protocol["training_start_distribution"],
-            "75% start line, 25% uniform measured track checkpoints",
+            trainer.spec.training_start_distribution,
         )
 
     def test_trainer_uses_training_factory_for_driving_environment(self) -> None:

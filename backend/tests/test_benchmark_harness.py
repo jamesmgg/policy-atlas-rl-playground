@@ -402,6 +402,20 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(result["selection"]["reason"], "earliest_confirmed_solve")
         self.assertEqual(result["selection"]["checkpoint"]["episode"], 25)
         self.assertEqual(result["selection"]["seed_base"], 100_000)
+        self.assertEqual(
+            [entry["episode"] for entry in result["checkpoint_trace"]],
+            [25, 50, 51],
+        )
+        self.assertEqual(
+            result["checkpoint_trace"][0]["training_diagnostics"]
+            ["explained_variance"],
+            0.42,
+        )
+        self.assertNotIn(
+            "protocol",
+            result["checkpoint_trace"][0],
+            "the per-checkpoint trace must not duplicate run-level protocol data",
+        )
         self.assertIn(("/api/training/stop", None), api.posts)
         self.assertIn(("/api/training/start", {
             "max_episodes": 2000, "checkpoint_every_n": 25,
