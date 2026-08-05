@@ -71,41 +71,46 @@ export default function Leaderboard() {
             : <div><h3>The podium is waiting</h3><p>Train a policy to place its first evaluated run.</p></div>}
         </div>
       ) : (
-        <div className="checkpoint-podium" aria-label="Top three evaluated runs">
-          {ranked.slice(0, 3).map((checkpoint, index) => {
-            const medal = MEDALS[index];
-            const ghostActive = ghostEpisode === checkpoint.episode;
-            return (
-              <article className={`podium-card podium-${medal.tone}`} key={checkpoint.episode}>
-                <div className="podium-card-topline">
-                  <span className={`podium-medal medal-${medal.tone}`} aria-label={medal.accessible}>
-                    <span aria-hidden="true">{index + 1}</span>
-                  </span>
-                  <span className="medal-name">{medal.label}</span>
-                </div>
-                <div className="podium-run-copy">
-                  <strong>Episode {checkpoint.episode.toLocaleString()}</strong>
-                  <small>{savedAt(checkpoint.timestamp)}</small>
-                </div>
-                <dl className="podium-score">
-                  <div><dt>Success</dt><dd>{checkpoint.success_rate != null
-                    ? `${Math.round(checkpoint.success_rate * 100)}%` : "Legacy"}</dd></div>
-                  <div><dt>{metricLabel}</dt><dd>{formatMetric(checkpoint.eval_metric, metricLabel)}</dd></div>
-                </dl>
-                <div className="podium-actions">
-                  <button type="button" className={ghostActive ? "compare-active" : ""}
-                    aria-pressed={ghostActive}
-                    onClick={() => ghostActive ? clearGhost() : setGhost(checkpoint.episode)}>
-                    {ghostActive ? "Hide replay" : "Watch replay"}
-                  </button>
-                  <button type="button" disabled={training}
-                    title={training ? "Pause training before loading a checkpoint" : "Load weights and continue from here"}
-                    onClick={() => resume(checkpoint)}>Resume</button>
-                </div>
-              </article>
-            );
-          })}
-        </div>
+        <>
+          <div className="checkpoint-podium" aria-label="Top three evaluated runs">
+            {ranked.slice(0, 3).map((checkpoint, index) => {
+              const medal = MEDALS[index];
+              const ghostActive = ghostEpisode === checkpoint.episode;
+              return (
+                <article className={`podium-card podium-${medal.tone}`} key={checkpoint.episode}>
+                  <div className="podium-card-topline">
+                    <span className={`podium-medal medal-${medal.tone}`} aria-label={medal.accessible}>
+                      <span aria-hidden="true">{index + 1}</span>
+                    </span>
+                    <span className="medal-name">{medal.label}</span>
+                  </div>
+                  <div className="podium-run-copy">
+                    <strong>Episode {checkpoint.episode.toLocaleString()}</strong>
+                    <small>{savedAt(checkpoint.timestamp)}</small>
+                  </div>
+                  <dl className="podium-score">
+                    <div><dt>Success</dt><dd>{checkpoint.success_rate != null
+                      ? `${Math.round(checkpoint.success_rate * 100)}%` : "Legacy"}</dd></div>
+                    <div><dt>{metricLabel}</dt><dd>{formatMetric(checkpoint.eval_metric, metricLabel)}</dd></div>
+                  </dl>
+                  <div className="podium-actions">
+                    <button type="button" className={ghostActive ? "compare-active" : ""}
+                      aria-pressed={ghostActive}
+                      onClick={() => ghostActive ? clearGhost() : setGhost(checkpoint.episode)}>
+                      {ghostActive ? "Hide replay" : "Watch replay"}
+                    </button>
+                    <button type="button" disabled={training}
+                      title={training ? "Pause training before loading a checkpoint" : "Load weights and continue from here"}
+                      onClick={() => resume(checkpoint)}>Resume</button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+          {ranked.length > 1 && (
+            <p className="podium-scroll-cue"><span aria-hidden="true">↔</span> Swipe for Silver and Bronze</p>
+          )}
+        </>
       )}
 
       <details className="checkpoint-details">

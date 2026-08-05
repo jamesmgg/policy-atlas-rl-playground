@@ -104,6 +104,7 @@ class DrivingEnv:
     features: DrivingFeatures = field(default_factory=DrivingFeatures)
     jitter: bool = True
     random_start: bool = False
+    start_line_probability: float = 0.0
     rng: random.Random = field(default_factory=random.Random)
 
     n_continuous = 2
@@ -133,7 +134,12 @@ class DrivingEnv:
 
     def reset(self) -> np.ndarray:
         track = self.track
-        idx = self.rng.choice(track.checkpoints) if self.random_start else 0
+        start_line = (
+            not self.random_start
+            or self.rng.random() < self.start_line_probability
+        )
+        candidates = track.checkpoints[1:] or track.checkpoints
+        idx = 0 if start_line else self.rng.choice(candidates)
         heading = heading_at(track, idx)
         x, y = track.centerline[idx]
         if self.jitter:

@@ -58,8 +58,9 @@ recoverable from the checkpoint archive.
   independent training seeds are directly comparable. Reports include mean, standard
   deviation, success rate, a 95% Wilson interval, evaluation count, seed, and
   update count.
-- Driving training samples measured-arc checkpoints across the whole course;
-  selection and replay retain their fixed start-line distributions.
+- Driving training uses a disclosed 75% start-line / 25% measured-checkpoint
+  mixture, retaining canonical-start competence while covering the course;
+  selection and replay keep their fixed start-line distributions.
 - The benchmark campaign freezes checkpoint selection before an optional
   100-start holdout at a disjoint seed range. Holdout outcomes cannot affect
   early stopping or checkpoint choice.

@@ -1,0 +1,42 @@
+{
+  "scenario_id": "rally-ridge",
+  "training_seed": 42,
+  "source_commit": "2182403",
+  "engine_source_sha256": "acdd0b6c754d17fb5c79554a4f2751a428299649af4124645215058dbea91170",
+  "training_start_distribution": "uniform measured track checkpoints",
+  "budget_episodes": 500,
+  "completed_episodes": 500,
+  "environment_steps": 174913,
+  "ppo_updates": 77,
+  "state": "unsolved",
+  "final_checkpoint": {
+    "episode": 500,
+    "checkpoint_sha256": "15d4eb8937c0e951a144b62d066b50894bcd09833538b8297ee0b2560d8ef9b2",
+    "metadata_sha256": "76834af017f21a039ed24414bfd1d99861280c5c94e6f71cdaf2e234ed9a6bf5",
+    "evaluation_suite": "policy-atlas-eval-v1-n10",
+    "successes": 0,
+    "evaluation_episodes": 10,
+    "success_rate": 0.0,
+    "success_ci_low": 0.0,
+    "success_ci_high": 0.2775,
+    "failure_progress": 0.003,
+    "eval_reward": -21.63,
+    "eval_reward_std": 0.188
+  },
+  "last_100_training_episodes": {
+    "successes": 0,
+    "mean_progress_fraction": 0.00498,
+    "max_progress_fraction": 0.044,
+    "mean_steps": 317.43,
+    "terminal_causes": {
+      "stall": 85,
+      "collision": 11,
+      "wrong_way": 4
+    }
+  },
+  "holdout": {
+    "state": "not_run",
+    "reason": "benchmark controller timed out during a CPU-bound checkpoint evaluation; training independently completed its full budget"
+  },
+  "interpretation": "The uniform all-checkpoint curriculum diluted canonical-start exposure and failed despite stable critic diagnostics. This is negative pilot evidence, not a solve claim."
+}

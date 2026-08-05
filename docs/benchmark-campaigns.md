@@ -98,6 +98,10 @@ success rate and interval, metric and dispersion, failure progress, evaluation
 suite, engine digest, separately labelled selection and holdout evidence, and
 per-scenario terminal state.
 
+The API request timeout defaults to 180 seconds because the single trainer may
+be CPU-bound while it runs a ten-episode checkpoint evaluation. Override it
+with `--request-timeout` only when diagnosing unusually slow hardware.
+
 Keep the compact JSON reports under `docs/results/` in Git so a solve claim is
 reviewable with the exact engine digest, seeds, checkpoint hashes, selection
 episode, and holdout outcome. Large tensor checkpoints stay in the Docker

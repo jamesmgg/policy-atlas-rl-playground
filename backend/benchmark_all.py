@@ -735,6 +735,10 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-episodes", type=int, default=2000)
     parser.add_argument("--checkpoint-every", type=int, default=25)
     parser.add_argument("--poll-seconds", type=float, default=2.0)
+    parser.add_argument(
+        "--request-timeout", type=float, default=180.0,
+        help="API timeout in seconds; checkpoint evaluation can occupy the trainer",
+    )
     parser.add_argument("--full-budget", action="store_true",
                         help="continue to max episodes after a confirmed solve")
     parser.add_argument("--min-success-rate", type=float, default=0.9)
@@ -758,6 +762,8 @@ def validate_args(args: argparse.Namespace) -> None:
     if args.poll_seconds < 0 or args.confirmations < 1:
         raise ValueError(
             "poll interval must be non-negative and confirmations positive")
+    if args.request_timeout <= 0:
+        raise ValueError("request timeout must be positive")
     if args.min_eval_episodes < 1:
         raise ValueError("minimum evaluation episodes must be positive")
     if args.holdout_episodes < 0:
@@ -783,7 +789,7 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
 
-    api = HttpApi(args.base_url)
+    api = HttpApi(args.base_url, timeout=args.request_timeout)
     catalog = api.get("/api/scenarios")
     status = api.get("/api/training/status")
     inventory = inventory_report(catalog, status)

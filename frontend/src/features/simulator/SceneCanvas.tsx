@@ -172,17 +172,45 @@ export default function SceneCanvas() {
   } = useTrainingSocket();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
+  const expandButtonRef = useRef<HTMLButtonElement>(null);
+  const exitButtonRef = useRef<HTMLButtonElement>(null);
+  const fullscreenSessionRef = useRef(false);
   const [scene, setScene] = useState<SceneData | null>(null);
   const [sceneError, setSceneError] = useState<string | null>(null);
   const [sceneAttempt, setSceneAttempt] = useState(0);
   const [telemetry, setTelemetry] = useState<FrameMsg | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fullscreenAvailable, setFullscreenAvailable] = useState(false);
+  const [fullscreenError, setFullscreenError] = useState<string | null>(null);
 
   useEffect(() => {
-    const update = () => setIsFullscreen(document.fullscreenElement === stageRef.current);
+    setFullscreenAvailable(
+      document.fullscreenEnabled && typeof stageRef.current?.requestFullscreen === "function",
+    );
+    const update = () => {
+      setIsFullscreen(document.fullscreenElement === stageRef.current);
+      setFullscreenError(null);
+    };
+    const reportError = () => setFullscreenError(
+      "Fullscreen could not start. Try the browser's own full-screen control.",
+    );
     document.addEventListener("fullscreenchange", update);
-    return () => document.removeEventListener("fullscreenchange", update);
+    document.addEventListener("fullscreenerror", reportError);
+    return () => {
+      document.removeEventListener("fullscreenchange", update);
+      document.removeEventListener("fullscreenerror", reportError);
+    };
   }, []);
+
+  useEffect(() => {
+    if (isFullscreen) {
+      fullscreenSessionRef.current = true;
+      requestAnimationFrame(() => exitButtonRef.current?.focus());
+    } else if (fullscreenSessionRef.current) {
+      fullscreenSessionRef.current = false;
+      requestAnimationFrame(() => expandButtonRef.current?.focus());
+    }
+  }, [isFullscreen]);
 
   useEffect(() => {
     const update = () => setTelemetry(selectVisibleFrame(
@@ -355,6 +383,27 @@ export default function SceneCanvas() {
     };
   }, [scene, frameRef, terminalFrameRef, ghostRef, status?.training]);
 
+  const enterFullscreen = async () => {
+    setFullscreenError(null);
+    if (!stageRef.current?.requestFullscreen) {
+      setFullscreenError("Fullscreen is not available in this browser.");
+      return;
+    }
+    try {
+      await stageRef.current.requestFullscreen();
+    } catch {
+      setFullscreenError("Fullscreen could not start. Try the browser's own full-screen control.");
+    }
+  };
+
+  const exitFullscreen = async () => {
+    try {
+      await document.exitFullscreen?.();
+    } catch {
+      setFullscreenError("Fullscreen could not close. Press Escape to return.");
+    }
+  };
+
   const stepsPerSecond = ppo.at(-1)?.sps ?? 0;
 
   return (
@@ -368,13 +417,21 @@ export default function SceneCanvas() {
           <span><i className="legend-agent" />Agent</span>
           <span><i className="legend-replay" />Checkpoint replay</span>
         </div>
-        <button type="button" className="fullscreen-button"
-          onClick={() => stageRef.current?.requestFullscreen?.()}>Expand simulator</button>
+        <button type="button" className="fullscreen-button" ref={expandButtonRef}
+          aria-controls="simulator-well" aria-expanded={isFullscreen}
+          disabled={!fullscreenAvailable}
+          title={fullscreenAvailable ? "Open the simulation at full-screen size" : "Fullscreen is not available in this browser"}
+          onClick={() => void enterFullscreen()}>
+          {fullscreenAvailable ? "Expand simulator" : "Fullscreen unavailable"}
+        </button>
       </header>
-      <div className="simulator-well" ref={stageRef}>
+      <div className="simulator-well" id="simulator-well" ref={stageRef}>
+        {fullscreenError && (
+          <div className="fullscreen-feedback" role="alert">{fullscreenError}</div>
+        )}
         {isFullscreen && (
-          <button type="button" className="fullscreen-exit"
-            onClick={() => document.exitFullscreen?.()}>Exit fullscreen</button>
+          <button type="button" className="fullscreen-exit" ref={exitButtonRef}
+            onClick={() => void exitFullscreen()}>Exit fullscreen</button>
         )}
         <canvas ref={canvasRef} className="track-canvas" role="img"
           aria-label={`${currentScenario?.name ?? "Experiment"} live policy simulation`}>

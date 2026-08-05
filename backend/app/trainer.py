@@ -558,7 +558,7 @@ class Trainer:
             "training_reward_scale": TRAINING_REWARD_SCALE,
             "value_loss_scale": "rollout return RMS",
             "training_start_distribution": (
-                "uniform track checkpoints"
+                "75% start line, 25% uniform measured track checkpoints"
                 if getattr(self.env, "random_start", False)
                 else "scenario default starts"
             ),

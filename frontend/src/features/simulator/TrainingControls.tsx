@@ -75,7 +75,7 @@ export default function TrainingControls() {
   };
 
   return (
-    <section className="panel controls-panel" aria-labelledby="run-title">
+    <section className="panel controls-panel" id="run-setup" aria-labelledby="run-title">
       <div className="panel-heading">
         <div><span className="section-kicker">Run setup</span><h2 id="run-title">Train the policy</h2></div>
         <span className={`run-badge run-${training ? "live" : connectionState}`} aria-live="polite">

@@ -580,25 +580,29 @@ class TestExperimentContract(unittest.TestCase):
         self.assertTrue(done)
         self.assertEqual(env.cause, "stall")
 
-    def test_randomized_driving_start_samples_track_checkpoints(self) -> None:
+    def test_driving_curriculum_keeps_start_line_exposure_and_track_coverage(self) -> None:
         training = {spec.id: spec for spec in list_specs()}[
             "rally-ridge"
-        ].make_env(False)
+        ].make_training_env()
         self.assertTrue(
             hasattr(training, "random_start"),
             "DrivingEnv has no training start-distribution control",
         )
-        training.random_start = True
-        training.jitter = True
+        self.assertEqual(training.start_line_probability, 0.75)
         training.rng.seed(42)
 
-        starts = set()
-        for _ in range(48):
+        starts: list[int] = []
+        for _ in range(240):
             training.reset()
-            starts.add(training.idx)
+            starts.append(training.idx)
 
-        self.assertTrue(starts.issubset(set(training.track.checkpoints)))
-        self.assertGreaterEqual(len(starts), len(training.track.checkpoints) // 2)
+        self.assertTrue(set(starts).issubset(set(training.track.checkpoints)))
+        start_line_count = starts.count(0)
+        self.assertGreaterEqual(start_line_count, 150)
+        self.assertLessEqual(start_line_count, 210)
+        self.assertGreaterEqual(
+            len(set(starts) - {0}), len(training.track.checkpoints) // 2,
+        )
 
     def test_randomized_traffic_start_preserves_relative_bot_gaps(self) -> None:
         traffic = {spec.id: spec for spec in list_specs()}[
@@ -792,7 +796,7 @@ class TestEvaluationProtocol(unittest.TestCase):
         self.assertEqual(protocol["value_loss_scale"], "rollout return RMS")
         self.assertEqual(
             protocol["training_start_distribution"],
-            "uniform track checkpoints",
+            "75% start line, 25% uniform measured track checkpoints",
         )
 
     def test_trainer_uses_training_factory_for_driving_environment(self) -> None:

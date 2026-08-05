@@ -64,6 +64,17 @@ export default function SimulatorPage() {
         </aside>
       </div>
 
+      <nav className="mobile-setup-dock" aria-label="Quick setup navigation">
+        <a href="#experiment-library">
+          <span className="dock-glyph" aria-hidden="true">∿</span>
+          <span><small>Browse</small><strong>Experiment</strong></span>
+        </a>
+        <a href="#run-setup">
+          <span className="dock-glyph dock-glyph-run" aria-hidden="true">▶</span>
+          <span><small>Choose a budget</small><strong>Run setup</strong></span>
+        </a>
+      </nav>
+
       <footer className="app-footer">
         <span>Policy Atlas · local experiment workspace</span>
         <span>Scores use {status?.eval_episodes ?? 10} fixed test starts with 95% success intervals.</span>

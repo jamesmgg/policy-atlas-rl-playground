@@ -620,6 +620,7 @@ class CliContractTests(unittest.TestCase):
         self.assertEqual(args.holdout_episodes, 100)
         self.assertEqual(args.holdout_seed_base, 200_000)
         self.assertIsNone(args.checkpoint_root)
+        self.assertEqual(args.request_timeout, 180.0)
 
     def test_all_and_selected_scenario_resolution_preserves_catalog_order(self) -> None:
         catalog = {"scenarios": [{"id": "one"}, {"id": "two"}, {"id": "three"}]}
@@ -641,6 +642,10 @@ class CliContractTests(unittest.TestCase):
 
         args = _parser().parse_args(["--holdout-seed-base", "-1"])
         with self.assertRaisesRegex(ValueError, "holdout seed range"):
+            validate_args(args)
+
+        args = _parser().parse_args(["--request-timeout", "0"])
+        with self.assertRaisesRegex(ValueError, "request timeout"):
             validate_args(args)
 
         args = _parser().parse_args([

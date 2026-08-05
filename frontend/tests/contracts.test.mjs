@@ -188,6 +188,41 @@ test("the active experiment is visualization first with diagnostics collapsed", 
   assert.ok(source.indexOf("<LearningCurve />", diagnostics) > diagnostics);
 });
 
+test("mobile users get direct setup anchors without interrupting the experiment stage", () => {
+  const page = readFileSync(
+    new URL("../src/features/simulator/SimulatorPage.tsx", import.meta.url),
+    "utf8",
+  );
+  const switcher = readFileSync(
+    new URL("../src/features/simulator/ScenarioSwitcher.tsx", import.meta.url),
+    "utf8",
+  );
+  const controls = readFileSync(
+    new URL("../src/features/simulator/TrainingControls.tsx", import.meta.url),
+    "utf8",
+  );
+  const styles = readFileSync(
+    new URL("../src/styles/app.css", import.meta.url),
+    "utf8",
+  );
+
+  const simulator = page.indexOf("<SceneCanvas />");
+  const topRuns = page.indexOf("<Leaderboard />");
+  const diagnostics = page.indexOf('<details className="technical-drawer">');
+  const quickNav = page.indexOf('className="mobile-setup-dock"');
+  assert.ok(simulator < topRuns && topRuns < diagnostics && diagnostics < quickNav);
+  assert.match(page, /aria-label="Quick setup navigation"/);
+  assert.match(page, /href="#experiment-library"/);
+  assert.match(page, /href="#run-setup"/);
+  assert.match(switcher, /id="experiment-library"/);
+  assert.match(controls, /id="run-setup"/);
+  assert.match(styles, /\.mobile-setup-dock\s*\{[^}]*display:\s*none/s);
+  assert.match(
+    styles,
+    /@media \(max-width: 900px\)[\s\S]*?\.mobile-setup-dock\s*\{[^}]*display:\s*grid/s,
+  );
+});
+
 test("the top three evaluated runs receive accessible medal treatments", () => {
   const source = readFileSync(
     new URL("../src/features/simulator/Leaderboard.tsx", import.meta.url),
@@ -199,6 +234,22 @@ test("the top three evaluated runs receive accessible medal treatments", () => {
   assert.match(source, /Silver medal, second place/);
   assert.match(source, /Bronze medal, third place/);
   assert.match(source, /<details className="checkpoint-details">/);
+});
+
+test("phone podiums disclose and snap to off-screen medalists", () => {
+  const leaderboard = readFileSync(
+    new URL("../src/features/simulator/Leaderboard.tsx", import.meta.url),
+    "utf8",
+  );
+  const styles = readFileSync(
+    new URL("../src/styles/app.css", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(leaderboard, /className="podium-scroll-cue"/);
+  assert.match(leaderboard, /Swipe for Silver and Bronze/);
+  assert.match(styles, /scroll-snap-type:\s*x mandatory/);
+  assert.match(styles, /\.podium-card\s*\{[^}]*scroll-snap-align:\s*start/s);
 });
 
 test("Policy Atlas declares a dark instrument theme", () => {
@@ -214,6 +265,41 @@ test("Policy Atlas declares a dark instrument theme", () => {
     /background-size:\s*auto,\s*32px 32px,\s*32px 32px/,
     "the ambient glow must not tile with the instrument grid",
   );
+
+  const faint = styles.match(/--faint:\s*(#[0-9a-f]{6})/i)?.[1];
+  assert.ok(faint, "the subdued text token must be declared");
+  const luminance = (hex) => {
+    const channels = [1, 3, 5].map((index) => Number.parseInt(hex.slice(index, index + 2), 16) / 255);
+    const [r, g, b] = channels.map((channel) => channel <= 0.03928
+      ? channel / 12.92
+      : ((channel + 0.055) / 1.055) ** 2.4);
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const contrast = (foreground, background) => {
+    const light = Math.max(luminance(foreground), luminance(background));
+    const dark = Math.min(luminance(foreground), luminance(background));
+    return (light + 0.05) / (dark + 0.05);
+  };
+  assert.ok(contrast(faint, "#10232f") >= 4.5, "subdued text must remain readable on cards");
+});
+
+test("fullscreen controls expose capability, errors, state, and focus restoration", () => {
+  const source = readFileSync(
+    new URL("../src/features/simulator/SceneCanvas.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /fullscreenAvailable/);
+  assert.match(source, /fullscreenError/);
+  assert.match(source, /aria-controls="simulator-well"/);
+  assert.match(source, /aria-expanded=\{isFullscreen\}/);
+  assert.match(source, /disabled=\{!fullscreenAvailable\}/);
+  assert.match(source, /ref=\{expandButtonRef\}/);
+  assert.match(source, /ref=\{exitButtonRef\}/);
+  assert.match(source, /exitButtonRef\.current\?\.focus\(\)/);
+  assert.match(source, /expandButtonRef\.current\?\.focus\(\)/);
+  assert.match(source, /className="fullscreen-feedback" role="alert"/);
+  assert.match(source, /id="simulator-well"/);
 });
 
 test("optimizer telemetry types include critic calibration and exploration", () => {

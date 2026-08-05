@@ -41,7 +41,8 @@ export default function ScenarioSwitcher() {
   };
 
   return (
-    <aside className="experiment-library" aria-labelledby="library-title" aria-busy={switching}>
+    <aside className="experiment-library" id="experiment-library"
+      aria-labelledby="library-title" aria-busy={switching}>
       <div className="library-heading">
         <span className="section-kicker">Explore</span>
         <div><h2 id="library-title">Experiment library</h2><span>{scenarios.length} available</span></div>
