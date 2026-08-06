@@ -83,6 +83,12 @@ def _driving_spec(id: str, name: str, group: str, description: str,
     if reward.timeout:
         reward_terms.append(
             f"{reward.timeout:g} task-deadline timeout penalty")
+    if reward.terminalize_failure_time:
+        reward_terms.append(
+            f"canonical failures pay the full {reward.time * horizon_steps:g} "
+            "horizon time budget; rolling-start failures pay their constant "
+            "remaining-suffix budget; successful completion pays elapsed "
+            "live-step time only")
     horizon_seconds = horizon_steps * DrivingEnv.dt
     termination = [
         "leaving the circuit", "wrong-way regression",
@@ -268,6 +274,7 @@ DRIVING_SPECS: list[ScenarioSpec] = [
             stall=-40.0,
             wrong_way=-40.0,
             timeout=-40.0,
+            terminalize_failure_time=True,
         ),
         features=DrivingFeatures(
             bots=(Bot(0.25, 18.0, -0.4), Bot(0.50, 24.0, 0.0),
@@ -278,5 +285,5 @@ DRIVING_SPECS: list[ScenarioSpec] = [
         success="Overtake all three traffic cars in one episode.",
         difficulty="Advanced", training_rolling_checkpoints=(3, 9, 11),
         horizon_steps=2250, training_discount_factor=1.0,
-        checkpoint_schema=13),
+        checkpoint_schema=15),
 ]

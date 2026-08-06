@@ -81,6 +81,23 @@ class RewardConfig:
     contact: float = 0.0
     fuel_empty: float = 0.0
     timeout: float = 0.0
+    terminalize_failure_time: bool = False
+
+
+FAILURE_TERMINAL_CAUSES = (
+    "collision", "contact", "stall", "wrong_way", "timeout",
+)
+
+
+def terminal_failure_time_cost(
+        reward_cfg: RewardConfig, *, cause: str, steps: int,
+        max_steps: int) -> float:
+    """Charge failed episodes for the unused clock without taxing success."""
+    if (not reward_cfg.terminalize_failure_time
+            or cause not in FAILURE_TERMINAL_CAUSES):
+        return 0.0
+    remaining_steps = max(int(max_steps) - int(steps), 0)
+    return float(reward_cfg.time) * remaining_steps
 
 
 @dataclass(frozen=True)
@@ -432,6 +449,14 @@ class DrivingEnv:
             reward += cfg.timeout
             done, self.cause = True, "timeout"
 
+        if done:
+            reward += terminal_failure_time_cost(
+                cfg,
+                cause=self.cause,
+                steps=self.steps,
+                max_steps=self.max_steps,
+            )
+
         self.episode_reward += reward
         deadline = done and self.cause == "timeout"
         return self._obs(), reward, done, {
@@ -483,6 +508,26 @@ class DrivingEnv:
         return False
 
     # ----------------------------------------------------------------- protocol
+
+    def failure_clock_protocol(self) -> dict | None:
+        """Describe the optional failure-only time-to-go regularizer."""
+        cfg = self.reward_cfg
+        if not cfg.terminalize_failure_time:
+            return None
+        return {
+            "enabled": True,
+            "time_per_step": cfg.time,
+            "failure_causes": list(FAILURE_TERMINAL_CAUSES),
+            "remaining_cost_formula": (
+                "time_per_step * max(horizon_steps - terminal_step, 0)"
+            ),
+            "canonical_failure_clock_total": cfg.time * self.max_steps,
+            "rolling_start_semantics": (
+                "constant over the remaining suffix from each sampled start; "
+                "no reset reward"
+            ),
+            "successful_completion": "elapsed live-step time cost only",
+        }
 
     def _objective_reached(self) -> bool:
         kind = self.features.metric

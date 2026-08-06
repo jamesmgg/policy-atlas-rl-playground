@@ -656,9 +656,11 @@ class Trainer:
             "horizon_seconds",
             task_horizon_steps * self.env.dt,
         )
+        failure_clock_protocol = getattr(
+            self.env, "failure_clock_protocol", None)
         eval_result["protocol"] = {
             "algorithm": "PPO",
-            "version": 13,
+            "version": 15,
             "rollout_steps": ROLLOUT_STEPS,
             "episode_aligned_rollouts": True,
             "gamma": scenario_discount_factor(self.spec),
@@ -678,6 +680,10 @@ class Trainer:
             ),
             "task_horizon_steps": task_horizon_steps,
             "task_horizon_seconds": task_horizon_seconds,
+            "failure_clock_regularizer": (
+                failure_clock_protocol()
+                if callable(failure_clock_protocol) else None
+            ),
             "training_curriculum": (
                 self.spec.training_curriculum.protocol()
                 if getattr(self.spec, "training_curriculum", None) is not None

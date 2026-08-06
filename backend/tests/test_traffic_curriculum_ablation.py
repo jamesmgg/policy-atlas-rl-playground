@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.checkpoints import (CheckpointRegistry,  # noqa: E402
                              IncompatibleCheckpointError)
+import app.envs.driving as driving_module  # noqa: E402
 from app.envs.driving import RewardConfig  # noqa: E402
 from app.ppo.agent import PPOAgent  # noqa: E402
 from app.ppo.buffer import RolloutBuffer  # noqa: E402
@@ -89,7 +90,20 @@ class TrafficStageCurriculumAblationTests(unittest.TestCase):
                 stall=-40.0,
                 wrong_way=-40.0,
                 timeout=-40.0,
+                terminalize_failure_time=True,
             ),
+        )
+        # Preserve the recurring progress/checkpoint/lap shaping for this
+        # one-factor ablation. Its zero-overtake cruising incentive is a
+        # separate hypothesis, not part of the failure-clock experiment.
+        self.assertEqual(
+            (
+                env.reward_cfg.progress,
+                env.reward_cfg.checkpoint,
+                env.reward_cfg.lap,
+                env.reward_cfg.overtake,
+            ),
+            (0.05, 3.0, 30.0, 8.0),
         )
         self.assertEqual(
             tuple((bot.start_frac, bot.speed, bot.lat_frac)
@@ -108,6 +122,94 @@ class TrafficStageCurriculumAblationTests(unittest.TestCase):
                         spec.make_training_env().rolling_checkpoint_indices,
                         (3, 9, 11),
                     )
+
+    def test_failure_clock_component_is_timing_invariant_for_every_cause(self) -> None:
+        clock_cost = getattr(
+            driving_module, "terminal_failure_time_cost", None)
+        self.assertTrue(
+            callable(clock_cost),
+            "Traffic needs an explicit, testable failure clock contract",
+        )
+        env = self.traffic.make_env(False)
+        cfg = env.reward_cfg
+        self.assertEqual(cfg.time, -0.02)
+
+        for cause in ("collision", "contact", "stall", "wrong_way", "timeout"):
+            for terminal_step in (1, 2, env.max_steps - 1, env.max_steps):
+                with self.subTest(cause=cause, terminal_step=terminal_step):
+                    elapsed_clock = cfg.time * terminal_step
+                    correction = clock_cost(
+                        cfg,
+                        cause=cause,
+                        steps=terminal_step,
+                        max_steps=env.max_steps,
+                    )
+                    self.assertAlmostEqual(
+                        elapsed_clock + correction,
+                        cfg.time * env.max_steps,
+                    )
+
+    def test_successful_completion_keeps_elapsed_time_pressure(self) -> None:
+        clock_cost = getattr(
+            driving_module, "terminal_failure_time_cost", None)
+        self.assertTrue(callable(clock_cost))
+        env = self.traffic.make_env(False)
+        cfg = env.reward_cfg
+
+        for terminal_step in (1, 400, env.max_steps):
+            with self.subTest(terminal_step=terminal_step):
+                correction = clock_cost(
+                    cfg,
+                    cause="complete",
+                    steps=terminal_step,
+                    max_steps=env.max_steps,
+                )
+                self.assertEqual(correction, 0.0)
+                self.assertEqual(
+                    cfg.time * terminal_step + correction,
+                    cfg.time * terminal_step,
+                )
+
+    def test_runtime_failure_correction_uses_post_step_clock_without_off_by_one(self) -> None:
+        penalized = self.traffic.make_env(False)
+        self.assertTrue(
+            getattr(penalized.reward_cfg, "terminalize_failure_time", False))
+        baseline = copy.deepcopy(penalized)
+        object.__setattr__(
+            baseline.reward_cfg, "terminalize_failure_time", False)
+        for env in (penalized, baseline):
+            env._stall_steps = driving_module.STALL_WINDOW - 1
+            env._stall_anchor_progress = env.progress
+
+        _, penalized_reward, penalized_done, _ = penalized.step(
+            np.zeros(3, dtype=np.float32))
+        _, baseline_reward, baseline_done, _ = baseline.step(
+            np.zeros(3, dtype=np.float32))
+
+        self.assertTrue(penalized_done and baseline_done)
+        self.assertEqual(penalized.cause, "stall")
+        self.assertEqual(penalized.steps, 1)
+        self.assertAlmostEqual(
+            penalized_reward - baseline_reward,
+            penalized.reward_cfg.time * (penalized.max_steps - 1),
+        )
+
+    def test_failure_clock_regularizer_is_disclosed_and_traffic_only(self) -> None:
+        for spec in list_specs():
+            if spec.kind != "driving":
+                continue
+            with self.subTest(scenario=spec.id):
+                enabled = getattr(
+                    spec.make_env(False).reward_cfg,
+                    "terminalize_failure_time",
+                    False,
+                )
+                self.assertEqual(enabled, spec.id == self.traffic.id)
+
+        self.assertTrue(any(
+            "canonical failures pay the full -45 horizon time budget" in term
+            for term in self.traffic.reward_terms
+        ))
 
     def test_timeout_carries_the_same_failure_cost_as_unsafe_termination(self) -> None:
         """Waiting out the clock must not dominate an immediate failed attempt."""
@@ -275,7 +377,7 @@ class TrafficStageCurriculumAblationTests(unittest.TestCase):
             with self.subTest(scenario=spec.id):
                 self.assertEqual(spec.training_discount_factor, 0.995)
 
-    def test_schema_thirteen_refuses_a_schema_twelve_traffic_checkpoint(self) -> None:
+    def test_schema_fifteen_refuses_a_schema_fourteen_traffic_checkpoint(self) -> None:
         env = self.traffic.make_env(False)
         agent = PPOAgent(
             env.obs_dim, env.n_continuous, env.n_binary, torch.device("cpu"))
@@ -284,17 +386,17 @@ class TrafficStageCurriculumAblationTests(unittest.TestCase):
             current = CheckpointRegistry(
                 root, self.traffic.id,
                 schema_version=self.traffic.checkpoint_schema)
-            old = CheckpointRegistry(root, self.traffic.id, schema_version=12)
+            old = CheckpointRegistry(root, self.traffic.id, schema_version=14)
             old.save(25, agent, [{"reward": 1.0}], {
                 "reward": 1.0, "metric": 2.0, "trajectory": [],
             })
 
-            self.assertEqual(self.traffic.checkpoint_schema, 13)
+            self.assertEqual(self.traffic.checkpoint_schema, 15)
             self.assertEqual(current.list(), [])
             with self.assertRaises(IncompatibleCheckpointError):
                 current.load_into(25, agent)
 
-    def test_protocol_v13_discloses_the_undiscounted_traffic_objective(self) -> None:
+    def test_protocol_v15_discloses_the_terminalized_failure_clock(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "state.json").write_text(
@@ -325,7 +427,26 @@ class TrafficStageCurriculumAblationTests(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 13)
+        self.assertEqual(
+            protocol.get("failure_clock_regularizer"),
+            {
+                "enabled": True,
+                "time_per_step": -0.02,
+                "failure_causes": [
+                    "collision", "contact", "stall", "wrong_way", "timeout",
+                ],
+                "remaining_cost_formula": (
+                    "time_per_step * max(horizon_steps - terminal_step, 0)"
+                ),
+                "canonical_failure_clock_total": -45.0,
+                "rolling_start_semantics": (
+                    "constant over the remaining suffix from each sampled "
+                    "start; no reset reward"
+                ),
+                "successful_completion": "elapsed live-step time cost only",
+            },
+        )
+        self.assertEqual(protocol["version"], 15)
         self.assertEqual(protocol["gamma"], 1.0)
         self.assertEqual(protocol["task_horizon_steps"], 2250)
         self.assertEqual(protocol["task_horizon_seconds"], 90.0)
