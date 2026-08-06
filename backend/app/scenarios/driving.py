@@ -257,7 +257,12 @@ DRIVING_SPECS: list[ScenarioSpec] = [
         "traffic-rush", "Traffic Rush", "Objectives",
         "Three slower cars share the track. Overtake cleanly — contact ends it.",
         "APEX_GP",
-        reward=RewardConfig(overtake=8.0, contact=-40.0),
+        reward=RewardConfig(
+            overtake=8.0,
+            contact=-40.0,
+            stall=-40.0,
+            wrong_way=-40.0,
+        ),
         features=DrivingFeatures(
             bots=(Bot(0.25, 18.0, -0.4), Bot(0.50, 24.0, 0.0),
                   Bot(0.75, 30.0, 0.4)),
@@ -266,5 +271,5 @@ DRIVING_SPECS: list[ScenarioSpec] = [
         objective="Pass traffic without contact while maintaining forward progress.",
         success="Overtake all three traffic cars in one episode.",
         difficulty="Advanced", training_rolling_checkpoints=(4, 10, 11),
-        horizon_steps=2250, checkpoint_schema=10),
+        horizon_steps=2250, checkpoint_schema=11),
 ]

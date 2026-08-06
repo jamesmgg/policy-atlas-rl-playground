@@ -62,6 +62,9 @@ recoverable from the checkpoint archive.
   mixture. Rolling states reconstruct speed, clock, task progress, fuel, and
   traffic from a curvature/grip braking envelope; selection and replay keep
   their unchanged fixed start-line distributions.
+- Traffic Rush assigns the same -40 terminal cost to collision, contact,
+  wrong-way, and stall failures, so waiting safely cannot dominate attempting
+  the overtake objective.
 - Lunar Lander uses touchdown and braking-approach rehearsals through episode
   500, then consolidates on 75% canonical descents and 25% braking approaches;
   Drone Course uses a fixed-suite, performance-gated reverse curriculum that

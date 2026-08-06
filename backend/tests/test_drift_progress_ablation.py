@@ -51,14 +51,19 @@ class DriftProgressAblationTests(unittest.TestCase):
     def test_drift_reward_revision_uses_a_fresh_checkpoint_schema(self) -> None:
         self.assertEqual(self.spec.checkpoint_schema, 8)
         self.assertEqual(self.specs["rally-ridge"].checkpoint_schema, 7)
-        self.assertEqual(self.specs["traffic-rush"].checkpoint_schema, 10)
+        self.assertEqual(self.specs["traffic-rush"].checkpoint_schema, 11)
 
-    def test_other_driving_reward_contracts_are_unchanged(self) -> None:
+    def test_other_driving_reward_contracts_are_explicit(self) -> None:
         expected = {
             "apex-gp": RewardConfig(),
             "rally-ridge": RewardConfig(drift_corner=0.008),
             "eco-gp": RewardConfig(fuel_empty=-5.0),
-            "traffic-rush": RewardConfig(overtake=8.0, contact=-40.0),
+            "traffic-rush": RewardConfig(
+                overtake=8.0,
+                contact=-40.0,
+                stall=-40.0,
+                wrong_way=-40.0,
+            ),
         }
         for scenario_id, reward in expected.items():
             with self.subTest(scenario=scenario_id):

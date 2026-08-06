@@ -87,7 +87,7 @@ class DrivingCurriculumTests(unittest.TestCase):
     @unittest.skipUnless(HAS_ROLLING_CURRICULUM, "curriculum API not implemented")
     def test_traffic_fixed_evaluation_remains_canonical(self) -> None:
         spec = self.specs["traffic-rush"]
-        self.assertEqual(spec.checkpoint_schema, 10)
+        self.assertEqual(spec.checkpoint_schema, 11)
 
         env = spec.make_env(False)
         env.rng.seed(41)

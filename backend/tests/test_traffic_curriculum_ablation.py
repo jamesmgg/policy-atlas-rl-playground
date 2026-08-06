@@ -74,7 +74,14 @@ class TrafficStageCurriculumAblationTests(unittest.TestCase):
         self.assertEqual(env._bot_passed, [False, False, False])
         self.assertEqual(env.max_steps, 2250)
         self.assertEqual(
-            env.reward_cfg, RewardConfig(overtake=8.0, contact=-40.0))
+            env.reward_cfg,
+            RewardConfig(
+                overtake=8.0,
+                contact=-40.0,
+                stall=-40.0,
+                wrong_way=-40.0,
+            ),
+        )
         self.assertEqual(
             tuple((bot.start_frac, bot.speed, bot.lat_frac)
                   for bot in env.features.bots),
@@ -93,7 +100,7 @@ class TrafficStageCurriculumAblationTests(unittest.TestCase):
                         (4, 10, 11),
                     )
 
-    def test_schema_ten_refuses_a_schema_nine_traffic_checkpoint(self) -> None:
+    def test_schema_eleven_refuses_a_schema_ten_traffic_checkpoint(self) -> None:
         env = self.traffic.make_env(False)
         agent = PPOAgent(
             env.obs_dim, env.n_continuous, env.n_binary, torch.device("cpu"))
@@ -102,17 +109,17 @@ class TrafficStageCurriculumAblationTests(unittest.TestCase):
             current = CheckpointRegistry(
                 root, self.traffic.id,
                 schema_version=self.traffic.checkpoint_schema)
-            old = CheckpointRegistry(root, self.traffic.id, schema_version=9)
+            old = CheckpointRegistry(root, self.traffic.id, schema_version=10)
             old.save(25, agent, [{"reward": 1.0}], {
                 "reward": 1.0, "metric": 2.0, "trajectory": [],
             })
 
-            self.assertEqual(self.traffic.checkpoint_schema, 10)
+            self.assertEqual(self.traffic.checkpoint_schema, 11)
             self.assertEqual(current.list(), [])
             with self.assertRaises(IncompatibleCheckpointError):
                 current.load_into(25, agent)
 
-    def test_protocol_v10_discloses_the_targeted_stage_curriculum(self) -> None:
+    def test_protocol_v11_discloses_the_targeted_stage_curriculum(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "state.json").write_text(
@@ -143,7 +150,7 @@ class TrafficStageCurriculumAblationTests(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 10)
+        self.assertEqual(protocol["version"], 11)
         self.assertEqual(protocol["task_horizon_steps"], 2250)
         self.assertEqual(protocol["task_horizon_seconds"], 90.0)
         self.assertEqual(
