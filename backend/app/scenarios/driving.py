@@ -4,6 +4,9 @@ from __future__ import annotations
 from dataclasses import replace
 from functools import lru_cache
 
+import numpy as np
+import torch
+
 from .. import physics, track as tracks
 from ..envs.base import TrainingControlSpec, TrainingCurriculumSpec
 from ..envs.driving import (
@@ -16,6 +19,7 @@ from ..envs.driving import (
     TRAFFIC_CURRICULUM_CONSECUTIVE_CONFIRMATIONS,
     TRAFFIC_CURRICULUM_FRONTIER_ORDER,
     TRAFFIC_CURRICULUM_ID,
+    TRAFFIC_TRAINING_SCHEDULE,
     Bot,
     DrivingEnv,
     DrivingFeatures,
@@ -23,7 +27,9 @@ from ..envs.driving import (
     RewardConfig,
     TrafficCurriculumEnv,
     Zone,
+    traffic_reference_action,
 )
+from ..ppo.demonstrations import BehaviorCloningWarmStart
 from ..ppo.initialization import ActorInitialization
 from ..track import Track, build_track
 from .spec import ScenarioSpec
@@ -84,6 +90,16 @@ def _driving_spec(id: str, name: str, group: str, description: str,
             "terminal-zero course potential: live progress/checkpoint/lap "
             "differences are dense, terminal potential is 0, and the episode "
             "sum = -potential(start)",
+            f"{reward.time:g} time cost per control step",
+            f"{reward.collision:g} off-track, {reward.wrong_way:g} wrong-way, "
+            f"and {reward.stall:g} stall penalties",
+        ]
+    elif reward.retain_terminal_course_potential:
+        reward_terms = [
+            "retained terminal course potential: live "
+            "progress/checkpoint/lap differences are dense, terminal "
+            "potential is the physical end state, and the episode sum = "
+            "potential(end) - potential(start)",
             f"{reward.time:g} time cost per control step",
             f"{reward.collision:g} off-track, {reward.wrong_way:g} wrong-way, "
             f"and {reward.stall:g} stall penalties",
@@ -149,6 +165,12 @@ def _driving_spec(id: str, name: str, group: str, description: str,
             f"traffic {index + 1} relative speed / max",
             f"traffic {index + 1} lateral lane fraction",
             f"traffic {index + 1} already passed",
+        ))
+    if features.metric == "overtakes":
+        observation_dimensions.extend((
+            "Traffic pursuit target lane fraction",
+            "Traffic pursuit heading error / max steering angle",
+            "Traffic physics speed target / max speed",
         ))
     observation_dimensions.append("remaining horizon fraction")
     if (training_rolling_checkpoints is not None
@@ -240,7 +262,16 @@ TRAFFIC_REWARD = RewardConfig(
     wrong_way=-40.0,
     timeout=-40.0,
     terminalize_failure_time=True,
-    terminal_zero_course_potential=True,
+    retain_terminal_course_potential=True,
+)
+
+TRAFFIC_ACTOR_INITIALIZATION = ActorInitialization(
+    scope="traffic_demonstration_assisted_ppo",
+    continuous_action_labels=("throttle_brake", "steering"),
+    continuous_action_prior=(0.25, 0.0),
+    continuous_log_std=(-2.0, -2.0),
+    binary_action_labels=("drift",),
+    binary_probability_prior=(0.05,),
 )
 TRAFFIC_FEATURES = DrivingFeatures(
     bots=(Bot(0.25, 18.0, -0.4), Bot(0.50, 24.0, 0.0),
@@ -248,17 +279,19 @@ TRAFFIC_FEATURES = DrivingFeatures(
     metric="overtakes",
 )
 TRAFFIC_TRAINING_START_DISTRIBUTION = (
-    "Performance-gated reverse Traffic curriculum over audited physical "
-    "checkpoints 11, 9, 3, then canonical 0: 80% active frontier and 20% "
-    "uniformly sampled mastered stages; two distinct 10-seed confirmations "
-    "at >=80% unlock checkpoints 9, 3, and 0, while two >=90% canonical "
-    "confirmations complete the curriculum; rolling states use the 70-90% "
-    "curvature/grip backward-braking envelope, an 80% reference clock with "
-    "a 1-second reserve, time-advanced traffic and reconstructed pass masks, "
-    "and no reset reward; before checkpoint 11 can unlock, a nested bot3 "
-    "speed control advances through 18, 24, and canonical 30 m/s after two "
-    "distinct >=80% fixed 10-seed confirmations per speed, with 80% active "
-    "speed-stage resets and 20% uniformly sampled mastered speeds"
+    "Predeclared Traffic rehearsal schedule: episodes 1-200 sample 75% "
+    "physical checkpoint-11 near-pass starts with bot3 at 12 m/s and 25% "
+    "nested speed-control starts; episodes 201-400 sample those modes at "
+    "25% and 75%; episodes 401 onward use nested speed-control starts only. "
+    "The performance-gated reverse curriculum uses audited physical "
+    "checkpoints 11, 9, 3, then canonical 0 with 80% active frontier and "
+    "20% uniformly sampled mastered stages. Before checkpoint 11 can "
+    "unlock, nested bot3 control advances through 18, 24, and canonical "
+    "30 m/s after two distinct >=80% fixed 10-seed confirmations per speed, "
+    "sampling 80% active speed and 20% uniformly among mastered speeds. "
+    "Rolling states use the 70-90% curvature/grip backward-braking envelope, "
+    "an 80% reference clock with a 1-second reserve, time-advanced traffic, "
+    "reconstructed pass masks, and no reset reward"
 )
 
 
@@ -303,6 +336,126 @@ def _make_traffic_bot3_speed_evaluation_env(
         forced_start_checkpoint=11,
         forced_bot3_speed_stage=stage,
     )
+
+
+TRAFFIC_DEMONSTRATION_SEED_BASE = 900_000
+TRAFFIC_DEMONSTRATION_EPISODES = 30
+TRAFFIC_DEMONSTRATION_STATE_STRIDE = 2
+TRAFFIC_DAGGER_ROLLOUT_SEED_BASE = 920_000
+TRAFFIC_DAGGER_ROUNDS = 2
+TRAFFIC_DAGGER_ROUND_SEED_STRIDE = 1_000
+TRAFFIC_DAGGER_EPISODES_PER_ROUND = 40
+TRAFFIC_DAGGER_STATE_STRIDE = 2
+
+
+def _make_traffic_demonstration_env() -> DrivingEnv:
+    return DrivingEnv(
+        _track("APEX_GP"),
+        params=physics.F1,
+        reward_cfg=TRAFFIC_REWARD,
+        features=TRAFFIC_FEATURES,
+        jitter=True,
+        max_steps=2250,
+    )
+
+
+def traffic_behavior_cloning_dataset() -> tuple[np.ndarray, np.ndarray]:
+    """Collect fixed canonical pure-pursuit demonstrations for Traffic."""
+    observations: list[np.ndarray] = []
+    actions: list[np.ndarray] = []
+    for episode_index in range(TRAFFIC_DEMONSTRATION_EPISODES):
+        env = _make_traffic_demonstration_env()
+        env.rng.seed(TRAFFIC_DEMONSTRATION_SEED_BASE + episode_index)
+        observation = env.reset()
+        for step in range(env.max_steps):
+            action = traffic_reference_action(env)
+            if step % TRAFFIC_DEMONSTRATION_STATE_STRIDE == 0:
+                observations.append(observation.copy())
+                actions.append(action.copy())
+            observation, _, done, _ = env.step(action)
+            if done:
+                break
+        if not env.episode_summary()["success"]:
+            raise RuntimeError(
+                f"Traffic demonstration {episode_index} did not complete")
+    return (
+        np.asarray(observations, dtype=np.float32),
+        np.asarray(actions, dtype=np.float32),
+    )
+
+
+def _deterministic_model_action(model, observation: np.ndarray) -> np.ndarray:
+    with torch.no_grad():
+        tensor = torch.as_tensor(observation).unsqueeze(0)
+        hidden = model.torso(tensor)
+        parts = [torch.tanh(model.mu(hidden))]
+        if model.drift_logit is not None:
+            parts.append((model.drift_logit(hidden) > 0.0).float())
+        return torch.cat(parts, dim=-1).squeeze(0).cpu().numpy()
+
+
+def traffic_dagger_dataset(
+        model, round_index: int) -> tuple[np.ndarray, np.ndarray]:
+    """Label states visited by the learned actor; the expert never acts."""
+    if not 0 <= round_index < TRAFFIC_DAGGER_ROUNDS:
+        raise ValueError("Traffic DAgger round is outside the fixed contract")
+    observations: list[np.ndarray] = []
+    actions: list[np.ndarray] = []
+    seed_base = (
+        TRAFFIC_DAGGER_ROLLOUT_SEED_BASE
+        + round_index * TRAFFIC_DAGGER_ROUND_SEED_STRIDE
+    )
+    for episode_index in range(TRAFFIC_DAGGER_EPISODES_PER_ROUND):
+        env = _make_traffic_demonstration_env()
+        env.rng.seed(seed_base + episode_index)
+        observation = env.reset()
+        for step in range(env.max_steps):
+            if step % TRAFFIC_DAGGER_STATE_STRIDE == 0:
+                observations.append(observation.copy())
+                actions.append(traffic_reference_action(env))
+            learned_action = _deterministic_model_action(model, observation)
+            observation, _, done, _ = env.step(learned_action)
+            if done:
+                break
+    return (
+        np.asarray(observations, dtype=np.float32),
+        np.asarray(actions, dtype=np.float32),
+    )
+
+
+TRAFFIC_ACTOR_WARM_START = BehaviorCloningWarmStart(
+    id="traffic-pure-pursuit-dagger-v1",
+    expert_id="traffic-physics-pure-pursuit-v1",
+    expert_description=(
+        "training-only pure pursuit with lookahead 18 m + 0.25 * speed, "
+        "95% curvature/grip speed envelope, heading gain 1.6, lateral "
+        "damping 0.3, and an opposite +/-0.72 lane target only while the "
+        "nearest unpassed bot is between -12 m and +80 m; the expert labels "
+        "training states and is absent at inference"
+    ),
+    dataset_seed_base=TRAFFIC_DEMONSTRATION_SEED_BASE,
+    dataset_episodes=TRAFFIC_DEMONSTRATION_EPISODES,
+    dataset_start_description=(
+        "ordinary jittered canonical full-course starts disjoint from "
+        "selection, holdout, outer-gate, and nested-control suites"
+    ),
+    dataset_builder=traffic_behavior_cloning_dataset,
+    learning_rate=1e-3,
+    batch_size=2_048,
+    epochs=50,
+    state_stride=TRAFFIC_DEMONSTRATION_STATE_STRIDE,
+    continuous_action_labels=("throttle", "steering"),
+    continuous_loss_weights=(1.0, 5.0),
+    binary_action_labels=("drift",),
+    binary_loss_weight=0.1,
+    dagger_rounds=TRAFFIC_DAGGER_ROUNDS,
+    dagger_rollout_seed_base=TRAFFIC_DAGGER_ROLLOUT_SEED_BASE,
+    dagger_round_seed_stride=TRAFFIC_DAGGER_ROUND_SEED_STRIDE,
+    dagger_episodes_per_round=TRAFFIC_DAGGER_EPISODES_PER_ROUND,
+    dagger_state_stride=TRAFFIC_DAGGER_STATE_STRIDE,
+    dagger_dataset_builder=traffic_dagger_dataset,
+    dagger_epochs=50,
+)
 
 
 TRAFFIC_BOT3_SPEED_CONTROL = TrainingControlSpec(
@@ -442,9 +595,12 @@ DRIVING_SPECS: list[ScenarioSpec] = [
             success="Overtake all three traffic cars in one episode.",
             difficulty="Advanced",
             horizon_steps=2250, training_discount_factor=1.0,
-            checkpoint_schema=17),
+            actor_initialization=TRAFFIC_ACTOR_INITIALIZATION,
+            checkpoint_schema=18),
         training_factory=_make_traffic_training_env,
         training_start_distribution=TRAFFIC_TRAINING_START_DISTRIBUTION,
         training_curriculum=TRAFFIC_TRAINING_CURRICULUM,
+        training_schedule=TRAFFIC_TRAINING_SCHEDULE,
+        actor_warm_start=TRAFFIC_ACTOR_WARM_START,
     ),
 ]

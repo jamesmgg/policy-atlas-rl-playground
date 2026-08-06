@@ -16,7 +16,12 @@ import numpy as np
 from .. import physics
 from ..physics import CarState, PhysicsParams
 from ..track import Track, heading_at
-from .base import TrainingControlSpec, TrainingCurriculumSpec
+from .base import (
+    EpisodeTrainingPhase,
+    EpisodeTrainingScheduleSpec,
+    TrainingControlSpec,
+    TrainingCurriculumSpec,
+)
 
 FRAME_SKIP = 2
 DT_AGENT = physics.DT * FRAME_SKIP   # 0.04 s per agent step
@@ -84,6 +89,7 @@ class RewardConfig:
     timeout: float = 0.0
     terminalize_failure_time: bool = False
     terminal_zero_course_potential: bool = False
+    retain_terminal_course_potential: bool = False
 
 
 FAILURE_TERMINAL_CAUSES = (
@@ -110,6 +116,12 @@ def terminal_zero_potential_delta(
     return next_potential - float(previous_potential)
 
 
+def retained_course_potential_delta(
+        previous_potential: float, current_potential: float) -> float:
+    """Local potential difference that retains the physical terminal state."""
+    return float(current_potential) - float(previous_potential)
+
+
 TRAFFIC_CURRICULUM_ID = "traffic-reverse-overtake-v1"
 TRAFFIC_CURRICULUM_STATE_VERSION = 2
 TRAFFIC_CURRICULUM_FRONTIER_ORDER = (11, 9, 3, 0)
@@ -122,6 +134,74 @@ TRAFFIC_BOT3_SPEEDS = (18.0, 24.0, 30.0)
 TRAFFIC_BOT3_SPEED_ACTIVE_STAGE_PROBABILITY = 0.8
 TRAFFIC_BOT3_SPEED_SUCCESS_RATE_THRESHOLD = 0.8
 TRAFFIC_BOT3_SPEED_CONSECUTIVE_CONFIRMATIONS = 2
+TRAFFIC_BOT3_REHEARSAL_SPEED = 12.0
+TRAFFIC_BOT3_REHEARSAL_SCHEDULE = (
+    (1, 200, 0.75),
+    (201, 400, 0.25),
+    (401, None, 0.0),
+)
+TRAFFIC_TRAINING_SCHEDULE = EpisodeTrainingScheduleSpec(
+    id="traffic-near-pass-episode-schedule-v1",
+    phases=(
+        EpisodeTrainingPhase(
+            id="near_pass_bootstrap",
+            start_episode=1,
+            end_episode=200,
+            mode_probabilities=(
+                ("near_pass_rehearsal", 0.75),
+                ("nested_speed_control", 0.25),
+            ),
+            description=(
+                "frequent physical checkpoint-11 bot3 rehearsals at 12 m/s "
+                "bridge the first clean-overtake signal"
+            ),
+        ),
+        EpisodeTrainingPhase(
+            id="near_pass_bridge",
+            start_episode=201,
+            end_episode=400,
+            mode_probabilities=(
+                ("near_pass_rehearsal", 0.25),
+                ("nested_speed_control", 0.75),
+            ),
+            description=(
+                "reduce near-pass rehearsal while the nested 18/24/30 m/s "
+                "proficiency control becomes dominant"
+            ),
+        ),
+        EpisodeTrainingPhase(
+            id="canonical_speed_consolidation",
+            start_episode=401,
+            end_episode=None,
+            mode_probabilities=(("nested_speed_control", 1.0),),
+            description=(
+                "retire the 12 m/s rehearsal and use only the proficiency-"
+                "gated nested control plus mastered outer frontiers"
+            ),
+        ),
+    ),
+    start_state_description=(
+        "the schedule affects only locked checkpoint-11 training resets; "
+        "12 m/s bot3 states preserve time-advanced arcs, masks, clock, and "
+        "zero reset reward"
+    ),
+    checkpoint_selection_description=(
+        "schedule and DAgger are training-only; fixed canonical full-course "
+        "learned-policy evaluation remains the sole selection signal"
+    ),
+)
+TRAFFIC_GUIDANCE_OBS_DIM = 3
+TRAFFIC_PURSUIT_LOOKAHEAD_BASE = 18.0
+TRAFFIC_PURSUIT_LOOKAHEAD_SPEED_SCALE = 0.25
+TRAFFIC_PASS_TARGET_LANE_FRACTION = 0.72
+TRAFFIC_PASS_GUIDANCE_REAR_LIMIT = -12.0
+TRAFFIC_PASS_GUIDANCE_AHEAD_LIMIT = 80.0
+TRAFFIC_REFERENCE_SPEED_FRACTION = 0.95
+TRAFFIC_PASS_SPEED_CAP = 62.0
+TRAFFIC_REFERENCE_HEADING_GAIN = 1.6
+TRAFFIC_REFERENCE_LATERAL_DAMPING = 0.3
+TRAFFIC_REFERENCE_ACCELERATION_GAIN = 8.0
+TRAFFIC_REFERENCE_BRAKING_GAIN = 10.0
 
 
 @dataclass(frozen=True)
@@ -175,6 +255,8 @@ class DrivingEnv:
                         + TASK_OBS_DIM
                         + (1 if self.features.fuel else 0)
                         + (4 * len(self.features.bots))
+                        + (TRAFFIC_GUIDANCE_OBS_DIM
+                           if self.features.metric == "overtakes" else 0)
                         + 1)
         # Per-sample grip from global surface + zones.
         grip = np.full(self.track.n, self.features.global_grip)
@@ -389,11 +471,12 @@ class DrivingEnv:
                 + cfg.lap * int(self.laps))
 
     def course_reward_potential_protocol(self) -> dict | None:
-        """Disclose the exact terminal-zero shaping contract when enabled."""
+        """Disclose the exact course-progress credit contract when enabled."""
         cfg = self.reward_cfg
-        if not cfg.terminal_zero_course_potential:
+        if (not cfg.terminal_zero_course_potential
+                and not cfg.retain_terminal_course_potential):
             return None
-        return {
+        protocol = {
             "enabled": True,
             "state_potential": (
                 f"{cfg.progress:g} * signed_progress + "
@@ -401,10 +484,20 @@ class DrivingEnv:
                 f"{cfg.lap:g} * completed_laps"
             ),
             "live_transition": "potential(next_state) - potential(state)",
-            "terminal_potential": 0.0,
-            "episode_sum": "-potential(start_state)",
             "discount_factor": 1.0,
         }
+        if cfg.terminal_zero_course_potential:
+            protocol.update({
+                "terminal_potential": 0.0,
+                "episode_sum": "-potential(start_state)",
+            })
+        else:
+            protocol.update({
+                "terminal_potential": "retained physical end potential",
+                "episode_sum": (
+                    "potential(end_state) - potential(start_state)"),
+            })
+        return protocol
 
     # ------------------------------------------------------------------ step
 
@@ -441,11 +534,13 @@ class DrivingEnv:
             self._stall_steps += 1
 
         reward = cfg.time
-        if not cfg.terminal_zero_course_potential:
+        if (not cfg.terminal_zero_course_potential
+                and not cfg.retain_terminal_course_potential):
             reward += cfg.progress * ds
 
         while self.progress >= self._cp_threshold():
-            if not cfg.terminal_zero_course_potential:
+            if (not cfg.terminal_zero_course_potential
+                    and not cfg.retain_terminal_course_potential):
                 reward += cfg.checkpoint
             self.next_cp += 1
             if (self.next_cp - 1) % len(track.checkpoint_arcs) == 0:
@@ -455,7 +550,8 @@ class DrivingEnv:
                 self.last_lap_time = lap_time
                 if self.best_lap_time is None or lap_time < self.best_lap_time:
                     self.best_lap_time = lap_time
-                if not cfg.terminal_zero_course_potential:
+                if (not cfg.terminal_zero_course_potential
+                        and not cfg.retain_terminal_course_potential):
                     reward += cfg.lap
 
         curv = float(track.curvature[self.idx])
@@ -517,6 +613,13 @@ class DrivingEnv:
             )
             self._course_reward_potential_prev = (
                 0.0 if done else current_potential)
+        elif cfg.retain_terminal_course_potential:
+            current_potential = self.course_reward_potential()
+            reward += retained_course_potential_delta(
+                self._course_reward_potential_prev,
+                current_potential,
+            )
+            self._course_reward_potential_prev = current_potential
 
         if done:
             reward += terminal_failure_time_cost(
@@ -588,6 +691,62 @@ class DrivingEnv:
             if math.hypot(self.car.x - bx, self.car.y - by) < CONTACT_DIST:
                 return True
         return False
+
+    def traffic_guidance(self) -> dict:
+        """Expose a disclosed geometric lane and speed target for Traffic."""
+        target_lane_fraction = 0.0
+        target_bot_index = None
+        nearest_gap = math.inf
+        for index, bot in enumerate(self.features.bots):
+            if self._bot_passed[index]:
+                continue
+            gap = self._bot_signed_gap(index)
+            if (TRAFFIC_PASS_GUIDANCE_REAR_LIMIT < gap
+                    < TRAFFIC_PASS_GUIDANCE_AHEAD_LIMIT
+                    and gap < nearest_gap):
+                nearest_gap = gap
+                target_bot_index = index + 1
+                target_lane_fraction = (
+                    -TRAFFIC_PASS_TARGET_LANE_FRACTION
+                    if bot.lat_frac >= 0.0
+                    else TRAFFIC_PASS_TARGET_LANE_FRACTION
+                )
+
+        lookahead = max(
+            10.0,
+            TRAFFIC_PURSUIT_LOOKAHEAD_BASE
+            + TRAFFIC_PURSUIT_LOOKAHEAD_SPEED_SCALE * self.car.speed,
+        )
+        ahead_index = self.track.index_ahead(self.idx, lookahead)
+        target = (
+            self.track.centerline[ahead_index]
+            + self.track.normals[ahead_index]
+            * target_lane_fraction
+            * self.track.half_widths[ahead_index]
+        )
+        desired_heading = math.atan2(
+            float(target[1]) - self.car.y,
+            float(target[0]) - self.car.x,
+        )
+        heading_error = math.atan2(
+            math.sin(desired_heading - self.car.heading),
+            math.cos(desired_heading - self.car.heading),
+        )
+        speed_target = (
+            self.rolling_speed_limit(self.idx)
+            * TRAFFIC_REFERENCE_SPEED_FRACTION
+        )
+        if target_bot_index is not None:
+            speed_target = min(speed_target, TRAFFIC_PASS_SPEED_CAP)
+        return {
+            "target_bot_index": target_bot_index,
+            "target_lane_fraction": target_lane_fraction,
+            "heading_error_normalized": float(np.clip(
+                heading_error / self.params.max_steer, -2.5, 2.5)),
+            "speed_target_mps": float(speed_target),
+            "speed_target_fraction": float(
+                speed_target / self.params.max_speed),
+        }
 
     # ----------------------------------------------------------------- protocol
 
@@ -768,8 +927,37 @@ class DrivingEnv:
                 obs[cursor + 2] = bot.lat_frac
                 obs[cursor + 3] = float(self._bot_passed[i])
                 cursor += 4
+        if self.features.metric == "overtakes":
+            guidance = self.traffic_guidance()
+            obs[cursor] = guidance["target_lane_fraction"]
+            obs[cursor + 1] = guidance["heading_error_normalized"]
+            obs[cursor + 2] = guidance["speed_target_fraction"]
+            cursor += TRAFFIC_GUIDANCE_OBS_DIM
         obs[cursor] = max(0.0, 1.0 - self.steps / self.max_steps)
         return obs
+
+
+def traffic_reference_action(env: DrivingEnv) -> np.ndarray:
+    """Training-only pure-pursuit teacher for reproducible demonstrations."""
+    guidance = env.traffic_guidance()
+    speed_error = guidance["speed_target_mps"] - env.car.v_long
+    throttle = np.clip(
+        speed_error / (
+            TRAFFIC_REFERENCE_ACCELERATION_GAIN
+            if speed_error >= 0.0
+            else TRAFFIC_REFERENCE_BRAKING_GAIN
+        ),
+        -1.0,
+        1.0,
+    )
+    steering = np.clip(
+        TRAFFIC_REFERENCE_HEADING_GAIN
+        * guidance["heading_error_normalized"]
+        - TRAFFIC_REFERENCE_LATERAL_DAMPING * env.car.v_lat / 25.0,
+        -1.0,
+        1.0,
+    )
+    return np.array([throttle, steering, 0.0], dtype=np.float32)
 
 
 @dataclass
@@ -823,8 +1011,7 @@ class TrafficCurriculumEnv(DrivingEnv):
 
     def reset(self) -> np.ndarray:
         checkpoint = self._sample_start_checkpoint()
-        speed_stage = self._bot3_speed_stage_for_reset(checkpoint)
-        speed_position = TRAFFIC_BOT3_SPEED_STAGE_IDS.index(speed_stage)
+        bot3_speed = self._bot3_speed_for_reset(checkpoint)
         canonical_bots = self._traffic_canonical_features.bots
         self.features = replace(
             self._traffic_canonical_features,
@@ -832,7 +1019,7 @@ class TrafficCurriculumEnv(DrivingEnv):
                 *canonical_bots[:2],
                 replace(
                     canonical_bots[2],
-                    speed=TRAFFIC_BOT3_SPEEDS[speed_position],
+                    speed=bot3_speed,
                 ),
             ),
         )
@@ -846,17 +1033,36 @@ class TrafficCurriculumEnv(DrivingEnv):
             self.rolling_checkpoint_indices = (checkpoint,)
         return super().reset()
 
-    def _bot3_speed_stage_for_reset(self, checkpoint: int) -> str:
-        """Choose a nested speed stage only for the active cp11 frontier."""
+    def reset_for_training_episode(self, episode: int) -> np.ndarray:
+        """Reset using the one-based episode that selects rehearsal exposure."""
+        if episode < 1:
+            raise ValueError("training episode must be one-based")
+        self._training_episode = int(episode)
+        try:
+            return self.reset()
+        finally:
+            del self._training_episode
+
+    def _bot3_speed_for_reset(self, checkpoint: int) -> float:
+        """Choose a training-only speed only for the active cp11 frontier."""
         if self.forced_bot3_speed_stage is not None:
-            return self.forced_bot3_speed_stage
+            position = TRAFFIC_BOT3_SPEED_STAGE_IDS.index(
+                self.forced_bot3_speed_stage)
+            return TRAFFIC_BOT3_SPEEDS[position]
         if (not self.traffic_stage_curriculum
                 or checkpoint != 11
                 or self._curriculum_position != 0
                 or self._bot3_speed_complete):
-            return TRAFFIC_BOT3_SPEED_STAGE_IDS[-1]
-        active = TRAFFIC_BOT3_SPEED_STAGE_IDS[self._bot3_speed_position]
-        mastered = TRAFFIC_BOT3_SPEED_STAGE_IDS[:self._bot3_speed_position]
+            return TRAFFIC_BOT3_SPEEDS[-1]
+        training_episode = getattr(self, "_training_episode", 1)
+        self._training_phase, training_mode = (
+            TRAFFIC_TRAINING_SCHEDULE.sample_mode(
+                self.rng, training_episode)
+        )
+        if training_mode == "near_pass_rehearsal":
+            return TRAFFIC_BOT3_REHEARSAL_SPEED
+        active = TRAFFIC_BOT3_SPEEDS[self._bot3_speed_position]
+        mastered = TRAFFIC_BOT3_SPEEDS[:self._bot3_speed_position]
         if (not mastered
                 or self.rng.random()
                 < TRAFFIC_BOT3_SPEED_ACTIVE_STAGE_PROBABILITY):

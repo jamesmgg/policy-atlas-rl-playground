@@ -1,4 +1,4 @@
-"""Scientific contract for Traffic's terminal-zero reward and reverse stages."""
+"""Scientific contract for Traffic's course reward and reverse stages."""
 from __future__ import annotations
 
 import copy
@@ -84,25 +84,27 @@ class TrafficV15ContractTests(unittest.TestCase):
 
     # -------------------------------------------------------------- reward
 
-    def test_traffic_uses_terminal_zero_course_potential_without_drift_bonus(self) -> None:
+    def test_traffic_retains_terminal_course_potential_without_drift_bonus(self) -> None:
         env = self.spec.make_env(False)
         cfg = env.reward_cfg
 
-        self.assertTrue(getattr(cfg, "terminal_zero_course_potential", False))
+        self.assertFalse(cfg.terminal_zero_course_potential)
+        self.assertTrue(getattr(
+            cfg, "retain_terminal_course_potential", False))
         self.assertEqual(cfg.drift_corner, 0.0)
         self.assertEqual(cfg.progress, 0.05)
         self.assertEqual(cfg.checkpoint, 3.0)
         self.assertEqual(cfg.lap, 30.0)
         self.assertTrue(any(
-            "terminal-zero course potential" in term
-            and "episode sum = -potential(start)" in term
+            "retained terminal course potential" in term
+            and "episode sum = potential(end) - potential(start)" in term
             for term in self.spec.reward_terms
         ))
         self.assertFalse(any("corner slip" in term
                              for term in self.spec.reward_terms))
 
-    def test_course_potential_formula_and_terminal_delta_are_exact(self) -> None:
-        delta = getattr(driving, "terminal_zero_potential_delta", None)
+    def test_course_potential_formula_and_retained_delta_are_exact(self) -> None:
+        delta = getattr(driving, "retained_course_potential_delta", None)
         self.assertTrue(callable(delta))
         env = self.spec.make_env(False)
         potential = getattr(env, "course_reward_potential", None)
@@ -123,11 +125,10 @@ class TrafficV15ContractTests(unittest.TestCase):
             with self.subTest(start=start, states=states):
                 total = 0.0
                 previous = start
-                for current in states[:-1]:
-                    total += delta(previous, current, terminal=False)
+                for current in states:
+                    total += delta(previous, current)
                     previous = current
-                total += delta(previous, states[-1], terminal=True)
-                self.assertAlmostEqual(total, -start)
+                self.assertAlmostEqual(total, states[-1] - start)
 
     def test_canonical_full_returns_order_clean_overtakes_then_success(self) -> None:
         env = self.spec.make_env(False)
@@ -482,9 +483,9 @@ class TrafficV15ContractTests(unittest.TestCase):
             trainer._save_checkpoint()
             meta = trainer.registry.list()[0]
 
-        self.assertEqual(self.spec.checkpoint_schema, 17)
-        self.assertEqual(meta["schema_version"], 17)
-        self.assertEqual(meta["protocol"]["version"], 17)
+        self.assertEqual(self.spec.checkpoint_schema, 18)
+        self.assertEqual(meta["schema_version"], 18)
+        self.assertEqual(meta["protocol"]["version"], 18)
         self.assertEqual(meta["protocol"]["training_curriculum"],
                          curriculum.protocol())
         self.assertEqual(
@@ -496,8 +497,10 @@ class TrafficV15ContractTests(unittest.TestCase):
                     "30 * completed_laps"
                 ),
                 "live_transition": "potential(next_state) - potential(state)",
-                "terminal_potential": 0.0,
-                "episode_sum": "-potential(start_state)",
+                "terminal_potential": "retained physical end potential",
+                "episode_sum": (
+                    "potential(end_state) - potential(start_state)"
+                ),
                 "discount_factor": 1.0,
             },
         )

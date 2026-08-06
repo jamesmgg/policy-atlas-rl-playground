@@ -324,6 +324,9 @@ class Trainer:
         self.agent = PPOAgent(self.env.obs_dim, self.env.n_continuous,
                               self.env.n_binary, self.device,
                               actor_initialization=self.spec.actor_initialization)
+        warm_start = getattr(self.spec, "actor_warm_start", None)
+        self.actor_warm_start_diagnostics = (
+            warm_start.apply(self.agent) if warm_start is not None else None)
         self.registry = CheckpointRegistry(
             self.settings.checkpoint_dir, self.spec.id, self.spec.checkpoint_schema)
         self.episode = 0
@@ -418,6 +421,9 @@ class Trainer:
             self.agent = PPOAgent(env.obs_dim, env.n_continuous, env.n_binary,
                                   self.device,
                                   actor_initialization=self.spec.actor_initialization)
+            warm_start = getattr(self.spec, "actor_warm_start", None)
+            self.actor_warm_start_diagnostics = (
+                warm_start.apply(self.agent) if warm_start is not None else None)
             self.episode = 0
             self.total_steps = 0
             self.update_count = 0
@@ -530,6 +536,8 @@ class Trainer:
             "device": str(self.device),
             "ghost_episode": self.ghost["episode"] if self.ghost else None,
             "ppo_diagnostics": getattr(self, "latest_update_metrics", None),
+            "actor_warm_start": getattr(
+                self, "actor_warm_start_diagnostics", None),
         }
 
     # ------------------------------------------------------------- train loop
@@ -734,8 +742,12 @@ class Trainer:
         course_reward_potential_protocol = getattr(
             self.env, "course_reward_potential_protocol", None)
         eval_result["protocol"] = {
-            "algorithm": "PPO",
-            "version": 17,
+            "algorithm": (
+                "demonstration-assisted PPO"
+                if getattr(self.spec, "actor_warm_start", None) is not None
+                else "PPO"
+            ),
+            "version": 18,
             "rollout_steps": ROLLOUT_STEPS,
             "episode_aligned_rollouts": True,
             "gamma": scenario_discount_factor(self.spec),
@@ -772,6 +784,19 @@ class Trainer:
                 self.spec.training_curriculum.training_control.protocol()
                 if (getattr(self.spec, "training_curriculum", None) is not None
                     and self.spec.training_curriculum.training_control is not None)
+                else None
+            ),
+            "training_schedule": (
+                self.spec.training_schedule.protocol()
+                if getattr(self.spec, "training_schedule", None) is not None
+                else None
+            ),
+            "actor_warm_start": (
+                {
+                    "contract": self.spec.actor_warm_start.protocol(),
+                    "realized": self.actor_warm_start_diagnostics,
+                }
+                if getattr(self.spec, "actor_warm_start", None) is not None
                 else None
             ),
             "actor_initialization": actor_initialization_protocol(

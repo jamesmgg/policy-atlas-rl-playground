@@ -102,7 +102,7 @@ class TrafficV16ContractTests(unittest.TestCase):
         self.assertEqual(state["stage"], "speed-18")
         self.assertEqual(state["speed_mps"], 18.0)
         for _ in range(30):
-            env.reset()
+            env.reset_for_training_episode(401)
             self.assertEqual(self.checkpoint_index(env), 11)
             self.assertEqual(env.features.bots[2].speed, 18.0)
             self.assertEqual(env._bot_passed, [True, True, False])
@@ -128,7 +128,7 @@ class TrafficV16ContractTests(unittest.TestCase):
         env.rng.seed(2026)
         speeds = []
         for _ in range(4_000):
-            env.reset()
+            env.reset_for_training_episode(401)
             speeds.append(env.features.bots[2].speed)
         self.assertEqual(set(speeds), {18.0, 24.0})
         self.assertGreaterEqual(speeds.count(24.0), 3_000)
@@ -142,7 +142,7 @@ class TrafficV16ContractTests(unittest.TestCase):
         env.rng.seed(2027)
         speeds = []
         for _ in range(8_000):
-            env.reset()
+            env.reset_for_training_episode(401)
             speeds.append(env.features.bots[2].speed)
         self.assertEqual(set(speeds), {18.0, 24.0, 30.0})
         self.assertGreaterEqual(speeds.count(30.0), 6_100)
@@ -271,7 +271,7 @@ class TrafficV16ContractTests(unittest.TestCase):
         def sample_resets() -> list[tuple[float, float, int]]:
             samples = []
             for _ in range(40):
-                env.reset()
+                env.reset_for_training_episode(401)
                 samples.append((
                     env.features.bots[2].speed,
                     env._bot_gap(2),
@@ -378,15 +378,15 @@ class TrafficV16ContractTests(unittest.TestCase):
         self.assertEqual(outer["seeds"], list(range(711_000, 711_010)))
 
     def test_checkpoint_atomically_records_control_then_outer_gate_and_protocol(self) -> None:
-        self.assertEqual(self.spec.checkpoint_schema, 17)
+        self.assertEqual(self.spec.checkpoint_schema, 18)
         with tempfile.TemporaryDirectory() as tmp:
             trainer = self.build_hard_checkpoint_trainer(Path(tmp))
             trainer._save_checkpoint()
             meta = trainer.registry.list()[0]
             payload = trainer.registry.load(150)
 
-        self.assertEqual(meta["schema_version"], 17)
-        self.assertEqual(meta["protocol"]["version"], 17)
+        self.assertEqual(meta["schema_version"], 18)
+        self.assertEqual(meta["protocol"]["version"], 18)
         self.assertEqual(
             meta["protocol"]["training_control"],
             self.curriculum.training_control.protocol(),
