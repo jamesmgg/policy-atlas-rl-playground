@@ -68,7 +68,12 @@ class WetTerminalCostAblationTests(unittest.TestCase):
             self.assertEqual(self.wet.checkpoint_schema, 9)
             self.assertEqual(current.list(), [])
             with self.assertRaises(IncompatibleCheckpointError):
-                current.load_into(25, agent)
+                current.load_into(
+                    25,
+                    agent,
+                    expected_engine="current-engine",
+                    expected_evaluation_suite="current-suite",
+                )
 
 
 if __name__ == "__main__":

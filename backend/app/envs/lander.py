@@ -30,13 +30,27 @@ PAD_CX = (PAD_X0 + PAD_X1) / 2
 SAFE_VX, SAFE_VY, SAFE_THETA = 8.0, 14.0, 0.25
 FAILURE_REWARD = -100.0
 
+# A slow descent should keep falling instead of braking to zero far above the
+# pad. The target starts safely inside the touchdown bound and rises with the
+# braking distance available, capped at the approach-start speed contract.
+DESCENT_TARGET_TOUCHDOWN_SPEED = 6.0
+DESCENT_TARGET_MAX_SPEED = 18.0
+DESCENT_COMFORT_DECELERATION = 2.0
+
 # The sparse terminal outcome is learned from the pad upward. A fixed-suite
 # performance gate, rather than episode count, controls when a harder altitude
 # becomes available. Previously mastered lower-altitude starts remain in the
 # mixture so advancing the frontier does not abruptly remove positive examples.
 CURRICULUM_FRONTIER_ORDER = (4, 3, 2, 1, 0)
 CURRICULUM_ACTIVE_FRONTIER_PROBABILITY = 0.5
-CURRICULUM_SUCCESS_RATE_THRESHOLD = 0.9
+CURRICULUM_SUCCESS_RATE_THRESHOLD = 0.75
+CURRICULUM_SUCCESS_RATE_THRESHOLDS = (
+    (4, 0.9),
+    (3, 0.75),
+    (2, 0.75),
+    (1, 0.75),
+    (0, 0.75),
+)
 CURRICULUM_CONSECUTIVE_CONFIRMATIONS = 1
 TOUCHDOWN_ALTITUDE_MIN, TOUCHDOWN_ALTITUDE_MAX = 5.0, 18.0
 TOUCHDOWN_X_OFFSET_MAX = 20.0
@@ -47,8 +61,8 @@ TOUCHDOWN_OMEGA_MAX = 0.05
 APPROACH_ALTITUDE_MIN, APPROACH_ALTITUDE_MAX = 30.0, 500.0
 APPROACH_FRONTIER_ALTITUDES = {
     3: (30.0, 100.0),
-    2: (100.0, 250.0),
-    1: (250.0, 500.0),
+    2: (50.0, 200.0),
+    1: (100.0, 500.0),
 }
 APPROACH_X_OFFSET_MAX = 35.0
 APPROACH_VX_MAX = 6.0
@@ -58,8 +72,10 @@ APPROACH_OMEGA_MAX = 0.25
 TRAINING_START_DISTRIBUTION = (
     "Performance-gated reverse altitude curriculum: begin with 100% "
     "touchdown rehearsals at k4 (5-18 units above the pad); unlock low "
-    "k3 (30-100), mid k2 (100-250), high k1 (250-500), then canonical "
-    "k0 descents after one >=90% fixed 20-start frontier evaluation; "
+    "k3 (30-100), overlapping k2 (50-200), high k1 (100-500), "
+    "then canonical "
+    "k0 descents after one >=90% fixed 20-start k4 evaluation and "
+    ">=75% at each harder frontier; "
     "thereafter the active frontier receives 50% of resets and mastered "
     "easier frontiers uniformly share the remainder"
 )
@@ -232,6 +248,8 @@ class LanderEnv:
                 != CURRICULUM_ACTIVE_FRONTIER_PROBABILITY
                 or curriculum.success_rate_threshold
                 != CURRICULUM_SUCCESS_RATE_THRESHOLD
+                or curriculum.frontier_success_rate_thresholds
+                != CURRICULUM_SUCCESS_RATE_THRESHOLDS
                 or curriculum.consecutive_confirmations
                 != CURRICULUM_CONSECUTIVE_CONFIRMATIONS):
             raise ValueError("curriculum gate does not match Lander")
@@ -249,10 +267,13 @@ class LanderEnv:
             raise ValueError("curriculum evaluation episode must be non-negative")
 
         before = self.training_curriculum_state()
-        passed = success_rate >= curriculum.success_rate_threshold
+        success_rate_threshold = curriculum.success_rate_threshold_for(
+            before["frontier"])
+        passed = success_rate >= success_rate_threshold
         if self._curriculum_last_evaluation_episode == evaluation_episode:
             return {
                 "success_rate": success_rate,
+                "success_rate_threshold": success_rate_threshold,
                 "passed": passed,
                 "evaluation_episode": evaluation_episode,
                 "ignored_duplicate": True,
@@ -287,6 +308,7 @@ class LanderEnv:
         after = self.training_curriculum_state()
         return {
             "success_rate": success_rate,
+            "success_rate_threshold": success_rate_threshold,
             "passed": passed,
             "evaluation_episode": evaluation_episode,
             "ignored_duplicate": False,
@@ -375,9 +397,24 @@ class LanderEnv:
         self._start_kind = kind
 
     def _phi(self) -> float:
+        altitude = max(PAD_Y - self.y, 0.0)
+        descent_error = self.vy - self._descent_speed_target(altitude)
         dist = math.hypot(self.x - PAD_CX, self.y - PAD_Y)
-        v = math.hypot(self.vx, self.vy)
-        return 0.012 * dist + 0.04 * v + 0.4 * abs(self.theta)
+        velocity_error = math.hypot(self.vx, descent_error)
+        return 0.012 * dist + 0.04 * velocity_error + 0.4 * abs(self.theta)
+
+    @staticmethod
+    def _descent_speed_target(altitude: float) -> float:
+        """Return a safe downward-speed target for the remaining pad height."""
+        braking_distance = max(float(altitude), 0.0)
+        target = math.sqrt(
+            DESCENT_TARGET_TOUCHDOWN_SPEED ** 2
+            + 2.0 * DESCENT_COMFORT_DECELERATION * braking_distance)
+        return min(DESCENT_TARGET_MAX_SPEED, target)
+
+    def _shaping_potential(self, *, terminal: bool = False) -> float:
+        """Potential used for policy-invariant undiscounted reward shaping."""
+        return 0.0 if terminal else -self._phi()
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, dict]:
         u_main = float(np.clip((action[0] + 1.0) / 2.0, 0.0, 1.0))
@@ -397,29 +434,34 @@ class LanderEnv:
         self.fuel = max(self.fuel - (u_main + 0.15 * abs(u_side)) * FUEL_RATE * DT, 0.0)
         self.steps += 1
 
-        phi = self._phi()
-        reward = self._phi_prev - phi - 0.03 * u_main
-        self._phi_prev = phi
-
         done = False
+        terminal_reward = 0.0
         if self.y >= terrain_y(self.x):
             done = True
             on_pad = PAD_X0 <= self.x <= PAD_X1
             soft = (abs(self.vx) < SAFE_VX and abs(self.vy) < SAFE_VY
                     and abs(self.theta) < SAFE_THETA)
             if on_pad and soft:
-                reward += 100.0
+                terminal_reward = 100.0
                 self.landed = True
                 self.cause = "landed"
             else:
-                reward += FAILURE_REWARD
+                terminal_reward = FAILURE_REWARD
                 self.cause = "crash"
         elif self.x < 0 or self.x > 1000 or self.y < 0:
-            reward += FAILURE_REWARD
+            terminal_reward = FAILURE_REWARD
             done, self.cause = True, "out_of_bounds"
         elif self.steps >= self.max_steps:
-            reward += FAILURE_REWARD
+            terminal_reward = FAILURE_REWARD
             done, self.cause = True, "timeout"
+
+        # For gamma=1, Phi(s') - Phi(s) telescopes to a start-state constant
+        # only when every terminal state's potential is exactly zero. This
+        # redistributes the sparse outcome for credit assignment without
+        # changing which trajectory is optimal from a given initial state.
+        phi = -self._shaping_potential(terminal=done)
+        reward = self._phi_prev - phi - 0.03 * u_main + terminal_reward
+        self._phi_prev = phi
 
         self.episode_reward += reward
         deadline = done and self.cause == "timeout"
@@ -479,17 +521,18 @@ TRAINING_CURRICULUM = TrainingCurriculumSpec(
     active_frontier_probability=CURRICULUM_ACTIVE_FRONTIER_PROBABILITY,
     success_rate_threshold=CURRICULUM_SUCCESS_RATE_THRESHOLD,
     consecutive_confirmations=CURRICULUM_CONSECUTIVE_CONFIRMATIONS,
-    evaluation_suite_version="lander-altitude-eval-v1",
+    evaluation_suite_version="lander-altitude-eval-v2",
     evaluation_episodes=20,
     evaluation_seed_base=300_000,
     segment_seed_stride=1_000,
     start_state_description=(
         "k4 touchdown altitude 5-18 with pad offset <=20, |vx|<=3, vy 0-6, "
         "|tilt|<=0.08, |rate|<=0.05; k3/k2/k1 approach altitude "
-        "30-100/100-250/250-500 with pad offset <=35, |vx|<=6, vy 2-18, "
+        "30-100/50-200/100-500 with pad offset <=35, |vx|<=6, vy 2-18, "
         "|tilt|<=0.18, |rate|<=0.25; k0 canonical x=500, y=120, vy=rate=0, "
         "fuel=1, elapsed=0 with seeded |vx|<=15 and |tilt|<=0.15; "
         "rehearsals preserve altitude-derived elapsed time and fuel"
     ),
     make_evaluation_env=make_frontier_evaluation_env,
+    frontier_success_rate_thresholds=CURRICULUM_SUCCESS_RATE_THRESHOLDS,
 )

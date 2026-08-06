@@ -14,14 +14,15 @@ sys.path.insert(0, str(Path(__file__).parents[1]))
 
 from app import trainer as trainer_module
 from app.envs import lander
-from app.scenarios import get_spec
+from app.ppo.buffer import RolloutBuffer
+from app.scenarios import get_spec, list_specs
 from app.settings import Settings
 
 
 EXPECTED_START_STATE = (
     "k4 touchdown altitude 5-18 with pad offset <=20, |vx|<=3, vy 0-6, "
     "|tilt|<=0.08, |rate|<=0.05; k3/k2/k1 approach altitude "
-    "30-100/100-250/250-500 with pad offset <=35, |vx|<=6, vy 2-18, "
+    "30-100/50-200/100-500 with pad offset <=35, |vx|<=6, vy 2-18, "
     "|tilt|<=0.18, |rate|<=0.25; k0 canonical x=500, y=120, vy=rate=0, "
     "fuel=1, elapsed=0 with seeded |vx|<=15 and |tilt|<=0.15; "
     "rehearsals preserve altitude-derived elapsed time and fuel"
@@ -36,13 +37,20 @@ EXPECTED_CURRICULUM_PROTOCOL = {
         "empty_mastered_fallback": "100% active frontier",
     },
     "gate": {
-        "success_rate_threshold": 0.9,
+        "success_rate_threshold": 0.75,
+        "success_rate_threshold_by_frontier": [
+            {"frontier": 4, "threshold": 0.9},
+            {"frontier": 3, "threshold": 0.75},
+            {"frontier": 2, "threshold": 0.75},
+            {"frontier": 1, "threshold": 0.75},
+            {"frontier": 0, "threshold": 0.75},
+        ],
         "comparison": ">=",
         "consecutive_confirmations": 1,
         "distinct_checkpoint_episodes": True,
     },
     "segment_evaluation": {
-        "suite_version": "lander-altitude-eval-v1",
+        "suite_version": "lander-altitude-eval-v2",
         "episodes": 20,
         "seed_base": 300_000,
         "segment_seed_stride": 1_000,
@@ -68,6 +76,24 @@ class ConstantAgent:
         return self.action.copy(), 0.0, 0.0
 
 
+def terminal_penalty_return(gamma: float, transition_count: int) -> float:
+    """Return at the first state when only the final transition is penalized."""
+    buffer = RolloutBuffer(capacity=transition_count, obs_dim=1, act_dim=1)
+    for index in range(transition_count):
+        terminal = index == transition_count - 1
+        buffer.add(
+            [0.0], [0.0], 0.0, -1.0 if terminal else 0.0,
+            terminal, 0.0,
+        )
+    buffer.compute_gae(
+        last_value=0.0,
+        last_done=True,
+        gamma=gamma,
+        gae_lambda=1.0,
+    )
+    return float(buffer.returns[0])
+
+
 class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
     def setUp(self) -> None:
         self.spec = get_spec("lunar-lander")
@@ -75,8 +101,89 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
         self.assertIsNotNone(self.curriculum)
 
     def pass_frontier(self, env, *, episode: int | None = None) -> dict:
+        frontier = env.training_curriculum_state()["frontier"]
         return env.record_training_curriculum_evaluation(
-            0.9, self.curriculum, evaluation_episode=episode)
+            self.curriculum.success_rate_threshold_for(frontier),
+            self.curriculum,
+            evaluation_episode=episode,
+        )
+
+    def test_lander_failure_cost_is_not_reduced_by_delaying_termination(self) -> None:
+        self.assertEqual(
+            getattr(self.spec, "training_discount_factor", None),
+            1.0,
+            "Lander must optimize its declared finite-horizon return",
+        )
+        immediate = terminal_penalty_return(
+            self.spec.training_discount_factor, 1)
+        horizon_delayed = terminal_penalty_return(
+            self.spec.training_discount_factor, self.spec.horizon_steps)
+        self.assertAlmostEqual(immediate, -1.0, places=6)
+        self.assertAlmostEqual(horizon_delayed, immediate, places=6)
+
+        legacy_immediate = terminal_penalty_return(trainer_module.GAMMA, 1)
+        legacy_delayed = terminal_penalty_return(
+            trainer_module.GAMMA, self.spec.horizon_steps)
+        self.assertGreater(
+            legacy_delayed,
+            legacy_immediate,
+            "the discounted baseline incorrectly prefers a delayed failure",
+        )
+
+    def test_undiscounted_training_objective_is_isolated_to_lander(self) -> None:
+        self.assertEqual(self.spec.info().get("training_discount_factor"), 1.0)
+        for spec in list_specs():
+            if spec.id == self.spec.id:
+                continue
+            with self.subTest(scenario=spec.id):
+                self.assertEqual(spec.training_discount_factor, 0.995)
+
+    def test_descent_envelope_rewards_falling_when_below_target_speed(self) -> None:
+        """The k3 shaping signal must not ask a slow descent to brake or hover."""
+        def reward_for(raw_main_action: float) -> float:
+            env = lander.LanderEnv(jitter=False)
+            env.x = lander.PAD_CX
+            env.y = lander.PAD_Y - 60.0
+            env.vx = 0.0
+            env.vy = 10.0
+            env.theta = 0.0
+            env.omega = 0.0
+            env.fuel = 0.9
+            env.steps = 150
+            env._phi_prev = env._phi()
+            _, reward, done, _ = env.step(np.array(
+                [raw_main_action, 0.0], dtype=np.float32))
+            self.assertFalse(done)
+            return reward
+
+        coast = reward_for(-1.0)
+        gravity_cancel = reward_for(2.0 * lander.G / lander.A_MAIN - 1.0)
+        full_thrust = reward_for(1.0)
+
+        self.assertGreater(coast, gravity_cancel)
+        self.assertGreater(gravity_cancel, full_thrust)
+
+    def test_descent_envelope_is_safe_monotonic_and_terminal_neutral(self) -> None:
+        env = lander.LanderEnv(jitter=False)
+        targets = [env._descent_speed_target(altitude)
+                   for altitude in (0.0, 5.0, 30.0, 60.0, 500.0)]
+
+        self.assertEqual(targets[0], lander.DESCENT_TARGET_TOUCHDOWN_SPEED)
+        self.assertTrue(all(left <= right
+                            for left, right in zip(targets, targets[1:])))
+        self.assertLessEqual(max(targets), lander.DESCENT_TARGET_MAX_SPEED)
+        self.assertAlmostEqual(
+            targets[1] ** 2,
+            lander.DESCENT_TARGET_TOUCHDOWN_SPEED ** 2
+            + 2.0 * lander.DESCENT_COMFORT_DECELERATION * 5.0,
+        )
+        self.assertLess(
+            lander.DESCENT_TARGET_TOUCHDOWN_SPEED,
+            lander.SAFE_VY,
+            "the envelope must aim inside the touchdown safety bound",
+        )
+        self.assertEqual(env._shaping_potential(terminal=True), 0.0)
+        self.assertLess(env._shaping_potential(terminal=False), 0.0)
 
     def assert_rehearsal_state(self, env, frontier: int) -> None:
         altitude = lander.PAD_Y - env.y
@@ -160,22 +267,49 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
             self.assertLessEqual(starts.count(mastered), 800)
         self.assertNotIn(0, starts)
 
-    def test_gate_requires_threshold_and_distinct_monotonic_checkpoints(self) -> None:
+    def test_gate_uses_stricter_touchdown_threshold_then_75_percent(self) -> None:
         training = self.spec.make_training_env()
-        failed = training.record_training_curriculum_evaluation(
-            0.899, self.curriculum, evaluation_episode=25)
-        unlocked = self.pass_frontier(training, episode=50)
-        duplicate = self.pass_frontier(training, episode=50)
+        self.assertEqual(lander.CURRICULUM_SUCCESS_RATE_THRESHOLD, 0.75)
+        self.assertEqual(self.curriculum.success_rate_threshold, 0.75)
+        self.assertEqual(
+            lander.CURRICULUM_SUCCESS_RATE_THRESHOLDS,
+            ((4, 0.9), (3, 0.75), (2, 0.75), (1, 0.75), (0, 0.75)),
+        )
+        self.assertEqual(
+            [self.curriculum.success_rate_threshold_for(frontier)
+             for frontier in lander.CURRICULUM_FRONTIER_ORDER],
+            [0.9, 0.75, 0.75, 0.75, 0.75],
+        )
 
-        self.assertFalse(failed["unlocked"])
-        self.assertEqual(failed["frontier_after"], 4)
-        self.assertTrue(unlocked["unlocked"])
-        self.assertEqual(unlocked["frontier_after"], 3)
+        premature = training.record_training_curriculum_evaluation(
+            0.899, self.curriculum, evaluation_episode=25)
+        touchdown_unlock = training.record_training_curriculum_evaluation(
+            0.9, self.curriculum, evaluation_episode=50)
+        harder_failed = training.record_training_curriculum_evaluation(
+            0.749, self.curriculum, evaluation_episode=75)
+        harder_unlock = training.record_training_curriculum_evaluation(
+            0.75, self.curriculum, evaluation_episode=100)
+        duplicate = training.record_training_curriculum_evaluation(
+            0.75, self.curriculum, evaluation_episode=100)
+
+        self.assertFalse(premature["unlocked"])
+        self.assertEqual(premature["success_rate_threshold"], 0.9)
+        self.assertEqual(premature["frontier_after"], 4)
+        self.assertTrue(touchdown_unlock["unlocked"])
+        self.assertEqual(touchdown_unlock["success_rate_threshold"], 0.9)
+        self.assertEqual(touchdown_unlock["frontier_after"], 3)
+        self.assertFalse(harder_failed["unlocked"])
+        self.assertEqual(harder_failed["success_rate_threshold"], 0.75)
+        self.assertEqual(harder_failed["frontier_after"], 3)
+        self.assertTrue(harder_unlock["unlocked"])
+        self.assertEqual(harder_unlock["success_rate_threshold"], 0.75)
+        self.assertEqual(harder_unlock["frontier_after"], 2)
         self.assertTrue(duplicate["ignored_duplicate"])
-        self.assertEqual(duplicate["frontier_after"], 3)
-        self.assertEqual(training.training_curriculum_state()["evaluations"], 2)
+        self.assertEqual(duplicate["success_rate_threshold"], 0.75)
+        self.assertEqual(duplicate["frontier_after"], 2)
+        self.assertEqual(training.training_curriculum_state()["evaluations"], 4)
         with self.assertRaisesRegex(ValueError, "monotonic"):
-            self.pass_frontier(training, episode=49)
+            self.pass_frontier(training, episode=99)
 
     def test_final_frontier_completion_is_stable(self) -> None:
         training = self.spec.make_training_env()
@@ -287,7 +421,8 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
                 "reward": 0.0, "reward_std": 0.0, "metric": 500.0,
                 "metric_std": 0.0, "failure_progress": None, "episodes": 1,
                 "success_rate": 0.0, "success_ci_low": 0.0,
-                "success_ci_high": 1.0, "evaluation_suite": "canonical-test",
+                "success_ci_high": 1.0,
+                "evaluation_suite": trainer_module.evaluation_suite_id(1),
                 "seed": 42, "trajectory": [],
             }
             first._run_eval = lambda: copy.deepcopy(eval_payload)
@@ -339,7 +474,7 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
             list(range(304_000, 304_020)),
         )
         self.assertEqual(self.curriculum.evaluation_suite_id(4),
-                         "lander-altitude-eval-v1-k4-n20")
+                         "lander-altitude-eval-v2-k4-n20")
         first_env = self.spec.make_training_env()
         second_env = self.spec.make_training_env()
         first = trainer_module.evaluate_training_curriculum(
@@ -391,7 +526,7 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
             frontier = {
                 "frontier": 4, "episodes": 20, "successes": 18,
                 "success_rate": 0.9,
-                "evaluation_suite": "lander-altitude-eval-v1-k4-n20",
+                "evaluation_suite": "lander-altitude-eval-v2-k4-n20",
                 "seeds": list(range(304_000, 304_020)),
             }
             trainer._run_eval = lambda: copy.deepcopy(canonical)
@@ -400,13 +535,15 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
             meta = trainer.registry.list()[0]
             payload = trainer.registry.load(25)
 
-        self.assertEqual(meta["schema_version"], 6)
-        self.assertEqual(meta["protocol"]["version"], 13)
+        self.assertEqual(meta["schema_version"], 11)
+        self.assertEqual(meta["protocol"]["version"], 14)
+        self.assertEqual(meta["protocol"]["gamma"], 1.0)
         self.assertEqual(meta["protocol"]["training_curriculum"],
                          EXPECTED_CURRICULUM_PROTOCOL)
         diagnostic = meta["training_diagnostics"]["training_curriculum"]
         self.assertEqual(diagnostic["frontier_before"], 4)
         self.assertEqual(diagnostic["frontier_after"], 3)
+        self.assertEqual(diagnostic["success_rate_threshold"], 0.9)
         self.assertTrue(diagnostic["unlocked"])
         self.assertEqual(diagnostic["state_after"]["frontier"], 3)
         self.assertEqual(diagnostic["state_after"]["last_evaluation_episode"], 25)
@@ -419,15 +556,17 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
         expected_distribution = (
             "Performance-gated reverse altitude curriculum: begin with 100% "
             "touchdown rehearsals at k4 (5-18 units above the pad); unlock low "
-            "k3 (30-100), mid k2 (100-250), high k1 (250-500), then canonical "
-            "k0 descents after one >=90% fixed 20-start frontier evaluation; "
+            "k3 (30-100), overlapping k2 (50-200), high k1 (100-500), "
+            "then canonical "
+            "k0 descents after one >=90% fixed 20-start k4 evaluation and "
+            ">=75% at each harder frontier; "
             "thereafter the active frontier receives 50% of resets and mastered "
             "easier frontiers uniformly share the remainder"
         )
         self.assertEqual(self.spec.training_start_distribution,
                          expected_distribution)
         self.assertEqual(self.curriculum.protocol(), EXPECTED_CURRICULUM_PROTOCOL)
-        self.assertEqual(self.spec.checkpoint_schema, 6)
+        self.assertEqual(self.spec.checkpoint_schema, 11)
         self.assertEqual(self.spec.actor_initialization.continuous_log_std,
                          (-1.2, -1.2))
 

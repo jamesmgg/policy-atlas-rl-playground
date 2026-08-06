@@ -106,9 +106,14 @@ class TrafficHorizonAblationTests(unittest.TestCase):
             self.assertEqual(self.traffic.checkpoint_schema, 9)
             self.assertEqual(current.list(), [])
             with self.assertRaises(IncompatibleCheckpointError):
-                current.load_into(25, agent)
+                current.load_into(
+                    25,
+                    agent,
+                    expected_engine="current-engine",
+                    expected_evaluation_suite="current-suite",
+                )
 
-    def test_protocol_v13_records_the_exact_task_horizon(self) -> None:
+    def test_protocol_v14_records_the_exact_task_horizon(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "state.json").write_text(
@@ -139,7 +144,7 @@ class TrafficHorizonAblationTests(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 13)
+        self.assertEqual(protocol["version"], 14)
         self.assertEqual(protocol["task_horizon_steps"], 2250)
         self.assertEqual(protocol["task_horizon_seconds"], 90.0)
 

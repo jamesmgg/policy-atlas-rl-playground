@@ -29,6 +29,13 @@ EXPECTED_CURRICULUM_PROTOCOL = {
     },
     "gate": {
         "success_rate_threshold": 0.9,
+        "success_rate_threshold_by_frontier": [
+            {"frontier": 4, "threshold": 0.9},
+            {"frontier": 3, "threshold": 0.9},
+            {"frontier": 2, "threshold": 0.9},
+            {"frontier": 1, "threshold": 0.9},
+            {"frontier": 0, "threshold": 0.9},
+        ],
         "comparison": ">=",
         "consecutive_confirmations": 1,
         "distinct_checkpoint_episodes": True,
@@ -311,7 +318,8 @@ class TestDroneReverseCurriculum(unittest.TestCase):
                 "reward": 0.0, "reward_std": 0.0, "metric": 0.0,
                 "metric_std": 0.0, "failure_progress": None, "episodes": 1,
                 "success_rate": 0.0, "success_ci_low": 0.0,
-                "success_ci_high": 1.0, "evaluation_suite": "canonical-test",
+                "success_ci_high": 1.0,
+                "evaluation_suite": trainer_module.evaluation_suite_id(1),
                 "seed": 42, "trajectory": [],
             }
             first._run_eval = lambda: copy.deepcopy(eval_payload)
@@ -386,7 +394,7 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             payload = trainer.registry.load(0)
 
         self.assertEqual(meta["schema_version"], 7)
-        self.assertEqual(meta["protocol"]["version"], 13)
+        self.assertEqual(meta["protocol"]["version"], 14)
         self.assertEqual(meta["protocol"]["training_curriculum"],
                          EXPECTED_CURRICULUM_PROTOCOL)
         diagnostic = meta["training_diagnostics"]["training_curriculum"]

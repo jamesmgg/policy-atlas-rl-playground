@@ -7,12 +7,14 @@ seeding, evaluation aggregation, and the shared scenario contract.
 from __future__ import annotations
 
 import copy
+import inspect
 import json
 import math
 import random
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -78,6 +80,7 @@ class TestRolloutBoundaries(unittest.TestCase):
     def test_training_reward_scale_is_explicit_and_precedes_bootstrapping(self) -> None:
         training_reward = getattr(trainer_module, "training_reward", None)
         self.assertTrue(callable(training_reward), "training_reward is missing")
+        self.assertIn("gamma", inspect.signature(training_reward).parameters)
         self.assertAlmostEqual(
             training_reward(250.0, next_value=3.0, done=False, info={}),
             2.5,
@@ -101,6 +104,17 @@ class TestRolloutBoundaries(unittest.TestCase):
             ),
             2.5 + trainer_module.GAMMA * 3.0,
             msg="an external truncation bootstraps in scaled critic units",
+        )
+        self.assertAlmostEqual(
+            training_reward(
+                250.0,
+                next_value=3.0,
+                done=True,
+                info={"truncated": True, "task_deadline": False},
+                gamma=1.0,
+            ),
+            5.5,
+            msg="the scenario discount must also control external bootstrapping",
         )
 
     def test_every_fixed_horizon_is_marked_as_an_intrinsic_deadline(self) -> None:
@@ -801,7 +815,8 @@ class TestEvaluationProtocol(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 13)
+        self.assertEqual(protocol["version"], 14)
+        self.assertEqual(protocol["gamma"], trainer.spec.training_discount_factor)
         self.assertEqual(protocol["training_reward_scale"], 0.01)
         self.assertEqual(protocol["entropy_coefficient"], 0.0)
         self.assertEqual(protocol["value_loss_scale"], "rollout return RMS")
@@ -916,6 +931,278 @@ class TestEvaluationProtocol(unittest.TestCase):
         self.assertEqual(meta["protocol"]["gamma"], 0.995)
         self.assertEqual(meta["training_diagnostics"]["explained_variance"], 0.42)
 
+    def test_manual_resume_rejects_a_different_engine_before_state_mutation(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            trainer = trainer_module.Trainer(Settings(
+                port=8901,
+                checkpoint_dir=Path(tmp),
+                checkpoint_every_n=25,
+                max_episodes=10,
+                use_gpu=False,
+                seed=42,
+                eval_episodes=1,
+            ))
+            saved_agent = PPOAgent(
+                trainer.env.obs_dim,
+                trainer.env.n_continuous,
+                trainer.env.n_binary,
+                torch.device("cpu"),
+            )
+            loss = sum(parameter.square().sum()
+                       for parameter in saved_agent.network.parameters())
+            loss.backward()
+            saved_agent.optimizer.step()
+            trainer.registry.save(5, saved_agent, [{
+                "episode": 5,
+                "reward": 999.0,
+                "steps": 7,
+                "cause": "success",
+                "metric": 1.0,
+                "success": True,
+            }], {
+                "reward": 999.0,
+                "metric": 1.0,
+                "episodes": 1,
+                "evaluation_suite": trainer_module.evaluation_suite_id(1),
+                "seed": 99,
+                "trajectory": [[1.0, 2.0, 3.0, 4.0, 5.0]],
+                "protocol": {"engine_source_sha256": "different-engine"},
+            })
+            before_network = {
+                key: value.detach().clone()
+                for key, value in trainer.agent.network.state_dict().items()
+            }
+
+            with self.assertRaisesRegex(
+                IncompatibleCheckpointError, "engine",
+            ):
+                trainer.load_checkpoint(5)
+
+            for key, value in trainer.agent.network.state_dict().items():
+                torch.testing.assert_close(value, before_network[key])
+            self.assertEqual(trainer.episode, 0)
+            self.assertEqual(trainer.history, [])
+            self.assertEqual(trainer.agent.optimizer.state_dict()["state"], {})
+            self.assertEqual([item["episode"] for item in trainer.registry.list()], [5])
+            self.assertTrue(
+                trainer.set_ghost(5),
+                "an incompatible policy must remain inspectable as a replay",
+            )
+
+    def test_startup_archives_a_non_resumable_branch_before_episode_reuse(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            checkpoint_root = Path(tmp)
+            settings = Settings(
+                port=8901,
+                checkpoint_dir=checkpoint_root,
+                checkpoint_every_n=25,
+                max_episodes=10,
+                use_gpu=False,
+                seed=42,
+                eval_episodes=1,
+            )
+            first = trainer_module.Trainer(settings)
+            first.registry.save(5, first.agent, [{
+                "episode": 5,
+                "reward": 5.0,
+                "steps": 1,
+                "cause": "done",
+                "metric": None,
+                "success": False,
+            }], {
+                "reward": 5.0,
+                "metric": None,
+                "episodes": 1,
+                "evaluation_suite": "different-suite-n1",
+                "seed": 42,
+                "trajectory": [[1.0, 2.0, 3.0, 4.0, 5.0]],
+                "protocol": {
+                    "engine_source_sha256": trainer_module.source_digest(),
+                },
+            })
+            scenario_dir = checkpoint_root / first.spec.id
+            original_sidecar = (
+                scenario_dir / "checkpoint_ep000005.json").read_bytes()
+            original_tensor = (
+                scenario_dir / "checkpoint_ep000005.pt").read_bytes()
+
+            original_load = PPOAgent.load_state_dict
+            calls: list[dict] = []
+
+            def observe_load(agent, state):
+                calls.append(state)
+                return original_load(agent, state)
+
+            with mock.patch.object(
+                PPOAgent, "load_state_dict", new=observe_load,
+            ):
+                restored = trainer_module.Trainer(settings)
+
+            self.assertEqual(calls, [], "startup must validate before agent mutation")
+            self.assertEqual(restored.episode, 0)
+            self.assertEqual(restored.history, [])
+            self.assertEqual(restored.registry.list(), [])
+            archives = restored.registry.list_archives()
+            self.assertEqual(len(archives), 1)
+            self.assertEqual(
+                (archives[0]["latest_episode"], archives[0]["checkpoints"]),
+                (5, 1),
+            )
+            archived_dir = scenario_dir / "archive" / archives[0]["id"]
+            self.assertEqual(
+                (archived_dir / "checkpoint_ep000005.json").read_bytes(),
+                original_sidecar,
+            )
+            self.assertEqual(
+                (archived_dir / "checkpoint_ep000005.pt").read_bytes(),
+                original_tensor,
+            )
+
+            restored.registry.save(5, restored.agent, [], {
+                "reward": 0.0,
+                "metric": None,
+                "episodes": 1,
+                "evaluation_suite": trainer_module.evaluation_suite_id(1),
+                "seed": 42,
+                "trajectory": [],
+                "protocol": {
+                    "engine_source_sha256": trainer_module.source_digest(),
+                },
+            })
+
+            self.assertEqual(
+                (archived_dir / "checkpoint_ep000005.json").read_bytes(),
+                original_sidecar,
+                "a fresh checkpoint must not overwrite the archived sidecar",
+            )
+            self.assertEqual(
+                (archived_dir / "checkpoint_ep000005.pt").read_bytes(),
+                original_tensor,
+                "a fresh checkpoint must not overwrite the archived tensor",
+            )
+            self.assertEqual(
+                restored.registry.list()[0]["evaluation_suite"],
+                trainer_module.evaluation_suite_id(1),
+            )
+
+    def test_startup_archives_incompatible_descendants_after_compatible_fallback(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            checkpoint_root = Path(tmp)
+            settings = Settings(
+                port=8901,
+                checkpoint_dir=checkpoint_root,
+                checkpoint_every_n=25,
+                max_episodes=10,
+                use_gpu=False,
+                seed=42,
+                eval_episodes=1,
+            )
+            first = trainer_module.Trainer(settings)
+            compatible_agent = PPOAgent(
+                first.env.obs_dim,
+                first.env.n_continuous,
+                first.env.n_binary,
+                torch.device("cpu"),
+            )
+            incompatible_agent = PPOAgent(
+                first.env.obs_dim,
+                first.env.n_continuous,
+                first.env.n_binary,
+                torch.device("cpu"),
+            )
+            with torch.no_grad():
+                for parameter in compatible_agent.network.parameters():
+                    parameter.fill_(0.125)
+                for parameter in incompatible_agent.network.parameters():
+                    parameter.fill_(0.875)
+            current_suite = trainer_module.evaluation_suite_id(1)
+            current_engine = trainer_module.source_digest()
+            first.registry.save(5, compatible_agent, [{
+                "episode": 5, "reward": 5.0, "steps": 1,
+                "cause": "done", "metric": None, "success": False,
+            }], {
+                "reward": 5.0,
+                "metric": None,
+                "episodes": 1,
+                "evaluation_suite": current_suite,
+                "seed": 42,
+                "trajectory": [[1.0, 2.0, 3.0, 4.0, 5.0]],
+                "protocol": {"engine_source_sha256": current_engine},
+            })
+            first.registry.save(10, incompatible_agent, [{
+                "episode": 10, "reward": 10.0, "steps": 1,
+                "cause": "done", "metric": None, "success": False,
+            }], {
+                "reward": 10.0,
+                "metric": None,
+                "episodes": 1,
+                "evaluation_suite": "different-suite-n1",
+                "seed": 42,
+                "trajectory": [[5.0, 4.0, 3.0, 2.0, 1.0]],
+                "protocol": {"engine_source_sha256": current_engine},
+            })
+            scenario_dir = checkpoint_root / first.spec.id
+            original_descendant_sidecar = (
+                scenario_dir / "checkpoint_ep000010.json").read_bytes()
+            original_descendant_tensor = (
+                scenario_dir / "checkpoint_ep000010.pt").read_bytes()
+
+            original_load = PPOAgent.load_state_dict
+            loaded_states: list[dict] = []
+
+            def observe_load(agent, state):
+                loaded_states.append(state)
+                return original_load(agent, state)
+
+            with mock.patch.object(
+                PPOAgent, "load_state_dict", new=observe_load,
+            ):
+                restored = trainer_module.Trainer(settings)
+
+            self.assertEqual(
+                len(loaded_states), 1,
+                "the incompatible descendant must be rejected before mutation",
+            )
+            self.assertEqual(restored.episode, 5)
+            self.assertEqual([item["episode"] for item in restored.history], [5])
+            for key, value in restored.agent.network.state_dict().items():
+                torch.testing.assert_close(
+                    value, compatible_agent.network.state_dict()[key])
+            self.assertEqual(
+                [item["episode"] for item in restored.registry.list()], [5])
+            archives = restored.registry.list_archives()
+            self.assertEqual(len(archives), 1)
+            self.assertEqual(
+                (archives[0]["latest_episode"], archives[0]["checkpoints"]),
+                (10, 1),
+            )
+            archived_dir = scenario_dir / "archive" / archives[0]["id"]
+
+            restored.registry.save(10, restored.agent, restored.history, {
+                "reward": 5.0,
+                "metric": None,
+                "episodes": 1,
+                "evaluation_suite": current_suite,
+                "seed": 42,
+                "trajectory": [],
+                "protocol": {"engine_source_sha256": current_engine},
+            })
+
+            self.assertEqual(
+                (archived_dir / "checkpoint_ep000010.json").read_bytes(),
+                original_descendant_sidecar,
+            )
+            self.assertEqual(
+                (archived_dir / "checkpoint_ep000010.pt").read_bytes(),
+                original_descendant_tensor,
+            )
+
     def test_status_exposes_latest_optimizer_diagnostics(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             trainer = trainer_module.Trainer(Settings(
@@ -997,7 +1284,12 @@ class TestEvaluationProtocol(unittest.TestCase):
 
             self.assertEqual(new_registry.list(), [])
             with self.assertRaises(IncompatibleCheckpointError):
-                new_registry.load_into(5, agent)
+                new_registry.load_into(
+                    5,
+                    agent,
+                    expected_engine="current-engine",
+                    expected_evaluation_suite="current-suite",
+                )
 
     def test_schema_upgrade_archives_incompatible_active_checkpoint_before_reuse(self) -> None:
         agent = PPOAgent(2, 1, 0, torch.device("cpu"))
@@ -1138,7 +1430,11 @@ class TestEvaluationProtocol(unittest.TestCase):
                     {"episode": episode, "reward": float(episode), "steps": 1,
                      "cause": "done", "metric": None, "success": False},
                 ], {"reward": float(episode), "metric": None,
-                    "trajectory": [], "update_count": episode})
+                    "trajectory": [], "update_count": episode,
+                    "evaluation_suite": trainer_module.evaluation_suite_id(1),
+                    "protocol": {
+                        "engine_source_sha256": trainer_module.source_digest(),
+                    }})
             first.registry._pt(10).write_bytes(b"not a torch checkpoint")
 
             restored = trainer_module.Trainer(settings)

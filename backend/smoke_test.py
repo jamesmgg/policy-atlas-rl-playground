@@ -59,10 +59,17 @@ def exercise_scenario(spec) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         registry = CheckpointRegistry(Path(tmp), spec.id)
         registry.save(10, agent, [{"episode": 10, "reward": 1.0, "steps": 5}],
-                      {"reward": 1.0, "metric": 2.0, "trajectory": [ghost]})
+                      {"reward": 1.0, "metric": 2.0, "trajectory": [ghost],
+                       "evaluation_suite": "smoke-suite",
+                       "protocol": {"engine_source_sha256": "smoke-engine"}})
         assert registry.list()[0]["eval_metric"] == 2.0
         agent2 = PPOAgent(env.obs_dim, env.n_continuous, env.n_binary, DEVICE)
-        registry.load_into(10, agent2)
+        registry.load_into(
+            10,
+            agent2,
+            expected_engine="smoke-engine",
+            expected_evaluation_suite="smoke-suite",
+        )
         p1 = next(iter(agent.network.parameters()))
         p2 = next(iter(agent2.network.parameters()))
         assert torch.equal(p1, p2)
