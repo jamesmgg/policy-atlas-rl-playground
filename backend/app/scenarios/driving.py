@@ -108,8 +108,16 @@ def _driving_spec(id: str, name: str, group: str, description: str,
             f"traffic {index + 1} already passed",
         ))
     observation_dimensions.append("remaining horizon fraction")
-    if training_rolling_checkpoints is None:
+    if (training_rolling_checkpoints is not None
+            and len(training_rolling_checkpoints) == 1):
+        rolling_start_phrase = (
+            f"checkpoint {training_rolling_checkpoints[0]} as a rolling state"
+        )
+    elif training_rolling_checkpoints is None:
         rolling_checkpoint_label = "1..N-1"
+        rolling_start_phrase = (
+            f"uniform checkpoints {rolling_checkpoint_label} as rolling states"
+        )
     elif tuple(training_rolling_checkpoints) == tuple(range(
             training_rolling_checkpoints[0],
             training_rolling_checkpoints[-1] + 1)):
@@ -117,9 +125,15 @@ def _driving_spec(id: str, name: str, group: str, description: str,
             str(training_rolling_checkpoints[0]),
             str(training_rolling_checkpoints[-1]),
         ))
+        rolling_start_phrase = (
+            f"uniform checkpoints {rolling_checkpoint_label} as rolling states"
+        )
     else:
         rolling_checkpoint_label = ",".join(
             str(index) for index in training_rolling_checkpoints)
+        rolling_start_phrase = (
+            f"uniform checkpoints {rolling_checkpoint_label} as rolling states"
+        )
     curriculum_state = []
     if features.fuel:
         curriculum_state.append("65% throttle-equivalent fuel")
@@ -129,8 +143,8 @@ def _driving_spec(id: str, name: str, group: str, description: str,
         curriculum_state.append("assumed proportional style prefix")
     curriculum_state.append("no reset reward")
     training_start_distribution = (
-        "75% canonical start; 25% uniform checkpoints "
-        f"{rolling_checkpoint_label} as rolling states at 70-90% of the "
+        "75% canonical start; 25% "
+        f"{rolling_start_phrase} at 70-90% of the "
         "curvature/grip backward-braking envelope; clock integrates an 80% "
         "envelope with a 1-second reserve; "
         + "; ".join(curriculum_state)
@@ -196,7 +210,7 @@ DRIVING_SPECS: list[ScenarioSpec] = [
         "Rain at Apex GP: reduced grip everywhere, standing water in three zones.",
         "APEX_GP",
         features=DrivingFeatures(global_grip=0.75, zones=WET_ZONES),
-        training_rolling_checkpoints=(1, 6, 9)),
+        training_rolling_checkpoints=(11,)),
     _driving_spec(
         "glacier", "Glacier Lake", "Weather",
         "A circuit on ice. Gentle inputs preserve momentum; controlled slides can help rotation.",
