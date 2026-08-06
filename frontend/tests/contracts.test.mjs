@@ -118,6 +118,16 @@ test("recent checkpoints are newest first regardless of API order", () => {
   );
 });
 
+test("run statistics use the newest evaluation rather than API insertion order", () => {
+  const controls = readFileSync(
+    new URL("../src/features/simulator/TrainingControls.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(controls, /recentCheckpoints\(checkpoints\)\[0\]/);
+  assert.doesNotMatch(controls, /const latestEvaluation = checkpoints\[0\]/);
+});
+
 test("terminal frames are held briefly and explain why the episode reset", () => {
   const live = { type: "frame", scenario_id: "rally-ridge", episode: 8,
     episode_reward: 0 };
@@ -219,6 +229,29 @@ test("compact navigation scrolls only the requested stage and honors reduced mot
   assert.deepEqual(calls.at(-1), { behavior: "auto", block: "start" });
 });
 
+test("compact experiment changes move focus to the refreshed heading without desktop jumps", () => {
+  assert.equal(typeof api.focusExperimentHeading, "function");
+  const calls = [];
+  const heading = { focus: (options) => calls.push(options) };
+
+  assert.equal(api.focusExperimentHeading(heading, false), false);
+  assert.deepEqual(calls, []);
+  assert.equal(api.focusExperimentHeading(heading, true), true);
+  assert.deepEqual(calls, [{ preventScroll: true }]);
+
+  const page = readFileSync(
+    new URL("../src/features/simulator/SimulatorPage.tsx", import.meta.url),
+    "utf8",
+  );
+  const switcher = readFileSync(
+    new URL("../src/features/simulator/ScenarioSwitcher.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(page, /<h1 id="experiment-title" tabIndex=\{-1\}>/);
+  assert.match(switcher, /focusExperimentHeading/);
+  assert.match(switcher, /document\.getElementById\("experiment-title"\)/);
+});
+
 test("active experiments are revealed inside their own scroll container", () => {
   assert.equal(typeof api.getRevealScrollPosition, "function");
   assert.deepEqual(api.getRevealScrollPosition(
@@ -303,6 +336,13 @@ test("mobile experiment and podium controls use comfortable touch targets", () =
   assert.match(styles, /\.scene-telemetry small\s*\{[^}]*font-size:\s*10px/s);
   assert.match(styles, /\.podium-score dt\s*\{[^}]*font-size:\s*10px/s);
   assert.doesNotMatch(styles, /\.preset-grid span\s*\{[^}]*font:[^;]*9px/s);
+  assert.match(styles, /\.fullscreen-button\s*\{[^}]*min-height:\s*44px/s);
+  assert.match(styles, /\.contract-details summary,[\s\S]*?min-height:\s*44px/s);
+  assert.match(styles, /\.run-statistics summary\s*\{[^}]*min-height:\s*44px/s);
+  assert.match(styles, /\.fullscreen-exit\s*\{[^}]*min-height:\s*44px/s);
+  assert.match(styles, /\.library-search\s*\{[^}]*min-height:\s*44px/s);
+  assert.match(styles, /\.checkpoint-actions button\s*\{[^}]*min-height:\s*44px/s);
+  assert.doesNotMatch(styles, /\.checkpoint-actions button\s*\{[^}]*min-height:\s*36px/s);
 });
 
 test("the top three evaluated runs receive accessible medal treatments", () => {
@@ -318,6 +358,37 @@ test("the top three evaluated runs receive accessible medal treatments", () => {
   assert.match(source, /role="img" aria-label=\{medal\.accessible\}/);
   assert.match(source, /className="medal-name" aria-hidden="true"/);
   assert.match(source, /<details className="checkpoint-details">/);
+});
+
+test("failed top runs are clearly best attempts and do not receive celebratory medals", () => {
+  const source = readFileSync(
+    new URL("../src/features/simulator/Leaderboard.tsx", import.meta.url),
+    "utf8",
+  );
+  const styles = readFileSync(
+    new URL("../src/styles/app.css", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /const solved = \(checkpoint\.success_rate \?\? 0\) > 0/);
+  assert.match(source, /solved \? `podium-\$\{medal\.tone\}` : "podium-attempt"/);
+  assert.match(source, /solved \? \(/);
+  assert.match(source, /Best attempt, rank/);
+  assert.match(source, /No test starts completed yet/);
+  assert.match(styles, /\.podium-attempt\s*\{[^}]*--medal:\s*var\(--faint\)/s);
+  assert.match(styles, /\.podium-attempt-rank\s*\{/);
+});
+
+test("empty experiment searches are announced without making every result noisy", () => {
+  const source = readFileSync(
+    new URL("../src/features/simulator/ScenarioSwitcher.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(
+    source,
+    /filtered\.length === 0[\s\S]*?className="library-empty" role="status" aria-live="polite"/,
+  );
 });
 
 test("phone podiums disclose and snap to off-screen medalists", () => {

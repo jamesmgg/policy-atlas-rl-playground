@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  filterScenarios, formatMetric, getRevealScrollPosition, scrollExperimentStage,
+  filterScenarios, focusExperimentHeading, formatMetric, getRevealScrollPosition,
+  scrollExperimentStage,
 } from "../../api/types";
 import type { ScenarioInfo } from "../../api/types";
 import { useTrainingSocket } from "../../hooks/useTrainingSocket";
@@ -54,11 +55,16 @@ export default function ScenarioSwitcher() {
       && previousScenarioId.current !== scenarioId;
     previousScenarioId.current = scenarioId;
     if (changed) {
-      scrollExperimentStage(
+      const compactViewport = window.matchMedia("(max-width: 900px)").matches;
+      const moved = scrollExperimentStage(
         document.getElementById("experiment-stage"),
-        window.matchMedia("(max-width: 900px)").matches,
+        compactViewport,
         window.matchMedia("(prefers-reduced-motion: reduce)").matches,
       );
+      if (moved) requestAnimationFrame(() => focusExperimentHeading(
+        document.getElementById("experiment-title"),
+        compactViewport,
+      ));
     }
   }, [filtered, scenarioId]);
 
@@ -129,7 +135,9 @@ export default function ScenarioSwitcher() {
           {lastError ?? "Connecting to the experiment catalog…"}
         </div>}
         {scenarios.length > 0 && filtered.length === 0 && (
-          <div className="library-empty">No experiments match that search.</div>
+          <div className="library-empty" role="status" aria-live="polite">
+            No experiments match that search.
+          </div>
         )}
       </div>
     </aside>

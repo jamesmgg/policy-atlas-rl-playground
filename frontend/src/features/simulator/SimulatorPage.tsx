@@ -40,7 +40,7 @@ export default function SimulatorPage() {
                 <span>{currentScenario?.group ?? "Experiment"}</span>
                 <span>{currentScenario?.difficulty ?? "Loading"}</span>
               </div>
-              <h1 id="experiment-title">{currentScenario?.name ?? "Opening experiment…"}</h1>
+              <h1 id="experiment-title" tabIndex={-1}>{currentScenario?.name ?? "Opening experiment…"}</h1>
               <p>{currentScenario?.description ?? "Loading the environment and its experiment contract."}</p>
             </div>
           </section>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  formatMetric, getRunWindow, normalizeRunConfig, scrollExperimentStage,
+  formatMetric, getRunWindow, normalizeRunConfig, recentCheckpoints,
+  scrollExperimentStage,
 } from "../../api/types";
 import { useTrainingSocket } from "../../hooks/useTrainingSocket";
 
@@ -47,7 +48,7 @@ export default function TrainingControls() {
       ? recent.reduce((sum, item) => sum + item.steps, 0) / recent.length : 0;
     return durationLabel(status?.sps ? runWindow.remaining * meanSteps / status.sps : 0);
   }, [history, runWindow.remaining, status?.sps]);
-  const latestEvaluation = checkpoints[0];
+  const latestEvaluation = recentCheckpoints(checkpoints)[0];
 
   const applyPreset = (preset: typeof PRESETS[number]) => {
     setEpisodes(preset.episodes);

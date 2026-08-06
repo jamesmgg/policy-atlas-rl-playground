@@ -35,6 +35,10 @@ export default function Leaderboard() {
     () => rankCheckpoints(comparableCheckpoints, metricMode),
     [comparableCheckpoints, metricMode],
   );
+  const podiumRuns = ranked.slice(0, 3);
+  const hasSolvedRun = podiumRuns.some((checkpoint) => (checkpoint.success_rate ?? 0) > 0);
+  const fullMedalPodium = podiumRuns.length === MEDALS.length
+    && podiumRuns.every((checkpoint) => (checkpoint.success_rate ?? 0) > 0);
   const rows = view === "best" ? ranked : recentCheckpoints(checkpoints);
 
   const resume = (checkpoint: CheckpointMeta) => {
@@ -56,9 +60,11 @@ export default function Leaderboard() {
     <section className="panel checkpoints-panel" aria-labelledby="checkpoints-title">
       <div className="panel-heading checkpoint-heading">
         <div>
-          <span className="section-kicker">Policy podium</span>
+          <span className="section-kicker">{hasSolvedRun ? "Policy podium" : "Best attempts"}</span>
           <h2 id="checkpoints-title">Top runs</h2>
-          <p>The strongest policies on the current fixed test starts.</p>
+          <p>{hasSolvedRun
+            ? "The strongest policies on the current fixed test starts."
+            : "No test starts completed yet. These are the closest attempts so far."}</p>
         </div>
         <span className="ranking-note">Success first · task score breaks ties</span>
       </div>
@@ -73,16 +79,29 @@ export default function Leaderboard() {
       ) : (
         <>
           <div className="checkpoint-podium" aria-label="Top three evaluated runs">
-            {ranked.slice(0, 3).map((checkpoint, index) => {
+            {podiumRuns.map((checkpoint, index) => {
               const medal = MEDALS[index];
               const ghostActive = ghostEpisode === checkpoint.episode;
+              const solved = (checkpoint.success_rate ?? 0) > 0;
               return (
-                <article className={`podium-card podium-${medal.tone}`} key={checkpoint.episode}>
+                <article className={`podium-card ${
+                  solved ? `podium-${medal.tone}` : "podium-attempt"
+                }`} key={checkpoint.episode}>
                   <div className="podium-card-topline">
-                    <span className={`podium-medal medal-${medal.tone}`} role="img" aria-label={medal.accessible}>
-                      <span aria-hidden="true">{index + 1}</span>
-                    </span>
-                    <span className="medal-name" aria-hidden="true">{medal.label}</span>
+                    {solved ? (
+                      <>
+                        <span className={`podium-medal medal-${medal.tone}`} role="img" aria-label={medal.accessible}>
+                          <span aria-hidden="true">{index + 1}</span>
+                        </span>
+                        <span className="medal-name" aria-hidden="true">{medal.label}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="podium-attempt-rank" role="img"
+                          aria-label={`Best attempt, rank ${index + 1}`}>{index + 1}</span>
+                        <span className="attempt-name" aria-hidden="true">Best attempt</span>
+                      </>
+                    )}
                   </div>
                   <div className="podium-run-copy">
                     <strong>Episode {checkpoint.episode.toLocaleString()}</strong>
@@ -108,7 +127,9 @@ export default function Leaderboard() {
             })}
           </div>
           {ranked.length > 1 && (
-            <p className="podium-scroll-cue"><span aria-hidden="true">↔</span> Swipe for Silver and Bronze</p>
+            <p className="podium-scroll-cue"><span aria-hidden="true">↔</span> {
+              fullMedalPodium ? "Swipe for Silver and Bronze" : "Swipe for more ranked runs"
+            }</p>
           )}
         </>
       )}

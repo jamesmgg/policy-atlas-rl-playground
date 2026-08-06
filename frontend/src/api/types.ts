@@ -518,3 +518,12 @@ export function scrollExperimentStage(
   });
   return true;
 }
+
+export function focusExperimentHeading(
+  target: Pick<HTMLElement, "focus"> | null,
+  compactViewport: boolean,
+): boolean {
+  if (!target || !compactViewport) return false;
+  target.focus({ preventScroll: true });
+  return true;
+}
