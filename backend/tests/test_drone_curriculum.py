@@ -5,6 +5,7 @@ import copy
 import sys
 import tempfile
 import unittest
+from collections import Counter
 from pathlib import Path
 
 import numpy as np
@@ -23,7 +24,7 @@ EXPECTED_CURRICULUM_PROTOCOL = {
     "id": "drone-reverse-waypoint-v1",
     "frontier_order": [4, 3, 2, 1, 0],
     "start_sampling": {
-        "active_frontier_probability": 1.0,
+        "active_frontier_probability": 0.5,
         "mastered_later_segments": "uniform remainder",
         "empty_mastered_fallback": "100% active frontier",
     },
@@ -100,7 +101,7 @@ class TestDroneReverseCurriculum(unittest.TestCase):
         self.assertEqual(set(starts), {4})
         self.assertEqual(training.training_curriculum_state()["frontier"], 4)
 
-    def test_unlocked_sampling_uses_only_the_active_frontier(self) -> None:
+    def test_unlocked_sampling_rehearses_active_and_mastered_frontiers(self) -> None:
         training = self.spec.make_training_env()
         for expected in (3, 2, 1):
             transition = pass_frontier(training)
@@ -113,10 +114,20 @@ class TestDroneReverseCurriculum(unittest.TestCase):
         for _ in range(4_000):
             training.reset()
             starts.append(training.k)
-            self.assertLessEqual(training.vx, -60.0)
-            self.assertGreaterEqual(training.vx, -100.0)
+            origin = drone.WAYPOINTS[training.k - 1]
+            prior = drone.START if training.k == 1 else drone.WAYPOINTS[
+                training.k - 2]
+            self.assertGreater(training.vx * (origin[0] - prior[0]), 0.0)
+            self.assertGreaterEqual(abs(training.vx), 60.0)
+            self.assertLessEqual(abs(training.vx), 100.0)
 
-        self.assertEqual(set(starts), {1})
+        counts = Counter(starts)
+        self.assertEqual(set(starts), {1, 2, 3, 4})
+        self.assertGreaterEqual(counts[1], 1_800)
+        self.assertLessEqual(counts[1], 2_200)
+        for mastered in (2, 3, 4):
+            self.assertGreaterEqual(counts[mastered], 500)
+            self.assertLessEqual(counts[mastered], 850)
 
     def test_gate_unlocks_after_one_threshold_pass(self) -> None:
         training = self.spec.make_training_env()
@@ -156,7 +167,7 @@ class TestDroneReverseCurriculum(unittest.TestCase):
         self.assertTrue(next_unlock["unlocked"])
         self.assertEqual(next_unlock["frontier_after"], 2)
 
-    def test_final_frontier_is_unlocked_and_sampling_stays_stable(self) -> None:
+    def test_final_frontier_keeps_half_of_resets_canonical(self) -> None:
         training = self.spec.make_training_env()
         for expected_frontier in (3, 2, 1, 0):
             self.assertEqual(pass_frontier(training)["frontier_after"],
@@ -174,8 +185,15 @@ class TestDroneReverseCurriculum(unittest.TestCase):
         for _ in range(2_000):
             training.reset()
             starts.append(training.k)
-            self.assertEqual(training.vx, 0.0)
-        self.assertEqual(set(starts), {0})
+            if training.k == 0:
+                self.assertEqual(training.vx, 0.0)
+            else:
+                self.assertGreaterEqual(abs(training.vx), 60.0)
+                self.assertLessEqual(abs(training.vx), 100.0)
+        counts = Counter(starts)
+        self.assertEqual(set(starts), {0, 1, 2, 3, 4})
+        self.assertGreaterEqual(counts[0], 900)
+        self.assertLessEqual(counts[0], 1_100)
 
     def test_segment_reset_replays_seeded_inbound_horizontal_momentum(self) -> None:
         for segment in range(len(drone.WAYPOINTS)):
@@ -417,8 +435,8 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             meta = trainer.registry.list()[0]
             payload = trainer.registry.load(0)
 
-        self.assertEqual(meta["schema_version"], 8)
-        self.assertEqual(meta["protocol"]["version"], 10)
+        self.assertEqual(meta["schema_version"], 9)
+        self.assertEqual(meta["protocol"]["version"], 11)
         self.assertEqual(meta["protocol"]["training_curriculum"],
                          EXPECTED_CURRICULUM_PROTOCOL)
         diagnostic = meta["training_diagnostics"]["training_curriculum"]
@@ -460,14 +478,15 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             self.spec.training_start_distribution,
             "Performance-gated reverse waypoint curriculum: start at target 5 "
             "(k4); unlock k3, k2, k1, then canonical k0 after one >=90% fixed "
-            "segment evaluation; active frontier receives 100% of resets; "
+            "segment evaluation; active frontier receives 50% of resets and "
+            "mastered later segments uniformly share the remainder; "
             "noncanonical starts carry seeded inbound horizontal velocity with "
             "the previous-segment sign and magnitude uniformly sampled from "
             "60 to 100 units/s",
         )
         self.assertEqual(self.spec.training_curriculum.protocol(),
                          EXPECTED_CURRICULUM_PROTOCOL)
-        self.assertEqual(self.spec.checkpoint_schema, 8)
+        self.assertEqual(self.spec.checkpoint_schema, 9)
 
 
 if __name__ == "__main__":

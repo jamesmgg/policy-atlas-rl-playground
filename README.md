@@ -66,8 +66,9 @@ recoverable from the checkpoint archive.
   500, then consolidates on 75% canonical descents and 25% braking approaches;
   Drone Course uses a fixed-suite, performance-gated reverse curriculum that
   learns the final waypoint first, then unlocks each earlier course segment
-  after one >=90% segment evaluation. Every reset targets the active frontier;
-  later mastered segments are still traversed within those longer rollouts.
+  after one >=90% segment evaluation. Before the first unlock, every reset
+  targets the active frontier; afterward, half target the active frontier while
+  half uniformly rehearse mastered later segments to prevent forgetting.
   Noncanonical training and segment-evaluation starts replay a seeded 60â€“100
   units/s horizontal arrival in the preceding segment's direction, so each
   waypoint policy must learn the momentum reversal encountered by the zigzag

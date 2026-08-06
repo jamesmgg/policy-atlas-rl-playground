@@ -182,7 +182,7 @@ class TestDrivingActorInitialization(unittest.TestCase):
         self.assertAlmostEqual(stats["binary_probability_mean_0"], 0.05, places=6)
         self.assertEqual(stats["binary_deterministic_on_fraction_0"], 0.0)
 
-    def test_v10_checkpoint_protocol_records_exact_initialization_recipe(self) -> None:
+    def test_v11_checkpoint_protocol_records_exact_initialization_recipe(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             trainer = trainer_module.Trainer(Settings(
                 port=8901,
@@ -210,7 +210,7 @@ class TestDrivingActorInitialization(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 10)
+        self.assertEqual(protocol["version"], 11)
         self.assertEqual(protocol["actor_initialization"], EXPECTED_DRIVING_PROTOCOL)
 
 
@@ -293,7 +293,7 @@ class TestLanderExplorationInitialization(unittest.TestCase):
             torch.tensor([-0.25, -0.75]),
         )
 
-    def test_v10_metadata_records_exact_lander_exploration_recipe(self) -> None:
+    def test_v11_metadata_records_exact_lander_exploration_recipe(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "state.json").write_text(
@@ -324,7 +324,7 @@ class TestLanderExplorationInitialization(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 10)
+        self.assertEqual(protocol["version"], 11)
         self.assertEqual(protocol["actor_initialization"], EXPECTED_LANDER_PROTOCOL)
 
 
