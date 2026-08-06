@@ -64,7 +64,9 @@ recoverable from the checkpoint archive.
   their unchanged fixed start-line distributions.
 - Traffic Rush assigns the same -40 terminal cost to collision, contact,
   wrong-way, and stall failures, so waiting safely cannot dominate attempting
-  the overtake objective.
+  the overtake objective. Its three overtake-stage rehearsals use checkpoints
+  3, 9, and 11: the first two retain the reconstructed pass masks while giving
+  the policy at least 3.5 seconds of closing time before the next traffic car.
 - Lunar Lander uses touchdown and braking-approach rehearsals through episode
   500, then consolidates on 75% canonical descents and 25% braking approaches;
   Drone Course uses a fixed-suite, performance-gated reverse curriculum that

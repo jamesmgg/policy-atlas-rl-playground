@@ -394,7 +394,7 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             payload = trainer.registry.load(0)
 
         self.assertEqual(meta["schema_version"], 6)
-        self.assertEqual(meta["protocol"]["version"], 11)
+        self.assertEqual(meta["protocol"]["version"], 12)
         self.assertEqual(meta["protocol"]["training_curriculum"],
                          EXPECTED_CURRICULUM_PROTOCOL)
         diagnostic = meta["training_diagnostics"]["training_curriculum"]
@@ -416,7 +416,7 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             "apex-gp": 7, "velocita": 7, "grandville": 7,
             "thunder-oval": 7, "apex-gp-wet": 7, "glacier": 7,
             "rally-ridge": 7, "kart-sprint": 7, "drift-trial": 8,
-            "eco-gp": 7, "traffic-rush": 11, "lunar-lander": 5,
+            "eco-gp": 7, "traffic-rush": 12, "lunar-lander": 5,
             "pendulum-swingup": 2, "cartpole-balance": 2,
             "mountain-car": 3,
         }
