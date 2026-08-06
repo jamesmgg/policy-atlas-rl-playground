@@ -246,6 +246,37 @@ def evaluate_training_curriculum(curriculum, training_env, agent) -> dict:
     }
 
 
+def evaluate_training_control(control, training_env, agent) -> dict:
+    """Run the active training-control stage's fixed deterministic suite."""
+    get_state = getattr(training_env, "training_control_state", None)
+    if not callable(get_state):
+        raise TypeError("training environment does not expose control state")
+    stage = str(get_state()["stage"])
+    successes = 0
+    seeds = []
+    for episode_index in range(control.evaluation_episodes):
+        seed = control.evaluation_seed(stage, episode_index)
+        seeds.append(seed)
+        env = control.make_evaluation_env(stage)
+        if hasattr(env, "rng"):
+            env.rng.seed(seed)
+        obs = env.reset()
+        for _ in range(env.max_steps):
+            action, _, _ = agent.select_action(obs, deterministic=True)
+            obs, _, done, _ = env.step(action)
+            if done:
+                break
+        successes += int(bool(env.episode_summary().get("success", False)))
+    return {
+        "stage": stage,
+        "episodes": control.evaluation_episodes,
+        "successes": successes,
+        "success_rate": successes / control.evaluation_episodes,
+        "evaluation_suite": control.evaluation_suite_id(stage),
+        "seeds": seeds,
+    }
+
+
 class Trainer:
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -618,12 +649,52 @@ class Trainer:
 
     def _save_checkpoint(self) -> None:
         rng_state = capture_rng_state(self.env)
-        curriculum_result = None
+        try:
+            meta = self._save_checkpoint_transaction(rng_state)
+        except Exception:
+            # Gate transitions and persistence form one transaction. Restore
+            # both curriculum layers and all random streams on any failure.
+            restore_rng_state(rng_state, self.env)
+            raise
+        log.info("[%s] checkpoint ep%d: eval_reward=%.1f metric=%s",
+                 self.spec.id, meta.episode, meta.eval_reward, meta.eval_metric)
+        self.emit({"type": "checkpoint_list", "scenario_id": self.spec.id,
+                   "checkpoints": self.registry.list()})
+
+    def _save_checkpoint_transaction(self, rng_state: dict):
+        """Evaluate, advance nested/outer gates, and durably save atomically."""
+        control_result = None
         try:
             eval_result = self._run_eval()
-            curriculum_result = self._run_training_curriculum_eval()
+            control_result = self._run_training_control_eval()
         finally:
             restore_rng_state(rng_state, self.env)
+        control_diagnostic = None
+        if control_result is not None:
+            record_control = getattr(
+                self.env, "record_training_control_evaluation", None)
+            curriculum = getattr(self.spec, "training_curriculum", None)
+            control = (
+                curriculum.training_control if curriculum is not None else None)
+            if not callable(record_control) or control is None:
+                raise TypeError(
+                    "scenario training-control contract is incomplete")
+            transition = record_control(
+                float(control_result["success_rate"]), control,
+                evaluation_episode=self.episode)
+            control_diagnostic = {
+                **control_result,
+                **transition,
+                "state_after": self.env.training_control_state(),
+            }
+
+        # The outer cp11 gate is observable only after the nested transition
+        # has established canonical 30 m/s proficiency.
+        post_control_rng_state = capture_rng_state(self.env)
+        try:
+            curriculum_result = self._run_training_curriculum_eval()
+        finally:
+            restore_rng_state(post_control_rng_state, self.env)
         curriculum_diagnostic = None
         if curriculum_result is not None:
             record_result = getattr(
@@ -646,6 +717,8 @@ class Trainer:
         eval_result["total_steps"] = self.total_steps
         training_diagnostics = dict(
             getattr(self, "latest_update_metrics", None) or {})
+        if control_diagnostic is not None:
+            training_diagnostics["training_control"] = control_diagnostic
         if curriculum_diagnostic is not None:
             training_diagnostics["training_curriculum"] = curriculum_diagnostic
         eval_result["training_diagnostics"] = training_diagnostics or None
@@ -662,7 +735,7 @@ class Trainer:
             self.env, "course_reward_potential_protocol", None)
         eval_result["protocol"] = {
             "algorithm": "PPO",
-            "version": 16,
+            "version": 17,
             "rollout_steps": ROLLOUT_STEPS,
             "episode_aligned_rollouts": True,
             "gamma": scenario_discount_factor(self.spec),
@@ -695,6 +768,12 @@ class Trainer:
                 if getattr(self.spec, "training_curriculum", None) is not None
                 else None
             ),
+            "training_control": (
+                self.spec.training_curriculum.training_control.protocol()
+                if (getattr(self.spec, "training_curriculum", None) is not None
+                    and self.spec.training_curriculum.training_control is not None)
+                else None
+            ),
             "actor_initialization": actor_initialization_protocol(
                 self.spec, self.env),
             "update_epochs": ppo_defaults.UPDATE_EPOCHS,
@@ -713,17 +792,34 @@ class Trainer:
             "torch_version": str(torch.__version__),
         }
         eval_result["rng_state"] = rng_state
-        meta = self.registry.save(self.episode, self.agent, self.history, eval_result)
-        log.info("[%s] checkpoint ep%d: eval_reward=%.1f metric=%s",
-                 self.spec.id, meta.episode, meta.eval_reward, meta.eval_metric)
-        self.emit({"type": "checkpoint_list", "scenario_id": self.spec.id,
-                   "checkpoints": self.registry.list()})
+        return self.registry.save(
+            self.episode, self.agent, self.history, eval_result)
 
     def _run_training_curriculum_eval(self) -> dict | None:
         curriculum = getattr(self.spec, "training_curriculum", None)
         if curriculum is None:
             return None
+        control = getattr(curriculum, "training_control", None)
+        if control is not None:
+            get_state = getattr(self.env, "training_control_state", None)
+            if not callable(get_state):
+                raise TypeError(
+                    "scenario training-control contract is incomplete")
+            if not bool(get_state()["complete"]):
+                return None
         return evaluate_training_curriculum(curriculum, self.env, self.agent)
+
+    def _run_training_control_eval(self) -> dict | None:
+        curriculum = getattr(self.spec, "training_curriculum", None)
+        control = getattr(curriculum, "training_control", None)
+        if control is None:
+            return None
+        get_state = getattr(self.env, "training_control_state", None)
+        if not callable(get_state):
+            raise TypeError("scenario training-control contract is incomplete")
+        if bool(get_state()["complete"]):
+            return None
+        return evaluate_training_control(control, self.env, self.agent)
 
     def _run_eval(self) -> dict:
         results: list[dict] = []

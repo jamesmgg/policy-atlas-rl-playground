@@ -5,8 +5,13 @@ from dataclasses import replace
 from functools import lru_cache
 
 from .. import physics, track as tracks
-from ..envs.base import TrainingCurriculumSpec
+from ..envs.base import TrainingControlSpec, TrainingCurriculumSpec
 from ..envs.driving import (
+    TRAFFIC_BOT3_SPEED_ACTIVE_STAGE_PROBABILITY,
+    TRAFFIC_BOT3_SPEED_CONSECUTIVE_CONFIRMATIONS,
+    TRAFFIC_BOT3_SPEED_CONTROL_ID,
+    TRAFFIC_BOT3_SPEED_STAGE_IDS,
+    TRAFFIC_BOT3_SPEED_SUCCESS_RATE_THRESHOLD,
     TRAFFIC_CURRICULUM_ACTIVE_FRONTIER_PROBABILITY,
     TRAFFIC_CURRICULUM_CONSECUTIVE_CONFIRMATIONS,
     TRAFFIC_CURRICULUM_FRONTIER_ORDER,
@@ -250,7 +255,10 @@ TRAFFIC_TRAINING_START_DISTRIBUTION = (
     "confirmations complete the curriculum; rolling states use the 70-90% "
     "curvature/grip backward-braking envelope, an 80% reference clock with "
     "a 1-second reserve, time-advanced traffic and reconstructed pass masks, "
-    "and no reset reward"
+    "and no reset reward; before checkpoint 11 can unlock, a nested bot3 "
+    "speed control advances through 18, 24, and canonical 30 m/s after two "
+    "distinct >=80% fixed 10-seed confirmations per speed, with 80% active "
+    "speed-stage resets and 20% uniformly sampled mastered speeds"
 )
 
 
@@ -281,6 +289,63 @@ def _make_traffic_stage_evaluation_env(
     )
 
 
+def _make_traffic_bot3_speed_evaluation_env(
+        stage: str) -> TrafficCurriculumEnv:
+    if stage not in TRAFFIC_BOT3_SPEED_STAGE_IDS:
+        raise ValueError("unknown Traffic bot3 speed stage")
+    return TrafficCurriculumEnv(
+        _track("APEX_GP"),
+        params=physics.F1,
+        reward_cfg=TRAFFIC_REWARD,
+        features=TRAFFIC_FEATURES,
+        jitter=True,
+        max_steps=2250,
+        forced_start_checkpoint=11,
+        forced_bot3_speed_stage=stage,
+    )
+
+
+TRAFFIC_BOT3_SPEED_CONTROL = TrainingControlSpec(
+    id=TRAFFIC_BOT3_SPEED_CONTROL_ID,
+    scope_description=(
+        "only bot3 speed at outer frontier checkpoint 11 before it may unlock"
+    ),
+    stage_ids=TRAFFIC_BOT3_SPEED_STAGE_IDS,
+    stage_start_descriptions=(
+        "checkpoint 11 with bot3 at 18 m/s, reconstructed gap 319.42 m, "
+        "48.64 s remaining, required catch-up average 24.57 m/s, pass masks "
+        "[true,true,false], time-advanced bot arc, and no reset reward",
+        "checkpoint 11 with bot3 at 24 m/s, reconstructed gap 567.58 m, "
+        "48.64 s remaining, required catch-up average 35.67 m/s, pass masks "
+        "[true,true,false], time-advanced bot arc, and no reset reward",
+        "checkpoint 11 with canonical bot3 at 30 m/s, reconstructed gap "
+        "815.74 m, 48.64 s remaining, required catch-up average 46.77 m/s, "
+        "pass masks [true,true,false], time-advanced bot arc, and no reset "
+        "reward",
+    ),
+    active_stage_probability=TRAFFIC_BOT3_SPEED_ACTIVE_STAGE_PROBABILITY,
+    success_rate_threshold=TRAFFIC_BOT3_SPEED_SUCCESS_RATE_THRESHOLD,
+    consecutive_confirmations=(
+        TRAFFIC_BOT3_SPEED_CONSECUTIVE_CONFIRMATIONS),
+    evaluation_suite_version="traffic-cp11-bot3-speed-control-v1",
+    evaluation_episodes=10,
+    evaluation_seed_base=800_000,
+    stage_seed_stride=1_000,
+    evaluation_start_state_description=(
+        "the active speed stage's disclosed physical checkpoint-11 state"
+    ),
+    outer_gate_dependency_description=(
+        "the checkpoint-11 outer gate remains locked until canonical 30 m/s "
+        "bot3 speed proficiency is complete"
+    ),
+    checkpoint_selection_description=(
+        "bot3 speed control is training-only; fixed canonical full-course "
+        "evaluation remains the checkpoint-selection signal"
+    ),
+    make_evaluation_env=_make_traffic_bot3_speed_evaluation_env,
+)
+
+
 TRAFFIC_TRAINING_CURRICULUM = TrainingCurriculumSpec(
     id=TRAFFIC_CURRICULUM_ID,
     frontier_order=TRAFFIC_CURRICULUM_FRONTIER_ORDER,
@@ -300,6 +365,7 @@ TRAFFIC_TRAINING_CURRICULUM = TrainingCurriculumSpec(
     success_rate_threshold_by_frontier=(
         (11, 0.8), (9, 0.8), (3, 0.8), (0, 0.9),
     ),
+    training_control=TRAFFIC_BOT3_SPEED_CONTROL,
 )
 
 DRIVING_SPECS: list[ScenarioSpec] = [
@@ -376,7 +442,7 @@ DRIVING_SPECS: list[ScenarioSpec] = [
             success="Overtake all three traffic cars in one episode.",
             difficulty="Advanced",
             horizon_steps=2250, training_discount_factor=1.0,
-            checkpoint_schema=16),
+            checkpoint_schema=17),
         training_factory=_make_traffic_training_env,
         training_start_distribution=TRAFFIC_TRAINING_START_DISTRIBUTION,
         training_curriculum=TRAFFIC_TRAINING_CURRICULUM,

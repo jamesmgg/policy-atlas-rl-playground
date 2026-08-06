@@ -104,14 +104,18 @@ class TrafficHorizonAblationTests(unittest.TestCase):
             "curriculum; rolling states use the 70-90% curvature/grip "
             "backward-braking envelope, an 80% reference clock with a "
             "1-second reserve, time-advanced traffic and reconstructed pass "
-            "masks, and no reset reward",
+            "masks, and no reset reward; before checkpoint 11 can unlock, a "
+            "nested bot3 speed control advances through 18, 24, and canonical "
+            "30 m/s after two distinct >=80% fixed 10-seed confirmations per "
+            "speed, with 80% active speed-stage resets and 20% uniformly "
+            "sampled mastered speeds",
         )
         self.assertEqual(
             self.traffic.success,
             "Overtake all three traffic cars in one episode.",
         )
 
-    def test_schema_sixteen_refuses_a_schema_eight_traffic_checkpoint(self) -> None:
+    def test_schema_seventeen_refuses_a_schema_eight_traffic_checkpoint(self) -> None:
         env = self.traffic.make_env(False)
         agent = PPOAgent(
             env.obs_dim, env.n_continuous, env.n_binary, torch.device("cpu"))
@@ -125,12 +129,12 @@ class TrafficHorizonAblationTests(unittest.TestCase):
                 "reward": 1.0, "metric": 1.0, "trajectory": [],
             })
 
-            self.assertEqual(self.traffic.checkpoint_schema, 16)
+            self.assertEqual(self.traffic.checkpoint_schema, 17)
             self.assertEqual(current.list(), [])
             with self.assertRaises(IncompatibleCheckpointError):
                 current.load_into(25, agent)
 
-    def test_protocol_v16_records_the_exact_task_horizon(self) -> None:
+    def test_protocol_v17_records_the_exact_task_horizon(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "state.json").write_text(
@@ -161,7 +165,7 @@ class TrafficHorizonAblationTests(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 16)
+        self.assertEqual(protocol["version"], 17)
         self.assertEqual(protocol["task_horizon_steps"], 2250)
         self.assertEqual(protocol["task_horizon_seconds"], 90.0)
 

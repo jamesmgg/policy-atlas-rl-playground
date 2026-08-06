@@ -87,7 +87,7 @@ class DrivingCurriculumTests(unittest.TestCase):
     @unittest.skipUnless(HAS_ROLLING_CURRICULUM, "curriculum API not implemented")
     def test_traffic_fixed_evaluation_remains_canonical(self) -> None:
         spec = self.specs["traffic-rush"]
-        self.assertEqual(spec.checkpoint_schema, 16)
+        self.assertEqual(spec.checkpoint_schema, 17)
 
         env = spec.make_env(False)
         env.rng.seed(41)
@@ -332,7 +332,11 @@ class DrivingCurriculumTests(unittest.TestCase):
             "curriculum; rolling states use the 70-90% curvature/grip "
             "backward-braking envelope, an 80% reference clock with a "
             "1-second reserve, time-advanced traffic and reconstructed pass "
-            "masks, and no reset reward",
+            "masks, and no reset reward; before checkpoint 11 can unlock, a "
+            "nested bot3 speed control advances through 18, 24, and canonical "
+            "30 m/s after two distinct >=80% fixed 10-seed confirmations per "
+            "speed, with 80% active speed-stage resets and 20% uniformly "
+            "sampled mastered speeds",
         )
 
 

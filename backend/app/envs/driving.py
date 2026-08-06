@@ -9,14 +9,14 @@ from __future__ import annotations
 
 import math
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 
 from .. import physics
 from ..physics import CarState, PhysicsParams
 from ..track import Track, heading_at
-from .base import TrainingCurriculumSpec
+from .base import TrainingControlSpec, TrainingCurriculumSpec
 
 FRAME_SKIP = 2
 DT_AGENT = physics.DT * FRAME_SKIP   # 0.04 s per agent step
@@ -111,10 +111,17 @@ def terminal_zero_potential_delta(
 
 
 TRAFFIC_CURRICULUM_ID = "traffic-reverse-overtake-v1"
-TRAFFIC_CURRICULUM_STATE_VERSION = 1
+TRAFFIC_CURRICULUM_STATE_VERSION = 2
 TRAFFIC_CURRICULUM_FRONTIER_ORDER = (11, 9, 3, 0)
 TRAFFIC_CURRICULUM_ACTIVE_FRONTIER_PROBABILITY = 0.8
 TRAFFIC_CURRICULUM_CONSECUTIVE_CONFIRMATIONS = 2
+TRAFFIC_BOT3_SPEED_CONTROL_ID = "traffic-cp11-bot3-speed-v1"
+TRAFFIC_BOT3_SPEED_STATE_VERSION = 1
+TRAFFIC_BOT3_SPEED_STAGE_IDS = ("speed-18", "speed-24", "speed-30")
+TRAFFIC_BOT3_SPEEDS = (18.0, 24.0, 30.0)
+TRAFFIC_BOT3_SPEED_ACTIVE_STAGE_PROBABILITY = 0.8
+TRAFFIC_BOT3_SPEED_SUCCESS_RATE_THRESHOLD = 0.8
+TRAFFIC_BOT3_SPEED_CONSECUTIVE_CONFIRMATIONS = 2
 
 
 @dataclass(frozen=True)
@@ -776,6 +783,7 @@ class TrafficCurriculumEnv(DrivingEnv):
 
     traffic_stage_curriculum: bool = False
     forced_start_checkpoint: int | None = None
+    forced_bot3_speed_stage: str | None = None
     _curriculum_position: int = field(default=0, init=False, repr=False)
     _curriculum_pass_streak: int = field(default=0, init=False, repr=False)
     _curriculum_complete: bool = field(default=False, init=False, repr=False)
@@ -784,17 +792,50 @@ class TrafficCurriculumEnv(DrivingEnv):
         default=None, init=False, repr=False)
     _curriculum_last_evaluation_episode: int | None = field(
         default=None, init=False, repr=False)
+    _bot3_speed_position: int = field(default=0, init=False, repr=False)
+    _bot3_speed_pass_streak: int = field(default=0, init=False, repr=False)
+    _bot3_speed_complete: bool = field(default=False, init=False, repr=False)
+    _bot3_speed_evaluations: int = field(default=0, init=False, repr=False)
+    _bot3_speed_last_success_rate: float | None = field(
+        default=None, init=False, repr=False)
+    _bot3_speed_last_evaluation_episode: int | None = field(
+        default=None, init=False, repr=False)
+    _traffic_canonical_features: DrivingFeatures = field(
+        init=False, repr=False)
 
     def __post_init__(self):
+        self._traffic_canonical_features = self.features
+        if len(self.features.bots) != 3:
+            raise ValueError("Traffic curriculum requires exactly three bots")
         if (self.forced_start_checkpoint is not None
                 and self.forced_start_checkpoint
                 not in TRAFFIC_CURRICULUM_FRONTIER_ORDER):
             raise ValueError(
                 "forced Traffic checkpoint must be one of 11, 9, 3, or 0")
+        if (self.forced_bot3_speed_stage is not None
+                and self.forced_bot3_speed_stage
+                not in TRAFFIC_BOT3_SPEED_STAGE_IDS):
+            raise ValueError("unknown forced Traffic bot3 speed stage")
+        if (self.forced_bot3_speed_stage is not None
+                and self.forced_start_checkpoint != 11):
+            raise ValueError("bot3 speed stages are defined only at checkpoint 11")
         super().__post_init__()
 
     def reset(self) -> np.ndarray:
         checkpoint = self._sample_start_checkpoint()
+        speed_stage = self._bot3_speed_stage_for_reset(checkpoint)
+        speed_position = TRAFFIC_BOT3_SPEED_STAGE_IDS.index(speed_stage)
+        canonical_bots = self._traffic_canonical_features.bots
+        self.features = replace(
+            self._traffic_canonical_features,
+            bots=(
+                *canonical_bots[:2],
+                replace(
+                    canonical_bots[2],
+                    speed=TRAFFIC_BOT3_SPEEDS[speed_position],
+                ),
+            ),
+        )
         if checkpoint == 0:
             self.random_start = False
             self.start_line_probability = 0.0
@@ -804,6 +845,45 @@ class TrafficCurriculumEnv(DrivingEnv):
             self.start_line_probability = 0.0
             self.rolling_checkpoint_indices = (checkpoint,)
         return super().reset()
+
+    def _bot3_speed_stage_for_reset(self, checkpoint: int) -> str:
+        """Choose a nested speed stage only for the active cp11 frontier."""
+        if self.forced_bot3_speed_stage is not None:
+            return self.forced_bot3_speed_stage
+        if (not self.traffic_stage_curriculum
+                or checkpoint != 11
+                or self._curriculum_position != 0
+                or self._bot3_speed_complete):
+            return TRAFFIC_BOT3_SPEED_STAGE_IDS[-1]
+        active = TRAFFIC_BOT3_SPEED_STAGE_IDS[self._bot3_speed_position]
+        mastered = TRAFFIC_BOT3_SPEED_STAGE_IDS[:self._bot3_speed_position]
+        if (not mastered
+                or self.rng.random()
+                < TRAFFIC_BOT3_SPEED_ACTIVE_STAGE_PROBABILITY):
+            return active
+        return self.rng.choice(mastered)
+
+    def bot3_catchup_diagnostics(self) -> dict:
+        """Describe the current physical catch-up task for Traffic bot 3."""
+        gap = self._bot_gap(2)
+        remaining_seconds = max(
+            (self.max_steps - self.steps) * self.dt, 0.0)
+        required_average_speed = (
+            self.features.bots[2].speed + gap / remaining_seconds
+            if remaining_seconds > 0.0 else math.inf
+        )
+        return {
+            "checkpoint": (
+                self.track.checkpoints.index(self.idx)
+                if self.idx in self.track.checkpoints else None
+            ),
+            "bot_index": 3,
+            "bot_speed_mps": float(self.features.bots[2].speed),
+            "gap_m": float(gap),
+            "remaining_seconds": float(remaining_seconds),
+            "required_average_speed_mps": float(required_average_speed),
+            "pass_masks": list(self._bot_passed),
+        }
 
     def _sample_start_checkpoint(self) -> int:
         if self.forced_start_checkpoint is not None:
@@ -837,7 +917,107 @@ class TrafficCurriculumEnv(DrivingEnv):
             "last_success_rate": self._curriculum_last_success_rate,
             "last_evaluation_episode": (
                 self._curriculum_last_evaluation_episode),
+            "bot3_speed": self.training_control_state(),
         }
+
+    def training_control_state(self) -> dict:
+        """Return the exact nested cp11 bot3 speed-control state."""
+        stage = TRAFFIC_BOT3_SPEED_STAGE_IDS[self._bot3_speed_position]
+        return {
+            "version": TRAFFIC_BOT3_SPEED_STATE_VERSION,
+            "control_id": TRAFFIC_BOT3_SPEED_CONTROL_ID,
+            "stage_position": self._bot3_speed_position,
+            "stage": stage,
+            "speed_mps": TRAFFIC_BOT3_SPEEDS[self._bot3_speed_position],
+            "mastered": list(
+                TRAFFIC_BOT3_SPEED_STAGE_IDS[:self._bot3_speed_position]),
+            "pass_streak": self._bot3_speed_pass_streak,
+            "complete": self._bot3_speed_complete,
+            "evaluations": self._bot3_speed_evaluations,
+            "last_success_rate": self._bot3_speed_last_success_rate,
+            "last_evaluation_episode": (
+                self._bot3_speed_last_evaluation_episode),
+        }
+
+    def _validated_training_control_state(self, state: dict) -> dict:
+        """Validate nested state without mutating either curriculum layer."""
+        try:
+            position = int(state["stage_position"])
+            pass_streak = int(state["pass_streak"])
+            evaluations = int(state["evaluations"])
+            complete = bool(state["complete"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("invalid Traffic bot3 speed state") from exc
+        if int(state.get("version", -1)) != TRAFFIC_BOT3_SPEED_STATE_VERSION:
+            raise ValueError("unsupported Traffic bot3 speed state version")
+        if state.get("control_id") != TRAFFIC_BOT3_SPEED_CONTROL_ID:
+            raise ValueError("Traffic bot3 speed control id does not match")
+        if not 0 <= position < len(TRAFFIC_BOT3_SPEED_STAGE_IDS):
+            raise ValueError("invalid Traffic bot3 speed stage position")
+        if state.get("stage") != TRAFFIC_BOT3_SPEED_STAGE_IDS[position]:
+            raise ValueError("Traffic bot3 speed stage does not match position")
+        if float(state.get("speed_mps", math.nan)) != (
+                TRAFFIC_BOT3_SPEEDS[position]):
+            raise ValueError("Traffic bot3 speed does not match stage")
+        mastered = state.get("mastered", [])
+        if not isinstance(mastered, (list, tuple)):
+            raise ValueError("Traffic bot3 speed mastered stages are invalid")
+        if list(mastered) != list(
+                TRAFFIC_BOT3_SPEED_STAGE_IDS[:position]):
+            raise ValueError(
+                "Traffic bot3 speed mastered stages are inconsistent")
+        if not 0 <= pass_streak <= (
+                TRAFFIC_BOT3_SPEED_CONSECUTIVE_CONFIRMATIONS):
+            raise ValueError("invalid Traffic bot3 speed confirmation streak")
+        if (not complete
+                and pass_streak
+                >= TRAFFIC_BOT3_SPEED_CONSECUTIVE_CONFIRMATIONS):
+            raise ValueError(
+                "incomplete Traffic bot3 speed state cannot retain a "
+                "completed confirmation streak")
+        if (complete
+                and pass_streak
+                != TRAFFIC_BOT3_SPEED_CONSECUTIVE_CONFIRMATIONS):
+            raise ValueError(
+                "complete Traffic bot3 speed state must retain its "
+                "completed confirmation streak")
+        if evaluations < 0:
+            raise ValueError("invalid Traffic bot3 speed evaluation count")
+        if complete and position != len(TRAFFIC_BOT3_SPEED_STAGE_IDS) - 1:
+            raise ValueError("only canonical 30 m/s speed can be complete")
+        last_success_rate = state.get("last_success_rate")
+        if last_success_rate is not None:
+            last_success_rate = float(last_success_rate)
+            if not 0.0 <= last_success_rate <= 1.0:
+                raise ValueError("invalid Traffic bot3 speed success rate")
+        last_evaluation_episode = state.get("last_evaluation_episode")
+        if last_evaluation_episode is not None:
+            last_evaluation_episode = int(last_evaluation_episode)
+            if last_evaluation_episode < 0:
+                raise ValueError(
+                    "invalid Traffic bot3 speed evaluation episode")
+        return {
+            "position": position,
+            "pass_streak": pass_streak,
+            "complete": complete,
+            "evaluations": evaluations,
+            "last_success_rate": last_success_rate,
+            "last_evaluation_episode": last_evaluation_episode,
+        }
+
+    def _apply_training_control_state(self, validated: dict) -> None:
+        self._bot3_speed_position = validated["position"]
+        self._bot3_speed_pass_streak = validated["pass_streak"]
+        self._bot3_speed_complete = validated["complete"]
+        self._bot3_speed_evaluations = validated["evaluations"]
+        self._bot3_speed_last_success_rate = validated["last_success_rate"]
+        self._bot3_speed_last_evaluation_episode = (
+            validated["last_evaluation_episode"])
+
+    def restore_training_control_state(self, state: dict) -> None:
+        """Atomically restore the validated nested bot3 speed state."""
+        validated = self._validated_training_control_state(state)
+        self._apply_training_control_state(validated)
 
     def restore_training_curriculum_state(self, state: dict) -> None:
         """Restore a validated Traffic gate saved with the checkpoint RNG."""
@@ -846,10 +1026,13 @@ class TrafficCurriculumEnv(DrivingEnv):
         if int(state.get("version", -1)) != TRAFFIC_CURRICULUM_STATE_VERSION:
             raise ValueError("unsupported Traffic curriculum state version")
 
-        position = int(state["frontier_position"])
-        pass_streak = int(state["pass_streak"])
-        evaluations = int(state["evaluations"])
-        complete = bool(state["complete"])
+        try:
+            position = int(state["frontier_position"])
+            pass_streak = int(state["pass_streak"])
+            evaluations = int(state["evaluations"])
+            complete = bool(state["complete"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("invalid Traffic curriculum state") from exc
         last_success_rate = state.get("last_success_rate")
         last_evaluation_episode = state.get("last_evaluation_episode")
         if not 0 <= position < len(TRAFFIC_CURRICULUM_FRONTIER_ORDER):
@@ -879,6 +1062,16 @@ class TrafficCurriculumEnv(DrivingEnv):
                 raise ValueError(
                     "invalid Traffic curriculum evaluation episode")
 
+        bot3_speed = state.get("bot3_speed")
+        if not isinstance(bot3_speed, dict):
+            raise ValueError("Traffic curriculum state lacks bot3 speed control")
+        validated_speed = self._validated_training_control_state(bot3_speed)
+        if position > 0 and not validated_speed["complete"]:
+            raise ValueError(
+                "an unlocked Traffic frontier requires canonical 30 m/s "
+                "proficiency")
+
+        self._apply_training_control_state(validated_speed)
         self._curriculum_position = position
         self._curriculum_pass_streak = pass_streak
         self._curriculum_complete = complete
@@ -893,6 +1086,95 @@ class TrafficCurriculumEnv(DrivingEnv):
         self._curriculum_evaluations = 0
         self._curriculum_last_success_rate = None
         self._curriculum_last_evaluation_episode = None
+        self._bot3_speed_position = 0
+        self._bot3_speed_pass_streak = 0
+        self._bot3_speed_complete = False
+        self._bot3_speed_evaluations = 0
+        self._bot3_speed_last_success_rate = None
+        self._bot3_speed_last_evaluation_episode = None
+
+    def record_training_control_evaluation(
+            self, success_rate: float,
+            control: TrainingControlSpec, *,
+            evaluation_episode: int | None = None) -> dict:
+        """Apply one distinct fixed-suite result to the cp11 speed gate."""
+        if control.id != TRAFFIC_BOT3_SPEED_CONTROL_ID:
+            raise ValueError("training control id does not match Traffic")
+        if tuple(control.stage_ids) != TRAFFIC_BOT3_SPEED_STAGE_IDS:
+            raise ValueError("bot3 speed stage order does not match Traffic")
+        if (control.consecutive_confirmations
+                != TRAFFIC_BOT3_SPEED_CONSECUTIVE_CONFIRMATIONS):
+            raise ValueError("bot3 speed confirmation count does not match")
+        if not 0.0 <= success_rate <= 1.0:
+            raise ValueError("bot3 speed success rate must be in [0, 1]")
+        if evaluation_episode is None:
+            evaluation_episode = (
+                0 if self._bot3_speed_last_evaluation_episode is None
+                else self._bot3_speed_last_evaluation_episode + 1)
+        evaluation_episode = int(evaluation_episode)
+        if evaluation_episode < 0:
+            raise ValueError(
+                "bot3 speed evaluation episode must be non-negative")
+
+        before = self.training_control_state()
+        passed = success_rate >= control.success_rate_threshold
+        if self._bot3_speed_last_evaluation_episode == evaluation_episode:
+            return self._training_control_transition(
+                before, before, success_rate, passed, evaluation_episode,
+                ignored_duplicate=True, unlocked=False, completed=False)
+        if (self._bot3_speed_last_evaluation_episode is not None
+                and evaluation_episode
+                < self._bot3_speed_last_evaluation_episode):
+            raise ValueError(
+                "bot3 speed evaluation episodes must be monotonic")
+
+        self._bot3_speed_evaluations += 1
+        self._bot3_speed_last_success_rate = float(success_rate)
+        self._bot3_speed_last_evaluation_episode = evaluation_episode
+        unlocked = False
+        completed = False
+        if not self._bot3_speed_complete:
+            self._bot3_speed_pass_streak = (
+                self._bot3_speed_pass_streak + 1 if passed else 0)
+            if (self._bot3_speed_pass_streak
+                    >= control.consecutive_confirmations):
+                if (self._bot3_speed_position
+                        < len(TRAFFIC_BOT3_SPEED_STAGE_IDS) - 1):
+                    self._bot3_speed_position += 1
+                    self._bot3_speed_pass_streak = 0
+                    unlocked = True
+                else:
+                    self._bot3_speed_complete = True
+                    completed = True
+        after = self.training_control_state()
+        return self._training_control_transition(
+            before, after, success_rate, passed, evaluation_episode,
+            ignored_duplicate=False, unlocked=unlocked,
+            completed=completed)
+
+    @staticmethod
+    def _training_control_transition(
+            before: dict, after: dict, success_rate: float, passed: bool,
+            evaluation_episode: int, *, ignored_duplicate: bool,
+            unlocked: bool, completed: bool) -> dict:
+        return {
+            "success_rate": float(success_rate),
+            "passed": passed,
+            "evaluation_episode": evaluation_episode,
+            "ignored_duplicate": ignored_duplicate,
+            "stage_before": before["stage"],
+            "stage_after": after["stage"],
+            "speed_mps_before": before["speed_mps"],
+            "speed_mps_after": after["speed_mps"],
+            "mastered_before": before["mastered"],
+            "mastered_after": after["mastered"],
+            "confirmation_streak_before": before["pass_streak"],
+            "confirmation_streak_after": after["pass_streak"],
+            "complete_before": before["complete"],
+            "complete_after": after["complete"],
+            "unlocked": unlocked,
+            "completed": completed,
+        }
 
     def record_training_curriculum_evaluation(
             self, success_rate: float,
@@ -918,10 +1200,15 @@ class TrafficCurriculumEnv(DrivingEnv):
         before = self.training_curriculum_state()
         threshold = curriculum.success_rate_threshold_for(before["frontier"])
         passed = success_rate >= threshold
+        prerequisite_met = (
+            before["frontier"] != 11
+            or before["bot3_speed"]["complete"]
+        )
         if self._curriculum_last_evaluation_episode == evaluation_episode:
             return self._curriculum_transition(
                 before, before, success_rate, threshold, passed,
-                evaluation_episode, ignored_duplicate=True, unlocked=False)
+                prerequisite_met, evaluation_episode,
+                ignored_duplicate=True, unlocked=False)
         if (self._curriculum_last_evaluation_episode is not None
                 and evaluation_episode
                 < self._curriculum_last_evaluation_episode):
@@ -934,7 +1221,8 @@ class TrafficCurriculumEnv(DrivingEnv):
         unlocked = False
         if not self._curriculum_complete:
             self._curriculum_pass_streak = (
-                self._curriculum_pass_streak + 1 if passed else 0)
+                self._curriculum_pass_streak + 1
+                if passed and prerequisite_met else 0)
             if (self._curriculum_pass_streak
                     >= curriculum.consecutive_confirmations):
                 if (self._curriculum_position
@@ -947,17 +1235,20 @@ class TrafficCurriculumEnv(DrivingEnv):
         after = self.training_curriculum_state()
         return self._curriculum_transition(
             before, after, success_rate, threshold, passed,
-            evaluation_episode, ignored_duplicate=False, unlocked=unlocked)
+            prerequisite_met, evaluation_episode,
+            ignored_duplicate=False, unlocked=unlocked)
 
     @staticmethod
     def _curriculum_transition(
             before: dict, after: dict, success_rate: float,
-            threshold: float, passed: bool, evaluation_episode: int, *,
+            threshold: float, passed: bool, prerequisite_met: bool,
+            evaluation_episode: int, *,
             ignored_duplicate: bool, unlocked: bool) -> dict:
         return {
             "success_rate": float(success_rate),
             "success_rate_threshold": threshold,
             "passed": passed,
+            "prerequisite_met": prerequisite_met,
             "evaluation_episode": evaluation_episode,
             "ignored_duplicate": ignored_duplicate,
             "frontier_before": before["frontier"],

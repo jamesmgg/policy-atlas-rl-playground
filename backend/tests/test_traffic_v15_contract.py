@@ -56,12 +56,31 @@ class TrafficV15ContractTests(unittest.TestCase):
     def pass_frontier(self, env, first_episode: int) -> tuple[dict, dict]:
         curriculum = self.curriculum()
         frontier = env.training_curriculum_state()["frontier"]
+        if frontier == 11:
+            self.complete_speed_control(env)
         threshold = EXPECTED_THRESHOLDS[frontier]
         first = env.record_training_curriculum_evaluation(
             threshold, curriculum, evaluation_episode=first_episode)
         second = env.record_training_curriculum_evaluation(
             threshold, curriculum, evaluation_episode=first_episode + 25)
         return first, second
+
+    def complete_speed_control(self, env) -> None:
+        curriculum = self.curriculum()
+        control = getattr(curriculum, "training_control", None)
+        if control is None:
+            return
+        while not env.training_control_state()["complete"]:
+            state = env.training_control_state()
+            episode = (
+                0 if state["last_evaluation_episode"] is None
+                else state["last_evaluation_episode"] + 1
+            )
+            env.record_training_control_evaluation(
+                control.success_rate_threshold,
+                control,
+                evaluation_episode=episode,
+            )
 
     # -------------------------------------------------------------- reward
 
@@ -456,14 +475,16 @@ class TrafficV15ContractTests(unittest.TestCase):
                 "evaluation_suite": "traffic-stage-eval-v1-k11-n10",
                 "seeds": list(range(711_000, 711_010)),
             }
+            self.complete_speed_control(trainer.env)
             trainer._run_eval = lambda: copy.deepcopy(canonical)
+            trainer._run_training_control_eval = lambda: None
             trainer._run_training_curriculum_eval = lambda: copy.deepcopy(segment)
             trainer._save_checkpoint()
             meta = trainer.registry.list()[0]
 
-        self.assertEqual(self.spec.checkpoint_schema, 16)
-        self.assertEqual(meta["schema_version"], 16)
-        self.assertEqual(meta["protocol"]["version"], 16)
+        self.assertEqual(self.spec.checkpoint_schema, 17)
+        self.assertEqual(meta["schema_version"], 17)
+        self.assertEqual(meta["protocol"]["version"], 17)
         self.assertEqual(meta["protocol"]["training_curriculum"],
                          curriculum.protocol())
         self.assertEqual(
