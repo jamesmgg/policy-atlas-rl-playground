@@ -21,18 +21,26 @@ def _reverify_module():
 
 
 def _successful_holdout(run: dict, **kwargs) -> dict:
-    del kwargs
+    episodes = int(kwargs.get("episodes", 4))
+    seed_base = int(kwargs.get("seed_base", 200_000))
+    seed_end = seed_base + episodes - 1
     return {
         "state": "complete",
         "protocol_role": "post_selection_holdout",
         "influences_selection": False,
         "selected_checkpoint_episode": run["selection"]["checkpoint"]["episode"],
-        "episodes": 4,
-        "seed_base": 200_000,
-        "seed_end": 200_003,
+        "selected_checkpoint_sha256": (
+            run["selection"]["checkpoint"]["checkpoint_sha256"]),
+        "requested_episodes": episodes,
+        "requested_seed_base": seed_base,
+        "requested_seed_end": seed_end,
+        "episodes": episodes,
+        "seed_base": seed_base,
+        "seed_end": seed_end,
         "selection_seed_base": 100_000,
         "selection_seed_end": 100_009,
         "seed_range_disjoint_from_selection": True,
+        "seed_range_disjoint_from_training_curriculum": True,
         "engine_source_sha256": run["engine_source_sha256"],
         "successes": 4,
         "success_rate": 1.0,
@@ -180,9 +188,14 @@ class ReportReverificationTests(unittest.TestCase):
                          original["runs"][0]["holdout"])
         self.assertEqual(revised["reverified_at"],
                          "2026-08-06T10:00:00+00:00")
+        self.assertEqual(revised["schema_version"], 2)
+        self.assertEqual(
+            revised["report_protocol"],
+            "policy-atlas-benchmark-v2",
+        )
         self.assertEqual(
             revised["holdout_reverification_protocol"]["tool_protocol"],
-            "policy-atlas-holdout-reverify-v1",
+            "policy-atlas-holdout-reverify-v2",
         )
 
     def test_final_verdict_uses_stored_contract_and_expected_run_count(self) -> None:

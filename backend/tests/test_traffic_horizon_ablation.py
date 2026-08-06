@@ -106,7 +106,12 @@ class TrafficHorizonAblationTests(unittest.TestCase):
             self.assertEqual(self.traffic.checkpoint_schema, 9)
             self.assertEqual(current.list(), [])
             with self.assertRaises(IncompatibleCheckpointError):
-                current.load_into(25, agent)
+                current.load_into(
+                    25,
+                    agent,
+                    expected_engine="current-engine",
+                    expected_evaluation_suite="current-suite",
+                )
 
     def test_protocol_v13_records_the_exact_task_horizon(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
