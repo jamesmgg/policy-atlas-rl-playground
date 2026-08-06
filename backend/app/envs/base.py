@@ -5,7 +5,8 @@ envs.pendulum.PendulumEnv, envs.drone.DroneEnv.
 """
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from dataclasses import dataclass
+from typing import Callable, Protocol, runtime_checkable
 
 import numpy as np
 
@@ -35,3 +36,68 @@ class Env(Protocol):
     def ghost_sample(self) -> list[float]:
         """[x, y, rot, drift, speed] — one replay row, same shape for all envs."""
         ...
+
+
+@dataclass(frozen=True)
+class TrainingCurriculumSpec:
+    """Immutable trainer/environment contract for a gated segment curriculum."""
+
+    id: str
+    frontier_order: tuple[int, ...]
+    active_frontier_probability: float
+    success_rate_threshold: float
+    consecutive_confirmations: int
+    evaluation_suite_version: str
+    evaluation_episodes: int
+    evaluation_seed_base: int
+    segment_seed_stride: int
+    start_state_description: str
+    make_evaluation_env: Callable[[int], Env]
+
+    def evaluation_seed(self, segment: int, episode_index: int) -> int:
+        if segment not in self.frontier_order:
+            raise ValueError(f"segment {segment} is outside the curriculum")
+        if not 0 <= episode_index < self.evaluation_episodes:
+            raise ValueError("episode index is outside the fixed segment suite")
+        return (self.evaluation_seed_base
+                + segment * self.segment_seed_stride
+                + episode_index)
+
+    def evaluation_suite_id(self, segment: int) -> str:
+        if segment not in self.frontier_order:
+            raise ValueError(f"segment {segment} is outside the curriculum")
+        return (f"{self.evaluation_suite_version}-k{segment}"
+                f"-n{self.evaluation_episodes}")
+
+    def protocol(self) -> dict:
+        """JSON-safe exact disclosure stored with every policy checkpoint."""
+        return {
+            "id": self.id,
+            "frontier_order": list(self.frontier_order),
+            "start_sampling": {
+                "active_frontier_probability": self.active_frontier_probability,
+                "mastered_later_segments": "uniform remainder",
+                "empty_mastered_fallback": "100% active frontier",
+            },
+            "gate": {
+                "success_rate_threshold": self.success_rate_threshold,
+                "comparison": ">=",
+                "consecutive_confirmations": self.consecutive_confirmations,
+                "distinct_checkpoint_episodes": True,
+            },
+            "segment_evaluation": {
+                "suite_version": self.evaluation_suite_version,
+                "episodes": self.evaluation_episodes,
+                "seed_base": self.evaluation_seed_base,
+                "segment_seed_stride": self.segment_seed_stride,
+                "seed_formula": (
+                    "seed_base + segment * segment_seed_stride + episode_index"
+                ),
+                "deterministic_policy": True,
+                "start_state": self.start_state_description,
+            },
+            "checkpoint_selection": (
+                "segment evaluation is training-only diagnostic; fixed full-course "
+                "evaluation remains the checkpoint-selection signal"
+            ),
+        }

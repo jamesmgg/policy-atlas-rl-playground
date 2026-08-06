@@ -63,8 +63,11 @@ recoverable from the checkpoint archive.
   traffic from a curvature/grip braking envelope; selection and replay keep
   their unchanged fixed start-line distributions.
 - Lunar Lander rehearses safe touchdown and braking approaches on half of
-  training resets, and Drone Course rehearses later waypoint segments on half.
-  These curriculum states are fully observed and never enter fixed evaluation.
+  training resets. Drone Course uses a fixed-suite, performance-gated reverse
+  curriculum: it masters the final waypoint first, then unlocks earlier course
+  segments after two consecutive 90% segment evaluations. Its active frontier
+  receives half of resets once later segments are mastered. Curriculum state is
+  checkpointed exactly and its diagnostics never enter full-course selection.
 - The benchmark campaign freezes checkpoint selection before an optional
   100-start holdout at a disjoint seed range. Holdout outcomes cannot affect
   early stopping or checkpoint choice.

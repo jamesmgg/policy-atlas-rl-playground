@@ -173,12 +173,15 @@ def learning_payload(observation: np.ndarray, action: np.ndarray,
 
 
 def capture_rng_state(env) -> dict:
+    curriculum_state = getattr(env, "training_curriculum_state", None)
     state = {
         "python": random.getstate(),
         "numpy": np.random.get_state(),
         "torch": torch.get_rng_state(),
         "cuda": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None,
         "environment": env.rng.getstate() if hasattr(env, "rng") else None,
+        "training_curriculum": (
+            curriculum_state() if callable(curriculum_state) else None),
     }
     return state
 
@@ -191,6 +194,43 @@ def restore_rng_state(state: dict, env) -> None:
         torch.cuda.set_rng_state_all(state["cuda"])
     if state.get("environment") is not None and hasattr(env, "rng"):
         env.rng.setstate(state["environment"])
+    curriculum_state = state.get("training_curriculum")
+    if curriculum_state is not None:
+        restore = getattr(env, "restore_training_curriculum_state", None)
+        if not callable(restore):
+            raise ValueError("checkpoint has curriculum state for an incompatible env")
+        restore(curriculum_state)
+
+
+def evaluate_training_curriculum(curriculum, training_env, agent) -> dict:
+    """Run a fixed deterministic suite on only the active training frontier."""
+    get_state = getattr(training_env, "training_curriculum_state", None)
+    if not callable(get_state):
+        raise TypeError("training environment does not expose curriculum state")
+    frontier = int(get_state()["frontier"])
+    successes = 0
+    seeds = []
+    for episode_index in range(curriculum.evaluation_episodes):
+        seed = curriculum.evaluation_seed(frontier, episode_index)
+        seeds.append(seed)
+        env = curriculum.make_evaluation_env(frontier)
+        if hasattr(env, "rng"):
+            env.rng.seed(seed)
+        obs = env.reset()
+        for _ in range(env.max_steps):
+            action, _, _ = agent.select_action(obs, deterministic=True)
+            obs, _, done, _ = env.step(action)
+            if done:
+                break
+        successes += int(bool(env.episode_summary().get("success", False)))
+    return {
+        "frontier": frontier,
+        "episodes": curriculum.evaluation_episodes,
+        "successes": successes,
+        "success_rate": successes / curriculum.evaluation_episodes,
+        "evaluation_suite": curriculum.evaluation_suite_id(frontier),
+        "seeds": seeds,
+    }
 
 
 class Trainer:
@@ -345,6 +385,9 @@ class Trainer:
             self.ghost = None
             self._learning = None
             self.latest_update_metrics = None
+            reset_curriculum = getattr(env, "reset_training_curriculum", None)
+            if callable(reset_curriculum):
+                reset_curriculum()
             env.reset()
             self._emit_status()
             self.emit({"type": "history", "scenario_id": self.spec.id, "history": []})
@@ -559,17 +602,40 @@ class Trainer:
 
     def _save_checkpoint(self) -> None:
         rng_state = capture_rng_state(self.env)
+        curriculum_result = None
         try:
             eval_result = self._run_eval()
+            curriculum_result = self._run_training_curriculum_eval()
         finally:
             restore_rng_state(rng_state, self.env)
+        curriculum_diagnostic = None
+        if curriculum_result is not None:
+            record_result = getattr(
+                self.env, "record_training_curriculum_evaluation", None)
+            curriculum = getattr(self.spec, "training_curriculum", None)
+            if not callable(record_result) or curriculum is None:
+                raise TypeError("scenario curriculum contract is incomplete")
+            transition = record_result(
+                float(curriculum_result["success_rate"]), curriculum,
+                evaluation_episode=self.episode)
+            curriculum_diagnostic = {
+                **curriculum_result,
+                **transition,
+                "state_after": self.env.training_curriculum_state(),
+            }
+        # Evaluation is observational with respect to every random stream. The
+        # only intended mutation is the serialized curriculum gate transition.
+        rng_state = capture_rng_state(self.env)
         eval_result["update_count"] = self.update_count
         eval_result["total_steps"] = self.total_steps
-        eval_result["training_diagnostics"] = getattr(
-            self, "latest_update_metrics", None)
+        training_diagnostics = dict(
+            getattr(self, "latest_update_metrics", None) or {})
+        if curriculum_diagnostic is not None:
+            training_diagnostics["training_curriculum"] = curriculum_diagnostic
+        eval_result["training_diagnostics"] = training_diagnostics or None
         eval_result["protocol"] = {
             "algorithm": "PPO",
-            "version": 6,
+            "version": 7,
             "rollout_steps": ROLLOUT_STEPS,
             "episode_aligned_rollouts": True,
             "gamma": GAMMA,
@@ -586,6 +652,11 @@ class Trainer:
                     "training_start_distribution",
                     "scenario default starts",
                 )
+            ),
+            "training_curriculum": (
+                self.spec.training_curriculum.protocol()
+                if getattr(self.spec, "training_curriculum", None) is not None
+                else None
             ),
             "actor_initialization": actor_initialization_protocol(
                 self.spec, self.env),
@@ -610,6 +681,12 @@ class Trainer:
                  self.spec.id, meta.episode, meta.eval_reward, meta.eval_metric)
         self.emit({"type": "checkpoint_list", "scenario_id": self.spec.id,
                    "checkpoints": self.registry.list()})
+
+    def _run_training_curriculum_eval(self) -> dict | None:
+        curriculum = getattr(self.spec, "training_curriculum", None)
+        if curriculum is None:
+            return None
+        return evaluate_training_curriculum(curriculum, self.env, self.agent)
 
     def _run_eval(self) -> dict:
         results: list[dict] = []
