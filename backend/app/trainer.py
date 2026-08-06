@@ -22,7 +22,7 @@ from typing import Callable
 import numpy as np
 import torch
 
-from .checkpoints import CheckpointRegistry
+from .checkpoints import CheckpointRegistry, IncompatibleCheckpointError
 from .ppo import agent as ppo_defaults
 from .ppo.agent import PPOAgent
 from .ppo.buffer import RolloutBuffer
@@ -408,7 +408,13 @@ class Trainer:
         with self._lock:
             if self.running:
                 return False
-            data = self.registry.load_into(episode, self.agent)
+            data = self.registry.load_into(
+                episode,
+                self.agent,
+                expected_engine=source_digest(),
+                expected_evaluation_suite=evaluation_suite_id(
+                    self.settings.eval_episodes),
+            )
             # Loading an older policy creates a new branch. Preserve its newer
             # descendants before their episode-numbered files can be replaced.
             self.registry.archive_after(episode)
@@ -778,7 +784,13 @@ class Trainer:
         for meta in reversed(self.registry.list()):
             latest = meta["episode"]
             try:
-                data = self.registry.load_into(latest, self.agent)
+                data = self.registry.load_into(
+                    latest,
+                    self.agent,
+                    expected_engine=source_digest(),
+                    expected_evaluation_suite=evaluation_suite_id(
+                        self.settings.eval_episodes),
+                )
                 self.history = data.get("history", [])
                 self.episode = latest
                 stored_steps = data.get("total_steps")
@@ -796,6 +808,13 @@ class Trainer:
                 self._recompute_bests()
                 log.info("[%s] restored checkpoint ep%d", self.spec.id, latest)
                 return
+            except IncompatibleCheckpointError as exc:
+                # A valid policy from a different scientific protocol remains
+                # visible and replayable, but must never become live state.
+                log.warning(
+                    "[%s] skipping non-resumable checkpoint ep%d: %s",
+                    self.spec.id, latest, exc,
+                )
             except Exception:
                 log.exception("[%s] quarantining invalid checkpoint ep%d",
                               self.spec.id, latest)

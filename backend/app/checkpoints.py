@@ -184,6 +184,12 @@ class CheckpointRegistry:
     def _load_pair(self, sidecar_path: Path, checkpoint_path: Path,
                    episode: int) -> dict:
         """Validate and load one checkpoint pair without mutating an agent."""
+        data, _ = self._validated_pair(sidecar_path, checkpoint_path, episode)
+        return data
+
+    def _validated_pair(self, sidecar_path: Path, checkpoint_path: Path,
+                        episode: int) -> tuple[dict, dict]:
+        """Return the tensor payload and its validated, normalized sidecar."""
         raw_meta = json.loads(sidecar_path.read_text())
         if not _metadata_is_valid(raw_meta):
             raise CheckpointIntegrityError(
@@ -209,10 +215,24 @@ class CheckpointRegistry:
                 raise CheckpointIntegrityError(
                     f"checkpoint episode {episode} sidecar metadata does not "
                     "match the tensor payload")
-        return data
+        return data, meta
 
-    def load_into(self, episode: int, agent: PPOAgent) -> dict:
-        data = self.load(episode)
+    def load_into(
+        self,
+        episode: int,
+        agent: PPOAgent,
+        *,
+        expected_engine: str,
+        expected_evaluation_suite: str,
+    ) -> dict:
+        """Load resumable state only after the experiment contract matches."""
+        data, meta = self._validated_pair(
+            self._json(episode), self._pt(episode), episode)
+        _assert_resume_compatible(
+            meta,
+            expected_engine=expected_engine,
+            expected_evaluation_suite=expected_evaluation_suite,
+        )
         agent.load_state_dict(data["agent"])
         return data
 
@@ -392,6 +412,34 @@ def _metadata_is_valid(meta: dict) -> bool:
 def _comparable_metadata(meta: dict) -> dict:
     return {key: value for key, value in meta.items()
             if key != "checkpoint_sha256"}
+
+
+def _assert_resume_compatible(
+    meta: dict,
+    *,
+    expected_engine: str,
+    expected_evaluation_suite: str,
+) -> None:
+    """Reject scientifically different policies before any live-state mutation."""
+    protocol = meta.get("protocol")
+    checkpoint_engine = (
+        protocol.get("engine_source_sha256")
+        if isinstance(protocol, dict) else None
+    )
+    checkpoint_suite = meta.get("evaluation_suite")
+    mismatches = []
+    if checkpoint_engine != expected_engine:
+        mismatches.append(
+            f"engine {checkpoint_engine!r} does not match {expected_engine!r}")
+    if checkpoint_suite != expected_evaluation_suite:
+        mismatches.append(
+            "evaluation suite "
+            f"{checkpoint_suite!r} does not match {expected_evaluation_suite!r}")
+    if mismatches:
+        raise IncompatibleCheckpointError(
+            "checkpoint cannot be resumed: " + "; ".join(mismatches)
+            + "; replay remains available"
+        )
 
 
 def _sync_file(path: Path) -> None:

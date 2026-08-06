@@ -409,6 +409,7 @@ def load_agent_readonly(
     episode: int,
     *,
     expected_engine: str,
+    expected_evaluation_suite: str,
 ) -> tuple[Any, dict[str, Any]]:
     """Validate and load a policy without constructing a mutating registry."""
     import torch
@@ -432,7 +433,12 @@ def load_agent_readonly(
     env = spec.make_env(False)
     agent = PPOAgent(env.obs_dim, env.n_continuous, env.n_binary,
                      torch.device("cpu"))
-    data = registry.load_into(episode, agent)
+    data = registry.load_into(
+        episode,
+        agent,
+        expected_engine=expected_engine,
+        expected_evaluation_suite=expected_evaluation_suite,
+    )
     metadata = json.loads(
         (registry.dir / f"checkpoint_ep{episode:06d}.json").read_text())
     checkpoint_engine = (metadata.get("protocol") or {}).get(
@@ -473,6 +479,7 @@ def evaluate_selected_checkpoint(
         spec,
         checkpoint_episode,
         expected_engine=run_result["engine_source_sha256"],
+        expected_evaluation_suite=str(selection["suite"]),
     )
     selected_metadata_hash = checkpoint.get("metadata_sha256")
     selected_checkpoint_hash = checkpoint.get("checkpoint_sha256")

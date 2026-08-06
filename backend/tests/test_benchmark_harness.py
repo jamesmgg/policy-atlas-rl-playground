@@ -555,13 +555,17 @@ class HoldoutTests(unittest.TestCase):
                 "reward": 1.0,
                 "metric": 1.0,
                 "trajectory": [],
+                "evaluation_suite": "selection-n1",
                 "protocol": {"engine_source_sha256": engine},
             })
             before = {path.relative_to(root): path.read_bytes()
                       for path in root.rglob("*") if path.is_file()}
 
             loaded, metadata = load_agent_readonly(
-                root, spec, 5, expected_engine=engine)
+                root, spec, 5,
+                expected_engine=engine,
+                expected_evaluation_suite="selection-n1",
+            )
 
             self.assertIsInstance(loaded, PPOAgent)
             self.assertEqual(metadata["episode"], 5)
@@ -603,6 +607,7 @@ class HoldoutTests(unittest.TestCase):
                 root, spec.id, schema_version=spec.checkpoint_schema)
             registry.save(5, agent, [{"reward": 1.0}], {
                 "reward": 1.0, "metric": 1.0, "trajectory": [],
+                "evaluation_suite": "selection-n1",
                 "protocol": {"engine_source_sha256": engine},
             })
 

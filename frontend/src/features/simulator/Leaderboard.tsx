@@ -38,11 +38,9 @@ export default function Leaderboard() {
   const rows = view === "best" ? ranked : recentCheckpoints(checkpoints);
 
   const resume = (checkpoint: CheckpointMeta) => {
-    const compatibilityNote = status && !isComparableCheckpoint(checkpoint, status)
-      ? " Its saved score uses a different experiment protocol and will not be ranked with current results."
-      : "";
+    if (!status || !isComparableCheckpoint(checkpoint, status)) return;
     if (window.confirm(
-      `Resume from episode ${checkpoint.episode}? This replaces the policy currently loaded in memory.${compatibilityNote}`,
+      `Resume from episode ${checkpoint.episode}? This replaces the policy currently loaded in memory.`,
     )) loadCheckpoint(checkpoint.episode);
   };
 
@@ -76,6 +74,9 @@ export default function Leaderboard() {
             {ranked.slice(0, 3).map((checkpoint, index) => {
               const medal = MEDALS[index];
               const ghostActive = ghostEpisode === checkpoint.episode;
+              const comparable = status
+                ? isComparableCheckpoint(checkpoint, status)
+                : false;
               return (
                 <article className={`podium-card podium-${medal.tone}`} key={checkpoint.episode}>
                   <div className="podium-card-topline">
@@ -99,8 +100,10 @@ export default function Leaderboard() {
                       onClick={() => ghostActive ? clearGhost() : setGhost(checkpoint.episode)}>
                       {ghostActive ? "Hide replay" : "Watch replay"}
                     </button>
-                    <button type="button" disabled={training}
-                      title={training ? "Pause training before loading a checkpoint" : "Load weights and continue from here"}
+                    <button type="button" disabled={training || !comparable}
+                      title={!comparable
+                        ? "Different experiment protocol: replay is available, but resume is disabled"
+                        : training ? "Pause training before loading a checkpoint" : "Load weights and continue from here"}
                       onClick={() => resume(checkpoint)}>Resume</button>
                   </div>
                 </article>
@@ -200,8 +203,10 @@ export default function Leaderboard() {
                             onClick={() => ghostActive ? clearGhost() : setGhost(checkpoint.episode)}>
                             {ghostActive ? "Hide replay" : "Compare replay"}
                           </button>
-                          <button type="button" disabled={training}
-                            title={training ? "Pause training before loading a checkpoint" : "Load weights and continue from here"}
+                          <button type="button" disabled={training || !comparable}
+                            title={!comparable
+                              ? "Different experiment protocol: replay is available, but resume is disabled"
+                              : training ? "Pause training before loading a checkpoint" : "Load weights and continue from here"}
                             onClick={() => resume(checkpoint)}>Resume</button>
                         </td>
                       </tr>

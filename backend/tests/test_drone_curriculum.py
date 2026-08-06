@@ -311,7 +311,8 @@ class TestDroneReverseCurriculum(unittest.TestCase):
                 "reward": 0.0, "reward_std": 0.0, "metric": 0.0,
                 "metric_std": 0.0, "failure_progress": None, "episodes": 1,
                 "success_rate": 0.0, "success_ci_low": 0.0,
-                "success_ci_high": 1.0, "evaluation_suite": "canonical-test",
+                "success_ci_high": 1.0,
+                "evaluation_suite": trainer_module.evaluation_suite_id(1),
                 "seed": 42, "trajectory": [],
             }
             first._run_eval = lambda: copy.deepcopy(eval_payload)

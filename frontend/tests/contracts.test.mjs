@@ -110,6 +110,28 @@ test("checkpoint comparison requires the active evaluation suite and engine", ()
   ), false);
 });
 
+test("resume controls require the same comparable checkpoint contract", () => {
+  const source = readFileSync(
+    new URL("../src/features/simulator/Leaderboard.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(
+    source,
+    /if \(!status \|\| !isComparableCheckpoint\(checkpoint, status\)\) return;/,
+    "the click handler must reject protocol-incompatible resumes",
+  );
+  assert.match(
+    source,
+    /disabled=\{training \|\| !comparable\}/,
+    "every checkpoint Resume button must remain disabled until comparison succeeds",
+  );
+  assert.match(
+    source,
+    /Different experiment protocol: replay is available, but resume is disabled/,
+  );
+});
+
 test("recent checkpoints are newest first regardless of API order", () => {
   assert.deepEqual(
     api.recentCheckpoints([{ episode: 2 }, { episode: 10 }, { episode: 5 }])

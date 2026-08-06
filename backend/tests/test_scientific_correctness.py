@@ -13,6 +13,7 @@ import random
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -916,6 +917,120 @@ class TestEvaluationProtocol(unittest.TestCase):
         self.assertEqual(meta["protocol"]["gamma"], 0.995)
         self.assertEqual(meta["training_diagnostics"]["explained_variance"], 0.42)
 
+    def test_manual_resume_rejects_a_different_engine_before_state_mutation(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            trainer = trainer_module.Trainer(Settings(
+                port=8901,
+                checkpoint_dir=Path(tmp),
+                checkpoint_every_n=25,
+                max_episodes=10,
+                use_gpu=False,
+                seed=42,
+                eval_episodes=1,
+            ))
+            saved_agent = PPOAgent(
+                trainer.env.obs_dim,
+                trainer.env.n_continuous,
+                trainer.env.n_binary,
+                torch.device("cpu"),
+            )
+            loss = sum(parameter.square().sum()
+                       for parameter in saved_agent.network.parameters())
+            loss.backward()
+            saved_agent.optimizer.step()
+            trainer.registry.save(5, saved_agent, [{
+                "episode": 5,
+                "reward": 999.0,
+                "steps": 7,
+                "cause": "success",
+                "metric": 1.0,
+                "success": True,
+            }], {
+                "reward": 999.0,
+                "metric": 1.0,
+                "episodes": 1,
+                "evaluation_suite": trainer_module.evaluation_suite_id(1),
+                "seed": 99,
+                "trajectory": [[1.0, 2.0, 3.0, 4.0, 5.0]],
+                "protocol": {"engine_source_sha256": "different-engine"},
+            })
+            before_network = {
+                key: value.detach().clone()
+                for key, value in trainer.agent.network.state_dict().items()
+            }
+
+            with self.assertRaisesRegex(
+                IncompatibleCheckpointError, "engine",
+            ):
+                trainer.load_checkpoint(5)
+
+            for key, value in trainer.agent.network.state_dict().items():
+                torch.testing.assert_close(value, before_network[key])
+            self.assertEqual(trainer.episode, 0)
+            self.assertEqual(trainer.history, [])
+            self.assertEqual(trainer.agent.optimizer.state_dict()["state"], {})
+            self.assertEqual([item["episode"] for item in trainer.registry.list()], [5])
+            self.assertTrue(
+                trainer.set_ghost(5),
+                "an incompatible policy must remain inspectable as a replay",
+            )
+
+    def test_startup_skips_a_different_evaluation_suite_without_loading_policy(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = Settings(
+                port=8901,
+                checkpoint_dir=Path(tmp),
+                checkpoint_every_n=25,
+                max_episodes=10,
+                use_gpu=False,
+                seed=42,
+                eval_episodes=1,
+            )
+            first = trainer_module.Trainer(settings)
+            first.registry.save(5, first.agent, [{
+                "episode": 5,
+                "reward": 5.0,
+                "steps": 1,
+                "cause": "done",
+                "metric": None,
+                "success": False,
+            }], {
+                "reward": 5.0,
+                "metric": None,
+                "episodes": 1,
+                "evaluation_suite": "different-suite-n1",
+                "seed": 42,
+                "trajectory": [[1.0, 2.0, 3.0, 4.0, 5.0]],
+                "protocol": {
+                    "engine_source_sha256": trainer_module.source_digest(),
+                },
+            })
+
+            original_load = PPOAgent.load_state_dict
+            calls: list[dict] = []
+
+            def observe_load(agent, state):
+                calls.append(state)
+                return original_load(agent, state)
+
+            with mock.patch.object(
+                PPOAgent, "load_state_dict", new=observe_load,
+            ):
+                restored = trainer_module.Trainer(settings)
+
+            self.assertEqual(calls, [], "startup must validate before agent mutation")
+            self.assertEqual(restored.episode, 0)
+            self.assertEqual(restored.history, [])
+            self.assertEqual(
+                [item["episode"] for item in restored.registry.list()], [5],
+                "protocol-incompatible checkpoints must not be quarantined",
+            )
+            self.assertTrue(restored.set_ghost(5))
+
     def test_status_exposes_latest_optimizer_diagnostics(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             trainer = trainer_module.Trainer(Settings(
@@ -997,7 +1112,12 @@ class TestEvaluationProtocol(unittest.TestCase):
 
             self.assertEqual(new_registry.list(), [])
             with self.assertRaises(IncompatibleCheckpointError):
-                new_registry.load_into(5, agent)
+                new_registry.load_into(
+                    5,
+                    agent,
+                    expected_engine="current-engine",
+                    expected_evaluation_suite="current-suite",
+                )
 
     def test_schema_upgrade_archives_incompatible_active_checkpoint_before_reuse(self) -> None:
         agent = PPOAgent(2, 1, 0, torch.device("cpu"))
@@ -1138,7 +1258,11 @@ class TestEvaluationProtocol(unittest.TestCase):
                     {"episode": episode, "reward": float(episode), "steps": 1,
                      "cause": "done", "metric": None, "success": False},
                 ], {"reward": float(episode), "metric": None,
-                    "trajectory": [], "update_count": episode})
+                    "trajectory": [], "update_count": episode,
+                    "evaluation_suite": trainer_module.evaluation_suite_id(1),
+                    "protocol": {
+                        "engine_source_sha256": trainer_module.source_digest(),
+                    }})
             first.registry._pt(10).write_bytes(b"not a torch checkpoint")
 
             restored = trainer_module.Trainer(settings)
