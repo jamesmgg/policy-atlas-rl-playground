@@ -65,8 +65,9 @@ recoverable from the checkpoint archive.
 - Lunar Lander uses touchdown and braking-approach rehearsals through episode
   500, then consolidates on 75% canonical descents and 25% braking approaches;
   Drone Course uses a fixed-suite, performance-gated reverse curriculum that
-  learns the final waypoint first, then unlocks earlier course segments. Its
-  active frontier receives half of resets once later segments are mastered.
+  learns the final waypoint first, then unlocks each earlier course segment
+  after one >=90% segment evaluation. Its active frontier receives half of
+  resets once later segments are mastered.
   Curriculum state is checkpointed exactly, and its diagnostics never enter
   full-course checkpoint selection.
 - The benchmark campaign freezes checkpoint selection before an optional
