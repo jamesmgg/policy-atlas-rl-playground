@@ -9,6 +9,7 @@ from types import SimpleNamespace
 
 import torch
 
+import benchmark_all as benchmark_module
 from app.checkpoints import CheckpointRegistry
 from app.ppo.agent import PPOAgent
 from app.scenarios import get_spec
@@ -628,6 +629,24 @@ class HoldoutTests(unittest.TestCase):
 
 
 class CliContractTests(unittest.TestCase):
+    def test_one_selection_checkpoint_is_default_and_stricter_streaks_remain_configurable(
+        self,
+    ) -> None:
+        contract_builder = getattr(benchmark_module, "solve_contract", None)
+        self.assertTrue(callable(contract_builder), "solve_contract is missing")
+        criteria = SolveCriteria()
+        defaults = _parser().parse_args([])
+
+        self.assertEqual(criteria.confirmations, 1)
+        self.assertEqual(defaults.confirmations, 1)
+        self.assertEqual(contract_builder(criteria)["confirmations"], 1)
+        self.assertIn("1 consecutive qualifying checkpoint",
+                      contract_builder(criteria)["definition"])
+        self.assertEqual(
+            _parser().parse_args(["--confirmations", "3"]).confirmations,
+            3,
+        )
+
     def test_holdout_cli_defaults_to_100_distinct_episodes(self) -> None:
         args = _parser().parse_args([])
 

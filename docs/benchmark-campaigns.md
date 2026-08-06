@@ -14,12 +14,13 @@ A checkpoint qualifies when all of these are true:
 - its success rate is at least 90%;
 - the lower end of its 95% Wilson success interval is at least 70%.
 
-The default early-stop mode requires two consecutive qualifying checkpoints.
-With the default ten-start suite, this effectively requires 10/10 successes at
-both checkpoints. The reported earliest solve is the first checkpoint in that
-confirmed pair; the second checkpoint is recorded as the confirmation point.
-`--full-budget` still reports that earliest pair but trains through episode
-2,000.
+The default early-stop mode requires one qualifying checkpoint. With the
+default ten-start suite, this effectively requires 10/10 successes once. The
+policy is frozen immediately so later PPO updates cannot train past a solved
+policy; the independent 100-start holdout below is the confirmation layer.
+`--confirmations 2` (or higher) remains available for stricter selection
+studies, and `--full-budget` still records the earliest qualifying streak while
+training through episode 2,000.
 
 This is the checkpoint-selection contract, not the final generalization claim.
 Repeated selection uses the same fixed starts, so the selected policy is then
@@ -52,6 +53,42 @@ confirmed solve and, unless disabled explicitly, its frozen checkpoint passes
 the disjoint holdout thresholds. The report state is `verified` only in that
 case; unsolved, interrupted, missing, or failed-holdout runs produce
 `incomplete` and a non-zero exit code.
+
+## Engine identity
+
+Engine digests hash each Python file's relative POSIX path, a delimiter, and
+its source bytes. Source bytes are exact except that LF, CRLF, and bare CR line
+endings are canonicalized to LF before hashing. This gives one experiment
+identity to equivalent Windows and Linux checkouts while retaining every other
+byte and every relative path as part of the identity.
+
+The newline-canonical algorithm changes digests created by older builds. It
+applies only to newly computed engine identities: stored checkpoint and report
+digests remain historical evidence and are never reinterpreted or translated.
+Consequently, the holdout evaluator intentionally refuses an older digest even
+when a human believes the only difference was checkout line endings.
+
+## Re-verifying a frozen holdout
+
+`backend/reverify_holdouts.py` replaces post-selection holdout evidence without
+contacting the API, starting training, switching a scenario, resetting an
+agent, or changing checkpoint selection. It requires explicit input, output,
+and checkpoint-root paths. Input and output may be the same path; the completed
+report is installed with one atomic replacement only after every requested
+evaluation succeeds.
+
+The tool uses the report's stored holdout seed range, solve thresholds, and
+expected run count. It requires every requested run's engine digest and
+immutable selected checkpoint hashes to match the current source and files in
+the read-only checkpoint root. An engine or artifact mismatch aborts the whole
+operation and leaves an existing output untouched. `--scenarios` can limit a
+rerun while preserving holdouts for other runs.
+
+Each successful rewrite archives the superseded holdout evidence in
+`holdout_reverification_history`, records `reverified_at` and the
+`policy-atlas-holdout-reverify-v1` tool protocol, then recomputes the campaign
+verification and state. Selection, checkpoint traces, and other report history
+are copied unchanged.
 
 ## Docker commands
 
@@ -88,6 +125,17 @@ docker run --rm `
   --scenarios all --seeds 42,43,44 --max-episodes 2000 `
   --checkpoint-root /checkpoints --holdout-episodes 100 `
   --output /results/all-full.json
+
+# Re-evaluate frozen selections only; no backend API or trainer is used
+docker run --rm `
+  -v "${PWD}\backend:/app:ro" -w /app `
+  -v rl-simulator_rl-checkpoints:/checkpoints:ro `
+  -v "${PWD}\docs\results:/results" `
+  rl-simulator-backend:local python reverify_holdouts.py `
+  --input /results/all-full.json `
+  --output /results/all-full-reverified.json `
+  --checkpoint-root /checkpoints `
+  --scenarios mountain-car,cartpole-balance
 ```
 
 Only one backend trainer exists. Never run two campaign processes against it,

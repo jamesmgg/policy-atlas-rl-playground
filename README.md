@@ -68,6 +68,9 @@ recoverable from the checkpoint archive.
 - The benchmark campaign freezes checkpoint selection before an optional
   100-start holdout at a disjoint seed range. Holdout outcomes cannot affect
   early stopping or checkpoint choice.
+- The default campaign selects and stops at the first statistically qualifying
+  fixed-suite checkpoint; the independent 100-start holdout is the confirmation
+  layer. `--confirmations` remains available for stricter selection studies.
 - A fixed canonical rollout is retained only for comparable ghost playback; it
   is not presented as the statistical evaluation result.
 - The UI ranks only checkpoints from the same versioned evaluation suite and
@@ -131,8 +134,9 @@ npm --prefix frontend test
 npm --prefix frontend run build
 ```
 
-Fresh campaigns can be capped at 2,000 episodes and stopped after two
-consecutive statistically qualifying checkpoints. See
+Fresh campaigns can be capped at 2,000 episodes and stopped after the first
+statistically qualifying checkpoint, before its frozen policy is tested on the
+disjoint holdout. See
 [`docs/benchmark-campaigns.md`](docs/benchmark-campaigns.md) for the exact solve
 contract, read-only checkpoint-volume holdout, and Docker commands.
 

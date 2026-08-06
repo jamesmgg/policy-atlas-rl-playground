@@ -43,17 +43,28 @@ EVALUATION_SEED_BASE = 100_000
 TRAINING_REWARD_SCALE = 0.01
 
 
-@lru_cache(maxsize=1)
-def source_digest() -> str:
-    """Fingerprint the Python experiment engine stored with each checkpoint."""
-    root = Path(__file__).resolve().parent
+def source_digest_for_root(root: Path) -> str:
+    """Fingerprint a Python source tree independent of checkout line endings.
+
+    Relative paths and every source byte remain significant. Only CRLF and
+    bare CR line endings are canonicalized to LF so the same experiment source
+    has one identity on Windows and Linux checkouts.
+    """
+    root = Path(root)
     digest = hashlib.sha256()
     for path in sorted(root.rglob("*.py")):
         digest.update(path.relative_to(root).as_posix().encode("utf-8"))
         digest.update(b"\0")
-        digest.update(path.read_bytes())
+        source = path.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+        digest.update(source)
         digest.update(b"\0")
     return digest.hexdigest()
+
+
+@lru_cache(maxsize=1)
+def source_digest() -> str:
+    """Fingerprint the Python experiment engine stored with each checkpoint."""
+    return source_digest_for_root(Path(__file__).resolve().parent)
 
 
 def seed_everything(seed: int) -> None:
