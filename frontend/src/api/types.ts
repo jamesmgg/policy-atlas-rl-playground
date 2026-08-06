@@ -475,3 +475,46 @@ export function formatHorizon(steps: number, seconds: number | null): string {
   if (seconds == null) return `${steps.toLocaleString()} control steps`;
   return `${seconds.toLocaleString()} s · ${steps.toLocaleString()} steps`;
 }
+
+export interface ViewBounds {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+export interface ScrollPosition {
+  left: number;
+  top: number;
+}
+
+export function getRevealScrollPosition(
+  container: ViewBounds,
+  target: ViewBounds,
+  current: ScrollPosition,
+): ScrollPosition | null {
+  let left = current.left;
+  let top = current.top;
+
+  if (target.left < container.left) left += target.left - container.left;
+  else if (target.right > container.right) left += target.right - container.right;
+  if (target.top < container.top) top += target.top - container.top;
+  else if (target.bottom > container.bottom) top += target.bottom - container.bottom;
+
+  left = Math.max(0, left);
+  top = Math.max(0, top);
+  return left === current.left && top === current.top ? null : { left, top };
+}
+
+export function scrollExperimentStage(
+  target: Pick<Element, "scrollIntoView"> | null,
+  compactViewport: boolean,
+  reducedMotion: boolean,
+): boolean {
+  if (!target || !compactViewport) return false;
+  target.scrollIntoView({
+    behavior: reducedMotion ? "auto" : "smooth",
+    block: "start",
+  });
+  return true;
+}
