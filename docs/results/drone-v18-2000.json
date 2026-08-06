@@ -1,0 +1,2095 @@
+{
+  "base_url": "http://host.docker.internal:8970",
+  "checkpoint_every_n": 25,
+  "created_at": "2026-08-06T07:28:55+00:00",
+  "current": null,
+  "full_budget": false,
+  "holdout_protocol": {
+    "checkpoint_root": "/checkpoints",
+    "episodes": 100,
+    "influences_selection": false,
+    "role": "post_selection_only",
+    "seed_base": 970000
+  },
+  "inventory_after": {
+    "active_run": {
+      "episode": 64,
+      "seed": 42,
+      "total_steps": 4164,
+      "training": false,
+      "updates": 2
+    },
+    "active_scenario": "drone-hover",
+    "engine_source_sha256": "eb431ab990cebe327a050f3b708b96c59b0c0df5812cfe909cf48c7b802909cd",
+    "evaluation_episodes": 10,
+    "evaluation_suite": "policy-atlas-eval-v1-n10",
+    "scenario_count": 16,
+    "scenarios": [
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "apex-gp",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Apex GP"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "velocita",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Velocit\u00e0"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "grandville",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Grandville Streets"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "thunder-oval",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Thunder Oval"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "apex-gp-wet",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Apex GP \u2014 Wet"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "glacier",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Glacier Lake"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "rally-ridge",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Rally Ridge"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "kart-sprint",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Kart Sprint"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "drift-trial",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Drift Trial"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "eco-gp",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Eco GP"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "traffic-rush",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Traffic Rush"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "lunar-lander",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Lunar Lander"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "pendulum-swingup",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Pendulum Swing-Up"
+      },
+      {
+        "best_metric": 5.0,
+        "checkpoints": 2,
+        "episode": 64,
+        "id": "drone-hover",
+        "kind": "generic",
+        "mean_reward": 30.55,
+        "name": "Drone Course"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "cartpole-balance",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Continuous Cart-Pole"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "mountain-car",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Mountain Car"
+      }
+    ]
+  },
+  "inventory_before": {
+    "active_run": {
+      "episode": 0,
+      "seed": 42,
+      "total_steps": 0,
+      "training": false,
+      "updates": 0
+    },
+    "active_scenario": "apex-gp",
+    "engine_source_sha256": "eb431ab990cebe327a050f3b708b96c59b0c0df5812cfe909cf48c7b802909cd",
+    "evaluation_episodes": 10,
+    "evaluation_suite": "policy-atlas-eval-v1-n10",
+    "scenario_count": 16,
+    "scenarios": [
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "apex-gp",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Apex GP"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "velocita",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Velocit\u00e0"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "grandville",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Grandville Streets"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "thunder-oval",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Thunder Oval"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "apex-gp-wet",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Apex GP \u2014 Wet"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "glacier",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Glacier Lake"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "rally-ridge",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Rally Ridge"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "kart-sprint",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Kart Sprint"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "drift-trial",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Drift Trial"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "eco-gp",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Eco GP"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "traffic-rush",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Traffic Rush"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "lunar-lander",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Lunar Lander"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "pendulum-swingup",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Pendulum Swing-Up"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "drone-hover",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Drone Course"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "cartpole-balance",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Continuous Cart-Pole"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "mountain-car",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Mountain Car"
+      }
+    ]
+  },
+  "max_episodes": 2000,
+  "runs": [
+    {
+      "checkpoint_every_n": 25,
+      "checkpoint_trace": [
+        {
+          "checkpoint_sha256": "8ebe4c1ef550def0dc76b3377ed7d712e2731867aa8bef399a63f520f2ce9946",
+          "episode": 33,
+          "eval_reward": 285.86,
+          "eval_reward_std": 0.852,
+          "failure_progress": null,
+          "mean_training_reward": 30.05,
+          "metadata_sha256": "e1d77640873d497023488962db219359869df07a3e7d4eb9013f086517bca0cc",
+          "metric": 5.0,
+          "metric_std": 0.0,
+          "success_ci_high": 1.0,
+          "success_ci_low": 0.7225,
+          "success_rate": 1.0,
+          "total_steps": 2107,
+          "training_diagnostics": {
+            "action_std_0": 0.1353,
+            "action_std_1": 0.13526,
+            "action_std_max": 0.1353,
+            "action_std_mean": 0.13528,
+            "action_std_min": 0.13526,
+            "approx_kl": 0.08698,
+            "clip_frac": 0.35742,
+            "continuous_action_mean_0": -0.03541,
+            "continuous_action_mean_1": -0.08979,
+            "entropy": -1.86542,
+            "explained_variance": -2.94633,
+            "policy_loss": 0.03538,
+            "value_bias": 0.01894,
+            "value_clip_frac": 0.0,
+            "value_loss": 0.0946,
+            "value_scale": 1.0
+          },
+          "updates": 1
+        },
+        {
+          "checkpoint_sha256": "c3542be3d045a5d474895895127291405a59b3e697c8d5a47a4e7d18612cc86b",
+          "episode": 64,
+          "eval_reward": 286.08,
+          "eval_reward_std": 0.839,
+          "failure_progress": null,
+          "mean_training_reward": 30.55,
+          "metadata_sha256": "b554642f91a45fc8309effd3e5f6577c459fcab0b57277694941a75b0ce056d6",
+          "metric": 5.0,
+          "metric_std": 0.0,
+          "success_ci_high": 1.0,
+          "success_ci_low": 0.7225,
+          "success_rate": 1.0,
+          "total_steps": 4164,
+          "training_diagnostics": {
+            "action_std_0": 0.13535,
+            "action_std_1": 0.13527,
+            "action_std_max": 0.13535,
+            "action_std_mean": 0.13531,
+            "action_std_min": 0.13527,
+            "approx_kl": 0.04861,
+            "clip_frac": 0.24414,
+            "continuous_action_mean_0": -0.0626,
+            "continuous_action_mean_1": -0.11778,
+            "entropy": -1.81225,
+            "explained_variance": -3.65927,
+            "policy_loss": 0.02786,
+            "value_bias": 0.00168,
+            "value_clip_frac": 0.0,
+            "value_loss": 0.1059,
+            "value_scale": 1.0
+          },
+          "updates": 2
+        }
+      ],
+      "checkpoints_observed": 2,
+      "checkpoints_seen_total": 2,
+      "completed_episodes": 64,
+      "earliest_solve": {
+        "checkpoint": {
+          "checkpoint_sha256": "8ebe4c1ef550def0dc76b3377ed7d712e2731867aa8bef399a63f520f2ce9946",
+          "engine_source_sha256": "eb431ab990cebe327a050f3b708b96c59b0c0df5812cfe909cf48c7b802909cd",
+          "episode": 33,
+          "eval_reward": 285.86,
+          "eval_reward_std": 0.852,
+          "evaluation_episodes": 10,
+          "evaluation_suite": "policy-atlas-eval-v1-n10",
+          "failure_progress": null,
+          "metadata_sha256": "e1d77640873d497023488962db219359869df07a3e7d4eb9013f086517bca0cc",
+          "metric": 5.0,
+          "metric_std": 0.0,
+          "n_binary": 0,
+          "n_continuous": 2,
+          "obs_dim": 12,
+          "protocol": {
+            "actor_initialization": {
+              "applies_on": "fresh_seeded_policy_construction",
+              "binary_action_labels": [],
+              "binary_head_weight_std": 0.01,
+              "binary_logit_bias": [],
+              "binary_probability_prior": [],
+              "checkpoint_restore_overrides_initialization": true,
+              "continuous_action_labels": [
+                "left_rotor_thrust",
+                "right_rotor_thrust"
+              ],
+              "continuous_action_prior": [
+                -0.2857142857142857,
+                -0.2857142857142857
+              ],
+              "continuous_head_weight_std": 0.01,
+              "continuous_latent_bias": [
+                -0.2938933324510595,
+                -0.2938933324510595
+              ],
+              "continuous_log_std": [
+                -2.0,
+                -2.0
+              ],
+              "deterministic_zero_observation_action": [
+                -0.2857142857142857,
+                -0.2857142857142857
+              ],
+              "scope": "drone_hover_only"
+            },
+            "actor_warm_start": {
+              "contract": {
+                "checkpoint_restore_overrides_warm_start": true,
+                "dataset": {
+                  "episodes": 80,
+                  "observations": "pre-action environment observations",
+                  "seed_base": 600000,
+                  "seed_formula": "seed_base + episode_index",
+                  "start_state": "ordinary jittered canonical full-course starts, disjoint from fixed selection and holdout seeds",
+                  "targets": "bounded expert rotor actions"
+                },
+                "expert": {
+                  "description": "bounded physics PD controller: 0.5-second desired-velocity response, 50 unit/s\u00b2 acceleration cap, desired tilt atan2(ax, gravity-ay) clipped to \u00b11 radian, and angular gains Kp=25/Kd=7; it generates training targets only and is absent at inference",
+                  "id": "drone-physics-pd-v1",
+                  "used_at_inference": false
+                },
+                "id": "drone-physics-demonstrations-v1",
+                "optimizer": {
+                  "algorithm": "Adam",
+                  "batch_size": 1024,
+                  "epochs": 60,
+                  "initialization_seed": 42,
+                  "learning_rate": 0.001,
+                  "loss": "mean squared bounded-action error",
+                  "shuffle": false,
+                  "trained_parameters": "shared torso and continuous mean head"
+                },
+                "ppo_fine_tuning": true,
+                "pure_model_free_from_scratch": false,
+                "role": "actor behavior-cloning warm start"
+              },
+              "realized": {
+                "dataset_sha256": "97725bc6160c597888fd46295ec84060bec359cfd5b81d04742b47d6e56a2288",
+                "final_mse": 0.00018364013521932065,
+                "initialization_seed": 42,
+                "samples": 66978
+              }
+            },
+            "algorithm": "PPO",
+            "clip_epsilon": 0.2,
+            "deterministic_evaluation": true,
+            "device": "cpu",
+            "engine_source_sha256": "eb431ab990cebe327a050f3b708b96c59b0c0df5812cfe909cf48c7b802909cd",
+            "entropy_coefficient": 0.0,
+            "episode_aligned_rollouts": true,
+            "evaluation_episodes": 10,
+            "evaluation_seed_base": 100000,
+            "evaluation_suite": "policy-atlas-eval-v1-n10",
+            "gae_lambda": 0.95,
+            "gamma": 1.0,
+            "learning_rate": 0.0003,
+            "minibatch_size": 256,
+            "reproducibility_scope": "RNG-exact continuation on the saved runtime; bitwise identity is not guaranteed across devices or dependency builds",
+            "rollout_steps": 2048,
+            "target_kl": 0.03,
+            "torch_version": "2.4.1+cu124",
+            "training_control": null,
+            "training_curriculum": null,
+            "training_reward_scale": 0.01,
+            "training_schedule": {
+              "advancement": {
+                "evaluation_conditioned": false,
+                "fixed_before_training": true,
+                "signal": "one-based completed-training-episode schedule"
+              },
+              "checkpoint_selection": "schedule state and demonstrations are training-only; fixed full-course evaluation remains the checkpoint-selection signal",
+              "id": "drone-all-direction-schedule-v1",
+              "phases": [
+                {
+                  "description": "uniformly sample all five directions 120 units before the active waypoint at zero velocity and end after one capture",
+                  "episodes": [
+                    1,
+                    200
+                  ],
+                  "id": "capture_approach",
+                  "sampling": {
+                    "approach": 1.0
+                  }
+                },
+                {
+                  "description": "retain capture approaches while expanding every direction to its half-segment zero-velocity start",
+                  "episodes": [
+                    201,
+                    450
+                  ],
+                  "id": "half_segments",
+                  "sampling": {
+                    "approach": 0.3,
+                    "half": 0.7
+                  }
+                },
+                {
+                  "description": "retain easier starts while emphasizing full preceding-waypoint handoffs with the unchanged inbound 60-100 unit/s range",
+                  "episodes": [
+                    451,
+                    800
+                  ],
+                  "id": "full_handoffs",
+                  "sampling": {
+                    "approach": 0.1,
+                    "half": 0.2,
+                    "handoff": 0.7
+                  }
+                },
+                {
+                  "description": "train mostly on the unchanged full course while retaining a minority of all-direction single-segment rehearsals",
+                  "episodes": [
+                    801,
+                    null
+                  ],
+                  "id": "canonical_consolidation",
+                  "sampling": {
+                    "approach": 0.05,
+                    "canonical": 0.6,
+                    "half": 0.05,
+                    "handoff": 0.3
+                  }
+                }
+              ],
+              "start_states": "single-segment modes choose k0-k4 uniformly with seeded x jitter; approach and half modes start at zero velocity along the segment; handoff starts use the exact preceding waypoint and, for k1-k4, the previous segment's horizontal sign at 60-100 units/s; canonical mode uses the ordinary jittered k0 full-course start at rest",
+              "type": "predeclared_episode_schedule"
+            },
+            "training_start_distribution": "Predeclared all-direction episode schedule: episodes 1-200 use 120-unit single-segment capture approaches; 201-450 sample 30% approach and 70% half-segment starts; 451-800 sample 10% approach, 20% half, and 70% full hard inbound handoffs; from episode 801 onward, 60% of resets use the unchanged jittered canonical full-course start and 40% retain uniformly sampled single-segment rehearsals (5% approach, 5% half, 30% handoff). The fixed schedule never reads evaluation results",
+            "update_epochs": 10,
+            "value_coefficient": 0.5,
+            "value_loss_scale": "rollout return RMS",
+            "version": 17
+          },
+          "schema_version": 17,
+          "seed": 42,
+          "success_ci_high": 1.0,
+          "success_ci_low": 0.7225,
+          "success_rate": 1.0,
+          "total_steps": 2107,
+          "training_diagnostics": {
+            "action_std_0": 0.1353,
+            "action_std_1": 0.13526,
+            "action_std_max": 0.1353,
+            "action_std_mean": 0.13528,
+            "action_std_min": 0.13526,
+            "approx_kl": 0.08698,
+            "clip_frac": 0.35742,
+            "continuous_action_mean_0": -0.03541,
+            "continuous_action_mean_1": -0.08979,
+            "entropy": -1.86542,
+            "explained_variance": -2.94633,
+            "policy_loss": 0.03538,
+            "value_bias": 0.01894,
+            "value_clip_frac": 0.0,
+            "value_loss": 0.0946,
+            "value_scale": 1.0
+          },
+          "updates": 1
+        },
+        "confirmed_episode": 33,
+        "earliest_episode": 33
+      },
+      "engine_source_sha256": "eb431ab990cebe327a050f3b708b96c59b0c0df5812cfe909cf48c7b802909cd",
+      "evaluation_suite": "policy-atlas-eval-v1-n10",
+      "final_checkpoint": {
+        "checkpoint_sha256": "c3542be3d045a5d474895895127291405a59b3e697c8d5a47a4e7d18612cc86b",
+        "engine_source_sha256": "eb431ab990cebe327a050f3b708b96c59b0c0df5812cfe909cf48c7b802909cd",
+        "episode": 64,
+        "eval_reward": 286.08,
+        "eval_reward_std": 0.839,
+        "evaluation_episodes": 10,
+        "evaluation_suite": "policy-atlas-eval-v1-n10",
+        "failure_progress": null,
+        "metadata_sha256": "b554642f91a45fc8309effd3e5f6577c459fcab0b57277694941a75b0ce056d6",
+        "metric": 5.0,
+        "metric_std": 0.0,
+        "n_binary": 0,
+        "n_continuous": 2,
+        "obs_dim": 12,
+        "protocol": {
+          "actor_initialization": {
+            "applies_on": "fresh_seeded_policy_construction",
+            "binary_action_labels": [],
+            "binary_head_weight_std": 0.01,
+            "binary_logit_bias": [],
+            "binary_probability_prior": [],
+            "checkpoint_restore_overrides_initialization": true,
+            "continuous_action_labels": [
+              "left_rotor_thrust",
+              "right_rotor_thrust"
+            ],
+            "continuous_action_prior": [
+              -0.2857142857142857,
+              -0.2857142857142857
+            ],
+            "continuous_head_weight_std": 0.01,
+            "continuous_latent_bias": [
+              -0.2938933324510595,
+              -0.2938933324510595
+            ],
+            "continuous_log_std": [
+              -2.0,
+              -2.0
+            ],
+            "deterministic_zero_observation_action": [
+              -0.2857142857142857,
+              -0.2857142857142857
+            ],
+            "scope": "drone_hover_only"
+          },
+          "actor_warm_start": {
+            "contract": {
+              "checkpoint_restore_overrides_warm_start": true,
+              "dataset": {
+                "episodes": 80,
+                "observations": "pre-action environment observations",
+                "seed_base": 600000,
+                "seed_formula": "seed_base + episode_index",
+                "start_state": "ordinary jittered canonical full-course starts, disjoint from fixed selection and holdout seeds",
+                "targets": "bounded expert rotor actions"
+              },
+              "expert": {
+                "description": "bounded physics PD controller: 0.5-second desired-velocity response, 50 unit/s\u00b2 acceleration cap, desired tilt atan2(ax, gravity-ay) clipped to \u00b11 radian, and angular gains Kp=25/Kd=7; it generates training targets only and is absent at inference",
+                "id": "drone-physics-pd-v1",
+                "used_at_inference": false
+              },
+              "id": "drone-physics-demonstrations-v1",
+              "optimizer": {
+                "algorithm": "Adam",
+                "batch_size": 1024,
+                "epochs": 60,
+                "initialization_seed": 42,
+                "learning_rate": 0.001,
+                "loss": "mean squared bounded-action error",
+                "shuffle": false,
+                "trained_parameters": "shared torso and continuous mean head"
+              },
+              "ppo_fine_tuning": true,
+              "pure_model_free_from_scratch": false,
+              "role": "actor behavior-cloning warm start"
+            },
+            "realized": {
+              "dataset_sha256": "97725bc6160c597888fd46295ec84060bec359cfd5b81d04742b47d6e56a2288",
+              "final_mse": 0.00018364013521932065,
+              "initialization_seed": 42,
+              "samples": 66978
+            }
+          },
+          "algorithm": "PPO",
+          "clip_epsilon": 0.2,
+          "deterministic_evaluation": true,
+          "device": "cpu",
+          "engine_source_sha256": "eb431ab990cebe327a050f3b708b96c59b0c0df5812cfe909cf48c7b802909cd",
+          "entropy_coefficient": 0.0,
+          "episode_aligned_rollouts": true,
+          "evaluation_episodes": 10,
+          "evaluation_seed_base": 100000,
+          "evaluation_suite": "policy-atlas-eval-v1-n10",
+          "gae_lambda": 0.95,
+          "gamma": 1.0,
+          "learning_rate": 0.0003,
+          "minibatch_size": 256,
+          "reproducibility_scope": "RNG-exact continuation on the saved runtime; bitwise identity is not guaranteed across devices or dependency builds",
+          "rollout_steps": 2048,
+          "target_kl": 0.03,
+          "torch_version": "2.4.1+cu124",
+          "training_control": null,
+          "training_curriculum": null,
+          "training_reward_scale": 0.01,
+          "training_schedule": {
+            "advancement": {
+              "evaluation_conditioned": false,
+              "fixed_before_training": true,
+              "signal": "one-based completed-training-episode schedule"
+            },
+            "checkpoint_selection": "schedule state and demonstrations are training-only; fixed full-course evaluation remains the checkpoint-selection signal",
+            "id": "drone-all-direction-schedule-v1",
+            "phases": [
+              {
+                "description": "uniformly sample all five directions 120 units before the active waypoint at zero velocity and end after one capture",
+                "episodes": [
+                  1,
+                  200
+                ],
+                "id": "capture_approach",
+                "sampling": {
+                  "approach": 1.0
+                }
+              },
+              {
+                "description": "retain capture approaches while expanding every direction to its half-segment zero-velocity start",
+                "episodes": [
+                  201,
+                  450
+                ],
+                "id": "half_segments",
+                "sampling": {
+                  "approach": 0.3,
+                  "half": 0.7
+                }
+              },
+              {
+                "description": "retain easier starts while emphasizing full preceding-waypoint handoffs with the unchanged inbound 60-100 unit/s range",
+                "episodes": [
+                  451,
+                  800
+                ],
+                "id": "full_handoffs",
+                "sampling": {
+                  "approach": 0.1,
+                  "half": 0.2,
+                  "handoff": 0.7
+                }
+              },
+              {
+                "description": "train mostly on the unchanged full course while retaining a minority of all-direction single-segment rehearsals",
+                "episodes": [
+                  801,
+                  null
+                ],
+                "id": "canonical_consolidation",
+                "sampling": {
+                  "approach": 0.05,
+                  "canonical": 0.6,
+                  "half": 0.05,
+                  "handoff": 0.3
+                }
+              }
+            ],
+            "start_states": "single-segment modes choose k0-k4 uniformly with seeded x jitter; approach and half modes start at zero velocity along the segment; handoff starts use the exact preceding waypoint and, for k1-k4, the previous segment's horizontal sign at 60-100 units/s; canonical mode uses the ordinary jittered k0 full-course start at rest",
+            "type": "predeclared_episode_schedule"
+          },
+          "training_start_distribution": "Predeclared all-direction episode schedule: episodes 1-200 use 120-unit single-segment capture approaches; 201-450 sample 30% approach and 70% half-segment starts; 451-800 sample 10% approach, 20% half, and 70% full hard inbound handoffs; from episode 801 onward, 60% of resets use the unchanged jittered canonical full-course start and 40% retain uniformly sampled single-segment rehearsals (5% approach, 5% half, 30% handoff). The fixed schedule never reads evaluation results",
+          "update_epochs": 10,
+          "value_coefficient": 0.5,
+          "value_loss_scale": "rollout return RMS",
+          "version": 17
+        },
+        "schema_version": 17,
+        "seed": 42,
+        "success_ci_high": 1.0,
+        "success_ci_low": 0.7225,
+        "success_rate": 1.0,
+        "total_steps": 4164,
+        "training_diagnostics": {
+          "action_std_0": 0.13535,
+          "action_std_1": 0.13527,
+          "action_std_max": 0.13535,
+          "action_std_mean": 0.13531,
+          "action_std_min": 0.13527,
+          "approx_kl": 0.04861,
+          "clip_frac": 0.24414,
+          "continuous_action_mean_0": -0.0626,
+          "continuous_action_mean_1": -0.11778,
+          "entropy": -1.81225,
+          "explained_variance": -3.65927,
+          "policy_loss": 0.02786,
+          "value_bias": 0.00168,
+          "value_clip_frac": 0.0,
+          "value_loss": 0.1059,
+          "value_scale": 1.0
+        },
+        "updates": 2
+      },
+      "finished_at": "2026-08-06T07:29:33+00:00",
+      "holdout": {
+        "deterministic_policy": true,
+        "engine_source_sha256": "eb431ab990cebe327a050f3b708b96c59b0c0df5812cfe909cf48c7b802909cd",
+        "episodes": 100,
+        "failure_progress": null,
+        "failure_progress_std": null,
+        "influences_selection": false,
+        "metric": 5.0,
+        "metric_std": 0.0,
+        "protocol_role": "post_selection_holdout",
+        "reward_mean": 285.6535107106351,
+        "reward_std": 0.7750122670158298,
+        "seed_base": 970000,
+        "seed_end": 970099,
+        "seed_range_disjoint_from_selection": true,
+        "selected_checkpoint_episode": 33,
+        "selected_checkpoint_sha256": "8ebe4c1ef550def0dc76b3377ed7d712e2731867aa8bef399a63f520f2ce9946",
+        "selection_reason": "earliest_confirmed_solve",
+        "selection_seed_base": 100000,
+        "selection_seed_end": 100009,
+        "selection_suite": "policy-atlas-eval-v1-n10",
+        "state": "complete",
+        "success_ci_high": 0.9999999999999999,
+        "success_ci_low": 0.9630051925239981,
+        "success_rate": 1.0,
+        "successes": 100,
+        "suite": "policy-atlas-holdout-v1-n100-seeds970000-970099",
+        "trials": [
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 0,
+            "metric": 5.0,
+            "reward": 284.85621279817127,
+            "seed": 970000,
+            "steps": 828,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 1,
+            "metric": 5.0,
+            "reward": 285.1485617055905,
+            "seed": 970001,
+            "steps": 831,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 2,
+            "metric": 5.0,
+            "reward": 286.67440470649086,
+            "seed": 970002,
+            "steps": 840,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 3,
+            "metric": 5.0,
+            "reward": 284.6705181464219,
+            "seed": 970003,
+            "steps": 828,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 4,
+            "metric": 5.0,
+            "reward": 285.2903108572566,
+            "seed": 970004,
+            "steps": 831,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 5,
+            "metric": 5.0,
+            "reward": 286.8270153101038,
+            "seed": 970005,
+            "steps": 842,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 6,
+            "metric": 5.0,
+            "reward": 285.32305958447745,
+            "seed": 970006,
+            "steps": 832,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 7,
+            "metric": 5.0,
+            "reward": 286.54187850780863,
+            "seed": 970007,
+            "steps": 840,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 8,
+            "metric": 5.0,
+            "reward": 285.9340165384668,
+            "seed": 970008,
+            "steps": 835,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 9,
+            "metric": 5.0,
+            "reward": 286.6049662111881,
+            "seed": 970009,
+            "steps": 840,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 10,
+            "metric": 5.0,
+            "reward": 286.5464303869778,
+            "seed": 970010,
+            "steps": 840,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 11,
+            "metric": 5.0,
+            "reward": 285.75498141046603,
+            "seed": 970011,
+            "steps": 835,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 12,
+            "metric": 5.0,
+            "reward": 286.42166129586394,
+            "seed": 970012,
+            "steps": 839,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 13,
+            "metric": 5.0,
+            "reward": 284.8360695693162,
+            "seed": 970013,
+            "steps": 829,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 14,
+            "metric": 5.0,
+            "reward": 286.74138227841286,
+            "seed": 970014,
+            "steps": 841,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 15,
+            "metric": 5.0,
+            "reward": 284.5780961893334,
+            "seed": 970015,
+            "steps": 827,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 16,
+            "metric": 5.0,
+            "reward": 286.0758218735566,
+            "seed": 970016,
+            "steps": 837,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 17,
+            "metric": 5.0,
+            "reward": 285.7308559220646,
+            "seed": 970017,
+            "steps": 834,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 18,
+            "metric": 5.0,
+            "reward": 284.425454884767,
+            "seed": 970018,
+            "steps": 826,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 19,
+            "metric": 5.0,
+            "reward": 284.8943953434426,
+            "seed": 970019,
+            "steps": 829,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 20,
+            "metric": 5.0,
+            "reward": 285.39943692034274,
+            "seed": 970020,
+            "steps": 832,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 21,
+            "metric": 5.0,
+            "reward": 285.8642149736384,
+            "seed": 970021,
+            "steps": 835,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 22,
+            "metric": 5.0,
+            "reward": 284.6991295019111,
+            "seed": 970022,
+            "steps": 827,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 23,
+            "metric": 5.0,
+            "reward": 286.6694218805057,
+            "seed": 970023,
+            "steps": 840,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 24,
+            "metric": 5.0,
+            "reward": 285.29997438837046,
+            "seed": 970024,
+            "steps": 831,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 25,
+            "metric": 5.0,
+            "reward": 286.38067660097505,
+            "seed": 970025,
+            "steps": 838,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 26,
+            "metric": 5.0,
+            "reward": 286.0547368083074,
+            "seed": 970026,
+            "steps": 837,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 27,
+            "metric": 5.0,
+            "reward": 286.1989845962985,
+            "seed": 970027,
+            "steps": 837,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 28,
+            "metric": 5.0,
+            "reward": 285.07153249720255,
+            "seed": 970028,
+            "steps": 830,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 29,
+            "metric": 5.0,
+            "reward": 286.0501652332764,
+            "seed": 970029,
+            "steps": 836,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 30,
+            "metric": 5.0,
+            "reward": 284.3713430667294,
+            "seed": 970030,
+            "steps": 825,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 31,
+            "metric": 5.0,
+            "reward": 284.3279403093454,
+            "seed": 970031,
+            "steps": 825,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 32,
+            "metric": 5.0,
+            "reward": 285.9553467284406,
+            "seed": 970032,
+            "steps": 836,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 33,
+            "metric": 5.0,
+            "reward": 285.77246894476366,
+            "seed": 970033,
+            "steps": 834,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 34,
+            "metric": 5.0,
+            "reward": 286.1616870935371,
+            "seed": 970034,
+            "steps": 837,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 35,
+            "metric": 5.0,
+            "reward": 285.00241655842757,
+            "seed": 970035,
+            "steps": 829,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 36,
+            "metric": 5.0,
+            "reward": 286.5503932641297,
+            "seed": 970036,
+            "steps": 840,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 37,
+            "metric": 5.0,
+            "reward": 284.5118008038264,
+            "seed": 970037,
+            "steps": 827,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 38,
+            "metric": 5.0,
+            "reward": 284.4927186741399,
+            "seed": 970038,
+            "steps": 826,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 39,
+            "metric": 5.0,
+            "reward": 286.05700521855425,
+            "seed": 970039,
+            "steps": 836,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 40,
+            "metric": 5.0,
+            "reward": 285.1694792739724,
+            "seed": 970040,
+            "steps": 830,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 41,
+            "metric": 5.0,
+            "reward": 284.4837704611293,
+            "seed": 970041,
+            "steps": 826,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 42,
+            "metric": 5.0,
+            "reward": 286.2396222105671,
+            "seed": 970042,
+            "steps": 838,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 43,
+            "metric": 5.0,
+            "reward": 286.0945543740082,
+            "seed": 970043,
+            "steps": 837,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 44,
+            "metric": 5.0,
+            "reward": 286.3315676641065,
+            "seed": 970044,
+            "steps": 838,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 45,
+            "metric": 5.0,
+            "reward": 285.6780605845212,
+            "seed": 970045,
+            "steps": 834,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 46,
+            "metric": 5.0,
+            "reward": 286.8385751167619,
+            "seed": 970046,
+            "steps": 842,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 47,
+            "metric": 5.0,
+            "reward": 284.89474702528076,
+            "seed": 970047,
+            "steps": 829,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 48,
+            "metric": 5.0,
+            "reward": 284.7765588855897,
+            "seed": 970048,
+            "steps": 828,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 49,
+            "metric": 5.0,
+            "reward": 286.72024592191485,
+            "seed": 970049,
+            "steps": 841,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 50,
+            "metric": 5.0,
+            "reward": 285.692097488901,
+            "seed": 970050,
+            "steps": 834,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 51,
+            "metric": 5.0,
+            "reward": 284.3632194226462,
+            "seed": 970051,
+            "steps": 826,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 52,
+            "metric": 5.0,
+            "reward": 286.05798821882263,
+            "seed": 970052,
+            "steps": 837,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 53,
+            "metric": 5.0,
+            "reward": 285.9125103648829,
+            "seed": 970053,
+            "steps": 835,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 54,
+            "metric": 5.0,
+            "reward": 285.4559951717951,
+            "seed": 970054,
+            "steps": 832,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 55,
+            "metric": 5.0,
+            "reward": 284.51750661074374,
+            "seed": 970055,
+            "steps": 827,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 56,
+            "metric": 5.0,
+            "reward": 284.5964143042879,
+            "seed": 970056,
+            "steps": 827,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 57,
+            "metric": 5.0,
+            "reward": 284.78438593266173,
+            "seed": 970057,
+            "steps": 828,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 58,
+            "metric": 5.0,
+            "reward": 285.4505081596468,
+            "seed": 970058,
+            "steps": 833,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 59,
+            "metric": 5.0,
+            "reward": 284.82646641834674,
+            "seed": 970059,
+            "steps": 829,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 60,
+            "metric": 5.0,
+            "reward": 285.8039739618469,
+            "seed": 970060,
+            "steps": 835,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 61,
+            "metric": 5.0,
+            "reward": 287.02038248844303,
+            "seed": 970061,
+            "steps": 843,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 62,
+            "metric": 5.0,
+            "reward": 286.3764559104119,
+            "seed": 970062,
+            "steps": 838,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 63,
+            "metric": 5.0,
+            "reward": 284.7655358179862,
+            "seed": 970063,
+            "steps": 828,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 64,
+            "metric": 5.0,
+            "reward": 285.2195064949258,
+            "seed": 970064,
+            "steps": 831,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 65,
+            "metric": 5.0,
+            "reward": 286.48832977299026,
+            "seed": 970065,
+            "steps": 839,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 66,
+            "metric": 5.0,
+            "reward": 284.98553165015727,
+            "seed": 970066,
+            "steps": 829,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 67,
+            "metric": 5.0,
+            "reward": 286.5035978178218,
+            "seed": 970067,
+            "steps": 839,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 68,
+            "metric": 5.0,
+            "reward": 285.3187211776218,
+            "seed": 970068,
+            "steps": 832,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 69,
+            "metric": 5.0,
+            "reward": 284.7546963158247,
+            "seed": 970069,
+            "steps": 828,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 70,
+            "metric": 5.0,
+            "reward": 286.502193638903,
+            "seed": 970070,
+            "steps": 839,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 71,
+            "metric": 5.0,
+            "reward": 284.83400283728764,
+            "seed": 970071,
+            "steps": 828,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 72,
+            "metric": 5.0,
+            "reward": 286.18745805927216,
+            "seed": 970072,
+            "steps": 837,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 73,
+            "metric": 5.0,
+            "reward": 285.00514872695146,
+            "seed": 970073,
+            "steps": 830,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 74,
+            "metric": 5.0,
+            "reward": 284.8677017133451,
+            "seed": 970074,
+            "steps": 829,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 75,
+            "metric": 5.0,
+            "reward": 285.30297499945357,
+            "seed": 970075,
+            "steps": 832,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 76,
+            "metric": 5.0,
+            "reward": 287.0518929613645,
+            "seed": 970076,
+            "steps": 843,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 77,
+            "metric": 5.0,
+            "reward": 284.3650739343679,
+            "seed": 970077,
+            "steps": 826,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 78,
+            "metric": 5.0,
+            "reward": 285.5738963328313,
+            "seed": 970078,
+            "steps": 833,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 79,
+            "metric": 5.0,
+            "reward": 286.0445045104362,
+            "seed": 970079,
+            "steps": 836,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 80,
+            "metric": 5.0,
+            "reward": 284.69620875583615,
+            "seed": 970080,
+            "steps": 828,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 81,
+            "metric": 5.0,
+            "reward": 286.23559325009455,
+            "seed": 970081,
+            "steps": 837,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 82,
+            "metric": 5.0,
+            "reward": 284.37458872314994,
+            "seed": 970082,
+            "steps": 826,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 83,
+            "metric": 5.0,
+            "reward": 285.9208910689993,
+            "seed": 970083,
+            "steps": 836,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 84,
+            "metric": 5.0,
+            "reward": 285.9231729348223,
+            "seed": 970084,
+            "steps": 836,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 85,
+            "metric": 5.0,
+            "reward": 284.90110256941136,
+            "seed": 970085,
+            "steps": 829,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 86,
+            "metric": 5.0,
+            "reward": 286.163432809595,
+            "seed": 970086,
+            "steps": 837,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 87,
+            "metric": 5.0,
+            "reward": 285.9394645065826,
+            "seed": 970087,
+            "steps": 836,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 88,
+            "metric": 5.0,
+            "reward": 285.8654760324638,
+            "seed": 970088,
+            "steps": 835,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 89,
+            "metric": 5.0,
+            "reward": 285.6400937715424,
+            "seed": 970089,
+            "steps": 834,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 90,
+            "metric": 5.0,
+            "reward": 286.9719186887577,
+            "seed": 970090,
+            "steps": 843,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 91,
+            "metric": 5.0,
+            "reward": 286.37841577079956,
+            "seed": 970091,
+            "steps": 838,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 92,
+            "metric": 5.0,
+            "reward": 285.6054631076908,
+            "seed": 970092,
+            "steps": 833,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 93,
+            "metric": 5.0,
+            "reward": 286.08121567767563,
+            "seed": 970093,
+            "steps": 837,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 94,
+            "metric": 5.0,
+            "reward": 286.1398651075497,
+            "seed": 970094,
+            "steps": 837,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 95,
+            "metric": 5.0,
+            "reward": 286.9082789131527,
+            "seed": 970095,
+            "steps": 842,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 96,
+            "metric": 5.0,
+            "reward": 286.31950533704776,
+            "seed": 970096,
+            "steps": 838,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 97,
+            "metric": 5.0,
+            "reward": 285.7646185916217,
+            "seed": 970097,
+            "steps": 835,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 98,
+            "metric": 5.0,
+            "reward": 286.97881926388635,
+            "seed": 970098,
+            "steps": 843,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 99,
+            "metric": 5.0,
+            "reward": 285.91960586710104,
+            "seed": 970099,
+            "steps": 836,
+            "success": true
+          }
+        ]
+      },
+      "max_episodes": 2000,
+      "scenario_id": "drone-hover",
+      "seed": 42,
+      "selection": {
+        "checkpoint": {
+          "checkpoint_sha256": "8ebe4c1ef550def0dc76b3377ed7d712e2731867aa8bef399a63f520f2ce9946",
+          "engine_source_sha256": "eb431ab990cebe327a050f3b708b96c59b0c0df5812cfe909cf48c7b802909cd",
+          "episode": 33,
+          "eval_reward": 285.86,
+          "eval_reward_std": 0.852,
+          "evaluation_episodes": 10,
+          "evaluation_suite": "policy-atlas-eval-v1-n10",
+          "failure_progress": null,
+          "metadata_sha256": "e1d77640873d497023488962db219359869df07a3e7d4eb9013f086517bca0cc",
+          "metric": 5.0,
+          "metric_std": 0.0,
+          "n_binary": 0,
+          "n_continuous": 2,
+          "obs_dim": 12,
+          "protocol": {
+            "actor_initialization": {
+              "applies_on": "fresh_seeded_policy_construction",
+              "binary_action_labels": [],
+              "binary_head_weight_std": 0.01,
+              "binary_logit_bias": [],
+              "binary_probability_prior": [],
+              "checkpoint_restore_overrides_initialization": true,
+              "continuous_action_labels": [
+                "left_rotor_thrust",
+                "right_rotor_thrust"
+              ],
+              "continuous_action_prior": [
+                -0.2857142857142857,
+                -0.2857142857142857
+              ],
+              "continuous_head_weight_std": 0.01,
+              "continuous_latent_bias": [
+                -0.2938933324510595,
+                -0.2938933324510595
+              ],
+              "continuous_log_std": [
+                -2.0,
+                -2.0
+              ],
+              "deterministic_zero_observation_action": [
+                -0.2857142857142857,
+                -0.2857142857142857
+              ],
+              "scope": "drone_hover_only"
+            },
+            "actor_warm_start": {
+              "contract": {
+                "checkpoint_restore_overrides_warm_start": true,
+                "dataset": {
+                  "episodes": 80,
+                  "observations": "pre-action environment observations",
+                  "seed_base": 600000,
+                  "seed_formula": "seed_base + episode_index",
+                  "start_state": "ordinary jittered canonical full-course starts, disjoint from fixed selection and holdout seeds",
+                  "targets": "bounded expert rotor actions"
+                },
+                "expert": {
+                  "description": "bounded physics PD controller: 0.5-second desired-velocity response, 50 unit/s\u00b2 acceleration cap, desired tilt atan2(ax, gravity-ay) clipped to \u00b11 radian, and angular gains Kp=25/Kd=7; it generates training targets only and is absent at inference",
+                  "id": "drone-physics-pd-v1",
+                  "used_at_inference": false
+                },
+                "id": "drone-physics-demonstrations-v1",
+                "optimizer": {
+                  "algorithm": "Adam",
+                  "batch_size": 1024,
+                  "epochs": 60,
+                  "initialization_seed": 42,
+                  "learning_rate": 0.001,
+                  "loss": "mean squared bounded-action error",
+                  "shuffle": false,
+                  "trained_parameters": "shared torso and continuous mean head"
+                },
+                "ppo_fine_tuning": true,
+                "pure_model_free_from_scratch": false,
+                "role": "actor behavior-cloning warm start"
+              },
+              "realized": {
+                "dataset_sha256": "97725bc6160c597888fd46295ec84060bec359cfd5b81d04742b47d6e56a2288",
+                "final_mse": 0.00018364013521932065,
+                "initialization_seed": 42,
+                "samples": 66978
+              }
+            },
+            "algorithm": "PPO",
+            "clip_epsilon": 0.2,
+            "deterministic_evaluation": true,
+            "device": "cpu",
+            "engine_source_sha256": "eb431ab990cebe327a050f3b708b96c59b0c0df5812cfe909cf48c7b802909cd",
+            "entropy_coefficient": 0.0,
+            "episode_aligned_rollouts": true,
+            "evaluation_episodes": 10,
+            "evaluation_seed_base": 100000,
+            "evaluation_suite": "policy-atlas-eval-v1-n10",
+            "gae_lambda": 0.95,
+            "gamma": 1.0,
+            "learning_rate": 0.0003,
+            "minibatch_size": 256,
+            "reproducibility_scope": "RNG-exact continuation on the saved runtime; bitwise identity is not guaranteed across devices or dependency builds",
+            "rollout_steps": 2048,
+            "target_kl": 0.03,
+            "torch_version": "2.4.1+cu124",
+            "training_control": null,
+            "training_curriculum": null,
+            "training_reward_scale": 0.01,
+            "training_schedule": {
+              "advancement": {
+                "evaluation_conditioned": false,
+                "fixed_before_training": true,
+                "signal": "one-based completed-training-episode schedule"
+              },
+              "checkpoint_selection": "schedule state and demonstrations are training-only; fixed full-course evaluation remains the checkpoint-selection signal",
+              "id": "drone-all-direction-schedule-v1",
+              "phases": [
+                {
+                  "description": "uniformly sample all five directions 120 units before the active waypoint at zero velocity and end after one capture",
+                  "episodes": [
+                    1,
+                    200
+                  ],
+                  "id": "capture_approach",
+                  "sampling": {
+                    "approach": 1.0
+                  }
+                },
+                {
+                  "description": "retain capture approaches while expanding every direction to its half-segment zero-velocity start",
+                  "episodes": [
+                    201,
+                    450
+                  ],
+                  "id": "half_segments",
+                  "sampling": {
+                    "approach": 0.3,
+                    "half": 0.7
+                  }
+                },
+                {
+                  "description": "retain easier starts while emphasizing full preceding-waypoint handoffs with the unchanged inbound 60-100 unit/s range",
+                  "episodes": [
+                    451,
+                    800
+                  ],
+                  "id": "full_handoffs",
+                  "sampling": {
+                    "approach": 0.1,
+                    "half": 0.2,
+                    "handoff": 0.7
+                  }
+                },
+                {
+                  "description": "train mostly on the unchanged full course while retaining a minority of all-direction single-segment rehearsals",
+                  "episodes": [
+                    801,
+                    null
+                  ],
+                  "id": "canonical_consolidation",
+                  "sampling": {
+                    "approach": 0.05,
+                    "canonical": 0.6,
+                    "half": 0.05,
+                    "handoff": 0.3
+                  }
+                }
+              ],
+              "start_states": "single-segment modes choose k0-k4 uniformly with seeded x jitter; approach and half modes start at zero velocity along the segment; handoff starts use the exact preceding waypoint and, for k1-k4, the previous segment's horizontal sign at 60-100 units/s; canonical mode uses the ordinary jittered k0 full-course start at rest",
+              "type": "predeclared_episode_schedule"
+            },
+            "training_start_distribution": "Predeclared all-direction episode schedule: episodes 1-200 use 120-unit single-segment capture approaches; 201-450 sample 30% approach and 70% half-segment starts; 451-800 sample 10% approach, 20% half, and 70% full hard inbound handoffs; from episode 801 onward, 60% of resets use the unchanged jittered canonical full-course start and 40% retain uniformly sampled single-segment rehearsals (5% approach, 5% half, 30% handoff). The fixed schedule never reads evaluation results",
+            "update_epochs": 10,
+            "value_coefficient": 0.5,
+            "value_loss_scale": "rollout return RMS",
+            "version": 17
+          },
+          "schema_version": 17,
+          "seed": 42,
+          "success_ci_high": 1.0,
+          "success_ci_low": 0.7225,
+          "success_rate": 1.0,
+          "total_steps": 2107,
+          "training_diagnostics": {
+            "action_std_0": 0.1353,
+            "action_std_1": 0.13526,
+            "action_std_max": 0.1353,
+            "action_std_mean": 0.13528,
+            "action_std_min": 0.13526,
+            "approx_kl": 0.08698,
+            "clip_frac": 0.35742,
+            "continuous_action_mean_0": -0.03541,
+            "continuous_action_mean_1": -0.08979,
+            "entropy": -1.86542,
+            "explained_variance": -2.94633,
+            "policy_loss": 0.03538,
+            "value_bias": 0.01894,
+            "value_clip_frac": 0.0,
+            "value_loss": 0.0946,
+            "value_scale": 1.0
+          },
+          "updates": 1
+        },
+        "protocol_role": "checkpoint_selection",
+        "reason": "earliest_confirmed_solve",
+        "seed_base": 100000,
+        "suite": "policy-atlas-eval-v1-n10"
+      },
+      "solve_criteria": {
+        "confirmations": 1,
+        "definition": "Selection chooses the first checkpoint in a streak of 1 consecutive qualifying checkpoint. A qualifier must match the run protocol and meet the configured fixed-suite success-rate, Wilson-bound, and suite-size thresholds. Independent holdout evidence is evaluated only after selection.",
+        "min_ci_low": 0.7,
+        "min_eval_episodes": 10,
+        "min_success_rate": 0.9
+      },
+      "started_at": "2026-08-06T07:28:55+00:00",
+      "state": "solved",
+      "stop_on_solve": true,
+      "total_steps": 4164,
+      "updates": 2
+    }
+  ],
+  "schema_version": 1,
+  "seeds": [
+    42
+  ],
+  "selected_scenarios": [
+    "drone-hover"
+  ],
+  "solve_contract": {
+    "confirmations": 1,
+    "definition": "Selection chooses the first checkpoint in a streak of 1 consecutive qualifying checkpoint. A qualifier must match the run protocol and meet the configured fixed-suite success-rate, Wilson-bound, and suite-size thresholds. Independent holdout evidence is evaluated only after selection.",
+    "min_ci_low": 0.7,
+    "min_eval_episodes": 10,
+    "min_success_rate": 0.9
+  },
+  "state": "verified",
+  "updated_at": "2026-08-06T07:29:54+00:00",
+  "verification": {
+    "all_verified": true,
+    "expected_runs": 1,
+    "failures": [],
+    "observed_runs": 1,
+    "require_holdout": true,
+    "verified_runs": 1
+  }
+}
