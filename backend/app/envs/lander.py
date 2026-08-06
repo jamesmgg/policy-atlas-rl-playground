@@ -8,6 +8,8 @@ import math
 
 import numpy as np
 
+from .base import TrainingCurriculumSpec
+
 DT = 0.04
 G = 50.0           # world units/s^2 (1000x700 world)
 A_MAIN = 90.0
@@ -28,16 +30,14 @@ PAD_CX = (PAD_X0 + PAD_X1) / 2
 SAFE_VX, SAFE_VY, SAFE_THETA = 8.0, 14.0, 0.25
 FAILURE_REWARD = -100.0
 
-# Bootstrap touchdown rehearsals make the sparse terminal success discoverable.
-# After episode 500, canonical starts become dominant and the already-learned
-# touchdown band yields its share to full descents for policy consolidation.
-STANDARD_START_PROBABILITY = 0.5
-TOUCHDOWN_START_PROBABILITY = 0.25
-APPROACH_START_PROBABILITY = 0.25
-CURRICULUM_BOOTSTRAP_EPISODES = 500
-CONSOLIDATION_STANDARD_START_PROBABILITY = 0.75
-CONSOLIDATION_TOUCHDOWN_START_PROBABILITY = 0.0
-CONSOLIDATION_APPROACH_START_PROBABILITY = 0.25
+# The sparse terminal outcome is learned from the pad upward. A fixed-suite
+# performance gate, rather than episode count, controls when a harder altitude
+# becomes available. Previously mastered lower-altitude starts remain in the
+# mixture so advancing the frontier does not abruptly remove positive examples.
+CURRICULUM_FRONTIER_ORDER = (4, 3, 2, 1, 0)
+CURRICULUM_ACTIVE_FRONTIER_PROBABILITY = 0.5
+CURRICULUM_SUCCESS_RATE_THRESHOLD = 0.9
+CURRICULUM_CONSECUTIVE_CONFIRMATIONS = 1
 TOUCHDOWN_ALTITUDE_MIN, TOUCHDOWN_ALTITUDE_MAX = 5.0, 18.0
 TOUCHDOWN_X_OFFSET_MAX = 20.0
 TOUCHDOWN_VX_MAX = 3.0
@@ -45,17 +45,23 @@ TOUCHDOWN_VY_MIN, TOUCHDOWN_VY_MAX = 0.0, 6.0
 TOUCHDOWN_THETA_MAX = 0.08
 TOUCHDOWN_OMEGA_MAX = 0.05
 APPROACH_ALTITUDE_MIN, APPROACH_ALTITUDE_MAX = 30.0, 500.0
+APPROACH_FRONTIER_ALTITUDES = {
+    3: (30.0, 100.0),
+    2: (100.0, 250.0),
+    1: (250.0, 500.0),
+}
 APPROACH_X_OFFSET_MAX = 35.0
 APPROACH_VX_MAX = 6.0
 APPROACH_VY_MIN, APPROACH_VY_MAX = 2.0, 18.0
 APPROACH_THETA_MAX = 0.18
 APPROACH_OMEGA_MAX = 0.25
 TRAINING_START_DISTRIBUTION = (
-    "episodes 1-500: 50% standard high-altitude starts, 25% touchdown "
-    "rehearsal 5-18 units above the pad, and 25% braking approaches "
-    "30-500 units above the pad; episodes 501+: 75% standard and 25% "
-    "braking approaches with touchdown rehearsal disabled; all sampled "
-    "states expose velocity, tilt, time, and fuel"
+    "Performance-gated reverse altitude curriculum: begin with 100% "
+    "touchdown rehearsals at k4 (5-18 units above the pad); unlock low "
+    "k3 (30-100), mid k2 (100-250), high k1 (250-500), then canonical "
+    "k0 descents after one >=90% fixed 20-start frontier evaluation; "
+    "thereafter the active frontier receives 50% of resets and mastered "
+    "easier frontiers uniformly share the remainder"
 )
 
 
@@ -90,7 +96,16 @@ def scene() -> dict:
 class LanderEnv:
     jitter: bool = True
     approach_curriculum: bool = False
+    forced_start_frontier: int | None = None
     rng: random.Random = field(default_factory=random.Random)
+    _curriculum_position: int = field(default=0, init=False, repr=False)
+    _curriculum_pass_streak: int = field(default=0, init=False, repr=False)
+    _curriculum_complete: bool = field(default=False, init=False, repr=False)
+    _curriculum_evaluations: int = field(default=0, init=False, repr=False)
+    _curriculum_last_success_rate: float | None = field(
+        default=None, init=False, repr=False)
+    _curriculum_last_evaluation_episode: int | None = field(
+        default=None, init=False, repr=False)
 
     obs_dim = 9
     n_continuous = 2
@@ -99,17 +114,192 @@ class LanderEnv:
     dt = DT
 
     def __post_init__(self):
+        if (self.forced_start_frontier is not None
+                and self.forced_start_frontier not in CURRICULUM_FRONTIER_ORDER):
+            raise ValueError("forced Lander frontier must be in [0, 4]")
         self.reset()
 
-    def reset_for_training_episode(self, episode: int) -> np.ndarray:
-        """Reset with the one-based episode that selects the curriculum phase."""
-        if episode < 1:
-            raise ValueError("training episode must be one-based")
-        self._training_episode = episode
-        try:
-            return self.reset()
-        finally:
-            del self._training_episode
+    def _sample_start_frontier(self) -> int:
+        if self.forced_start_frontier is not None:
+            return self.forced_start_frontier
+        if not self.approach_curriculum:
+            return 0
+        frontier = CURRICULUM_FRONTIER_ORDER[self._curriculum_position]
+        mastered = CURRICULUM_FRONTIER_ORDER[:self._curriculum_position]
+        if (not mastered
+                or self.rng.random() < CURRICULUM_ACTIVE_FRONTIER_PROBABILITY):
+            return frontier
+        return self.rng.choice(mastered)
+
+    def training_curriculum_state(self) -> dict:
+        """Return the complete JSON-safe state needed for exact continuation."""
+        frontier = CURRICULUM_FRONTIER_ORDER[self._curriculum_position]
+        return {
+            "version": 1,
+            "frontier_position": self._curriculum_position,
+            "frontier": frontier,
+            "mastered": list(
+                CURRICULUM_FRONTIER_ORDER[:self._curriculum_position]),
+            "pass_streak": self._curriculum_pass_streak,
+            "complete": self._curriculum_complete,
+            "evaluations": self._curriculum_evaluations,
+            "last_success_rate": self._curriculum_last_success_rate,
+            "last_evaluation_episode": self._curriculum_last_evaluation_episode,
+        }
+
+    def restore_training_curriculum_state(self, state: dict) -> None:
+        """Restore the exact, validated gate state from a checkpoint."""
+        expected_keys = {
+            "version", "frontier_position", "frontier", "mastered",
+            "pass_streak", "complete", "evaluations", "last_success_rate",
+            "last_evaluation_episode",
+        }
+        if not isinstance(state, dict) or set(state) != expected_keys:
+            raise ValueError("invalid Lander curriculum state fields")
+        if type(state["version"]) is not int or state["version"] != 1:
+            raise ValueError("unsupported Lander curriculum state version")
+        for key in ("frontier_position", "frontier", "pass_streak", "evaluations"):
+            if type(state[key]) is not int:
+                raise TypeError(f"Lander curriculum {key} must be an integer")
+        if type(state["complete"]) is not bool:
+            raise TypeError("Lander curriculum complete must be a boolean")
+
+        position = state["frontier_position"]
+        pass_streak = state["pass_streak"]
+        evaluations = state["evaluations"]
+        complete = state["complete"]
+        last_success_rate = state["last_success_rate"]
+        last_evaluation_episode = state["last_evaluation_episode"]
+        if not 0 <= position < len(CURRICULUM_FRONTIER_ORDER):
+            raise ValueError("invalid Lander curriculum frontier position")
+        if state["frontier"] != CURRICULUM_FRONTIER_ORDER[position]:
+            raise ValueError("Lander curriculum frontier does not match position")
+        if state["mastered"] != list(CURRICULUM_FRONTIER_ORDER[:position]):
+            raise ValueError("Lander curriculum mastered frontiers are inconsistent")
+        if not 0 <= pass_streak <= CURRICULUM_CONSECUTIVE_CONFIRMATIONS:
+            raise ValueError("invalid Lander curriculum confirmation streak")
+        if evaluations < 0 or evaluations < position:
+            raise ValueError("invalid Lander curriculum evaluation count")
+        if complete and position != len(CURRICULUM_FRONTIER_ORDER) - 1:
+            raise ValueError("only the canonical Lander frontier can be complete")
+        if complete and pass_streak != CURRICULUM_CONSECUTIVE_CONFIRMATIONS:
+            raise ValueError("complete Lander curriculum lacks its final pass")
+        if not complete and pass_streak != 0:
+            raise ValueError("non-complete Lander curriculum has a stale pass")
+        if last_success_rate is not None:
+            if (isinstance(last_success_rate, bool)
+                    or not isinstance(last_success_rate, (int, float))):
+                raise TypeError("Lander curriculum success rate must be numeric")
+            last_success_rate = float(last_success_rate)
+            if not math.isfinite(last_success_rate) or not 0.0 <= last_success_rate <= 1.0:
+                raise ValueError("invalid Lander curriculum success rate")
+        if last_evaluation_episode is not None:
+            if type(last_evaluation_episode) is not int:
+                raise TypeError("Lander curriculum evaluation episode must be an integer")
+            if last_evaluation_episode < 0:
+                raise ValueError("invalid Lander curriculum evaluation episode")
+        history_empty = (last_success_rate is None
+                         and last_evaluation_episode is None)
+        history_complete = (last_success_rate is not None
+                            and last_evaluation_episode is not None)
+        if ((evaluations == 0 and not history_empty)
+                or (evaluations > 0 and not history_complete)):
+            raise ValueError("Lander curriculum evaluation history is inconsistent")
+
+        self._curriculum_position = position
+        self._curriculum_pass_streak = pass_streak
+        self._curriculum_complete = complete
+        self._curriculum_evaluations = evaluations
+        self._curriculum_last_success_rate = last_success_rate
+        self._curriculum_last_evaluation_episode = last_evaluation_episode
+
+    def reset_training_curriculum(self) -> None:
+        self._curriculum_position = 0
+        self._curriculum_pass_streak = 0
+        self._curriculum_complete = False
+        self._curriculum_evaluations = 0
+        self._curriculum_last_success_rate = None
+        self._curriculum_last_evaluation_episode = None
+
+    def record_training_curriculum_evaluation(
+            self, success_rate: float,
+            curriculum: TrainingCurriculumSpec, *,
+            evaluation_episode: int | None = None) -> dict:
+        """Apply one distinct fixed-frontier result to the advancement gate."""
+        if tuple(curriculum.frontier_order) != CURRICULUM_FRONTIER_ORDER:
+            raise ValueError("curriculum frontier order does not match Lander")
+        if (curriculum.active_frontier_probability
+                != CURRICULUM_ACTIVE_FRONTIER_PROBABILITY
+                or curriculum.success_rate_threshold
+                != CURRICULUM_SUCCESS_RATE_THRESHOLD
+                or curriculum.consecutive_confirmations
+                != CURRICULUM_CONSECUTIVE_CONFIRMATIONS):
+            raise ValueError("curriculum gate does not match Lander")
+        if (isinstance(success_rate, bool)
+                or not isinstance(success_rate, (int, float))
+                or not math.isfinite(float(success_rate))
+                or not 0.0 <= float(success_rate) <= 1.0):
+            raise ValueError("curriculum success rate must be in [0, 1]")
+        success_rate = float(success_rate)
+        if evaluation_episode is None:
+            evaluation_episode = (
+                0 if self._curriculum_last_evaluation_episode is None
+                else self._curriculum_last_evaluation_episode + 1)
+        if type(evaluation_episode) is not int or evaluation_episode < 0:
+            raise ValueError("curriculum evaluation episode must be non-negative")
+
+        before = self.training_curriculum_state()
+        passed = success_rate >= curriculum.success_rate_threshold
+        if self._curriculum_last_evaluation_episode == evaluation_episode:
+            return {
+                "success_rate": success_rate,
+                "passed": passed,
+                "evaluation_episode": evaluation_episode,
+                "ignored_duplicate": True,
+                "frontier_before": before["frontier"],
+                "frontier_after": before["frontier"],
+                "mastered_before": before["mastered"],
+                "mastered_after": before["mastered"],
+                "confirmation_streak_before": before["pass_streak"],
+                "confirmation_streak_after": before["pass_streak"],
+                "complete_before": before["complete"],
+                "complete_after": before["complete"],
+                "unlocked": False,
+            }
+        if (self._curriculum_last_evaluation_episode is not None
+                and evaluation_episode < self._curriculum_last_evaluation_episode):
+            raise ValueError("curriculum evaluation episodes must be monotonic")
+
+        self._curriculum_evaluations += 1
+        self._curriculum_last_success_rate = success_rate
+        self._curriculum_last_evaluation_episode = evaluation_episode
+        unlocked = False
+        if not self._curriculum_complete:
+            self._curriculum_pass_streak = (
+                self._curriculum_pass_streak + 1 if passed else 0)
+            if self._curriculum_pass_streak >= curriculum.consecutive_confirmations:
+                if self._curriculum_position < len(CURRICULUM_FRONTIER_ORDER) - 1:
+                    self._curriculum_position += 1
+                    self._curriculum_pass_streak = 0
+                    unlocked = True
+                else:
+                    self._curriculum_complete = True
+        after = self.training_curriculum_state()
+        return {
+            "success_rate": success_rate,
+            "passed": passed,
+            "evaluation_episode": evaluation_episode,
+            "ignored_duplicate": False,
+            "frontier_before": before["frontier"],
+            "frontier_after": after["frontier"],
+            "mastered_before": before["mastered"],
+            "mastered_after": after["mastered"],
+            "confirmation_streak_before": before["pass_streak"],
+            "confirmation_streak_after": after["pass_streak"],
+            "complete_before": before["complete"],
+            "complete_after": after["complete"],
+            "unlocked": unlocked,
+        }
 
     def reset(self) -> np.ndarray:
         self.x, self.y = 500.0, 120.0
@@ -124,24 +314,11 @@ class LanderEnv:
         self.cause = "running"
         self._u_main = 0.0
         self._start_kind = "standard"
-        if self.approach_curriculum:
-            training_episode = getattr(self, "_training_episode", 1)
-            if training_episode <= CURRICULUM_BOOTSTRAP_EPISODES:
-                standard_probability = STANDARD_START_PROBABILITY
-                touchdown_probability = TOUCHDOWN_START_PROBABILITY
-                approach_probability = APPROACH_START_PROBABILITY
-            else:
-                standard_probability = CONSOLIDATION_STANDARD_START_PROBABILITY
-                touchdown_probability = CONSOLIDATION_TOUCHDOWN_START_PROBABILITY
-                approach_probability = CONSOLIDATION_APPROACH_START_PROBABILITY
-            start_draw = self.rng.random()
-            if start_draw >= standard_probability:
-                if start_draw < standard_probability + touchdown_probability:
-                    self._reset_touchdown()
-                elif start_draw < (standard_probability
-                                   + touchdown_probability
-                                   + approach_probability):
-                    self._reset_approach()
+        self._start_frontier = self._sample_start_frontier()
+        if self._start_frontier == 4:
+            self._reset_touchdown()
+        elif self._start_frontier in APPROACH_FRONTIER_ALTITUDES:
+            self._reset_approach(self._start_frontier)
         self._phi_prev = self._phi()
         return self._obs()
 
@@ -158,12 +335,17 @@ class LanderEnv:
             omega_max=TOUCHDOWN_OMEGA_MAX,
         )
 
-    def _reset_approach(self) -> None:
+    def _reset_approach(self, frontier: int | None = None) -> None:
         """Sample a fully observed, dynamically plausible landing approach."""
+        altitude_min, altitude_max = (
+            APPROACH_FRONTIER_ALTITUDES[frontier]
+            if frontier is not None
+            else (APPROACH_ALTITUDE_MIN, APPROACH_ALTITUDE_MAX)
+        )
         self._reset_sampled_approach(
             kind="approach",
-            altitude_min=APPROACH_ALTITUDE_MIN,
-            altitude_max=APPROACH_ALTITUDE_MAX,
+            altitude_min=altitude_min,
+            altitude_max=altitude_max,
             x_offset_max=APPROACH_X_OFFSET_MAX,
             vx_max=APPROACH_VX_MAX,
             vy_min=APPROACH_VY_MIN,
@@ -282,3 +464,32 @@ class LanderEnv:
     def ghost_sample(self) -> list[float]:
         return [round(self.x, 1), round(self.y, 1), round(self.theta, 3),
                 0.0, round(math.hypot(self.vx, self.vy), 1)]
+
+
+def make_frontier_evaluation_env(frontier: int) -> LanderEnv:
+    """Build one fixed-suite env without stochastic frontier selection."""
+    if frontier not in CURRICULUM_FRONTIER_ORDER:
+        raise ValueError("Lander frontier must be in [0, 4]")
+    return LanderEnv(jitter=True, forced_start_frontier=frontier)
+
+
+TRAINING_CURRICULUM = TrainingCurriculumSpec(
+    id="lander-reverse-altitude-v1",
+    frontier_order=CURRICULUM_FRONTIER_ORDER,
+    active_frontier_probability=CURRICULUM_ACTIVE_FRONTIER_PROBABILITY,
+    success_rate_threshold=CURRICULUM_SUCCESS_RATE_THRESHOLD,
+    consecutive_confirmations=CURRICULUM_CONSECUTIVE_CONFIRMATIONS,
+    evaluation_suite_version="lander-altitude-eval-v1",
+    evaluation_episodes=20,
+    evaluation_seed_base=300_000,
+    segment_seed_stride=1_000,
+    start_state_description=(
+        "k4 touchdown altitude 5-18 with pad offset <=20, |vx|<=3, vy 0-6, "
+        "|tilt|<=0.08, |rate|<=0.05; k3/k2/k1 approach altitude "
+        "30-100/100-250/250-500 with pad offset <=35, |vx|<=6, vy 2-18, "
+        "|tilt|<=0.18, |rate|<=0.25; k0 canonical x=500, y=120, vy=rate=0, "
+        "fuel=1, elapsed=0 with seeded |vx|<=15 and |tilt|<=0.15; "
+        "rehearsals preserve altitude-derived elapsed time and fuel"
+    ),
+    make_evaluation_env=make_frontier_evaluation_env,
+)

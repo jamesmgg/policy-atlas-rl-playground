@@ -386,7 +386,7 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             payload = trainer.registry.load(0)
 
         self.assertEqual(meta["schema_version"], 7)
-        self.assertEqual(meta["protocol"]["version"], 10)
+        self.assertEqual(meta["protocol"]["version"], 11)
         self.assertEqual(meta["protocol"]["training_curriculum"],
                          EXPECTED_CURRICULUM_PROTOCOL)
         diagnostic = meta["training_diagnostics"]["training_curriculum"]
@@ -403,25 +403,31 @@ class TestDroneReverseCurriculum(unittest.TestCase):
         self.assertEqual(
             payload["rng_state"]["training_curriculum"]["frontier"], 3)
 
-    def test_non_drone_scenarios_keep_their_training_contracts_and_schemas(self) -> None:
+    def test_non_curriculum_scenarios_keep_their_training_contracts_and_schemas(self) -> None:
         expected_schemas = {
             "apex-gp": 7, "velocita": 7, "grandville": 7,
             "thunder-oval": 7, "apex-gp-wet": 7, "glacier": 7,
             "rally-ridge": 7, "kart-sprint": 7, "drift-trial": 8,
-            "eco-gp": 7, "traffic-rush": 9, "lunar-lander": 5,
+            "eco-gp": 7, "traffic-rush": 9,
             "pendulum-swingup": 2, "cartpole-balance": 2,
             "mountain-car": 3,
         }
-        non_drone = {spec.id: spec for spec in list_specs()
-                     if spec.id != "drone-hover"}
+        curriculum_ids = {"drone-hover", "lunar-lander"}
+        non_curriculum = {spec.id: spec for spec in list_specs()
+                          if spec.id not in curriculum_ids}
 
         self.assertEqual({key: spec.checkpoint_schema
-                          for key, spec in non_drone.items()}, expected_schemas)
+                          for key, spec in non_curriculum.items()}, expected_schemas)
         self.assertTrue(all(spec.training_curriculum is None
-                            for spec in non_drone.values()))
+                            for spec in non_curriculum.values()))
         self.assertFalse(any(hasattr(spec.make_training_env(),
                                      "training_curriculum_state")
-                             for spec in non_drone.values()))
+                             for spec in non_curriculum.values()))
+        self.assertEqual(
+            {spec.id for spec in list_specs()
+             if spec.training_curriculum is not None},
+            curriculum_ids,
+        )
 
     def test_curriculum_and_schema_are_explicit_in_scenario_metadata(self) -> None:
         self.assertEqual(

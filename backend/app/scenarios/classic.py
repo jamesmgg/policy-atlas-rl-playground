@@ -28,6 +28,7 @@ CLASSIC_SPECS: list[ScenarioSpec] = [
         training_factory=lambda: lander.LanderEnv(
             jitter=True, approach_curriculum=True),
         training_start_distribution=lander.TRAINING_START_DISTRIBUTION,
+        training_curriculum=lander.TRAINING_CURRICULUM,
         objective="Reach the landing pad with low velocity, low tilt, and minimal fuel use.",
         success="Touch the pad below all horizontal, vertical, and tilt limits.",
         observations=("pad-relative position", "linear velocity", "tilt and angular rate", "fuel"),
@@ -42,7 +43,7 @@ CLASSIC_SPECS: list[ScenarioSpec] = [
         difficulty="Advanced", horizon_steps=lander.LanderEnv.max_steps,
         horizon_seconds=lander.LanderEnv.max_steps * lander.LanderEnv.dt,
         actor_initialization=LANDER_ACTOR_INITIALIZATION,
-        checkpoint_schema=5),
+        checkpoint_schema=6),
     ScenarioSpec(
         id="pendulum-swingup", name="Pendulum Swing-Up", group="Classic",
         kind="generic",
