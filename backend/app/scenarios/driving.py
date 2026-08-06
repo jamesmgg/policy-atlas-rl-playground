@@ -57,6 +57,7 @@ def _driving_spec(id: str, name: str, group: str, description: str,
                   success: str = "Complete at least one timed lap without leaving the circuit.",
                   difficulty: str = "Intermediate",
                   training_rolling_checkpoints: tuple[int, ...] | None = None,
+                  horizon_steps: int = DrivingEnv.max_steps,
                   actor_initialization: ActorInitialization = DRIVING_ACTOR_INITIALIZATION,
                   checkpoint_schema: int = 7) -> ScenarioSpec:
     reward_terms = [
@@ -78,8 +79,12 @@ def _driving_spec(id: str, name: str, group: str, description: str,
         reward_terms.append(f"+{reward.overtake:g} per clean overtake")
     if features.fuel:
         reward_terms.append("quadratic throttle drains the fixed fuel budget")
-    termination = ["leaving the circuit", "wrong-way regression",
-                   "12 simulated seconds without progress", "60-second horizon"]
+    horizon_seconds = horizon_steps * DrivingEnv.dt
+    termination = [
+        "leaving the circuit", "wrong-way regression",
+        "12 simulated seconds without progress",
+        f"{horizon_seconds:g}-second horizon",
+    ]
     if features.bots:
         termination.append("contact with any traffic car")
     if features.fuel:
@@ -154,13 +159,14 @@ def _driving_spec(id: str, name: str, group: str, description: str,
         metric_label=metric_label, metric_mode=metric_mode,
         make_env=lambda jitter: DrivingEnv(
             _track(track_name), params=params, reward_cfg=reward,
-            features=features, jitter=jitter),
+            features=features, jitter=jitter, max_steps=horizon_steps),
         scene=lambda: _scene(track_name, features),
         training_factory=lambda: DrivingEnv(
             _track(track_name), params=params, reward_cfg=reward,
             features=features, jitter=True, random_start=True,
             start_line_probability=0.75,
-            rolling_checkpoint_indices=training_rolling_checkpoints),
+            rolling_checkpoint_indices=training_rolling_checkpoints,
+            max_steps=horizon_steps),
         training_start_distribution=training_start_distribution,
         objective=objective,
         success=success,
@@ -172,8 +178,8 @@ def _driving_spec(id: str, name: str, group: str, description: str,
         reward_terms=tuple(reward_terms),
         termination_conditions=tuple(termination),
         difficulty=difficulty,
-        horizon_steps=DrivingEnv.max_steps,
-        horizon_seconds=DrivingEnv.max_steps * DrivingEnv.dt,
+        horizon_steps=horizon_steps,
+        horizon_seconds=horizon_seconds,
         actor_initialization=actor_initialization,
         checkpoint_schema=checkpoint_schema,
     )
@@ -260,5 +266,5 @@ DRIVING_SPECS: list[ScenarioSpec] = [
         objective="Pass traffic without contact while maintaining forward progress.",
         success="Overtake all three traffic cars in one episode.",
         difficulty="Advanced", training_rolling_checkpoints=(1, 2, 3),
-        checkpoint_schema=8),
+        horizon_steps=2250, checkpoint_schema=9),
 ]

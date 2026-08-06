@@ -641,9 +641,16 @@ class Trainer:
         if curriculum_diagnostic is not None:
             training_diagnostics["training_curriculum"] = curriculum_diagnostic
         eval_result["training_diagnostics"] = training_diagnostics or None
+        task_horizon_steps = getattr(
+            self.spec, "horizon_steps", self.env.max_steps)
+        task_horizon_seconds = getattr(
+            self.spec,
+            "horizon_seconds",
+            task_horizon_steps * self.env.dt,
+        )
         eval_result["protocol"] = {
             "algorithm": "PPO",
-            "version": 8,
+            "version": 9,
             "rollout_steps": ROLLOUT_STEPS,
             "episode_aligned_rollouts": True,
             "gamma": GAMMA,
@@ -661,6 +668,8 @@ class Trainer:
                     "scenario default starts",
                 )
             ),
+            "task_horizon_steps": task_horizon_steps,
+            "task_horizon_seconds": task_horizon_seconds,
             "training_curriculum": (
                 self.spec.training_curriculum.protocol()
                 if getattr(self.spec, "training_curriculum", None) is not None

@@ -121,11 +121,11 @@ class DrivingEnv:
     random_start: bool = False
     start_line_probability: float = 0.0
     rolling_checkpoint_indices: tuple[int, ...] | None = None
+    max_steps: int = MAX_AGENT_STEPS
     rng: random.Random = field(default_factory=random.Random)
 
     n_continuous = 2
     n_binary = 1
-    max_steps = MAX_AGENT_STEPS
     dt = DT_AGENT
 
     def __post_init__(self):
@@ -427,7 +427,7 @@ class DrivingEnv:
             done, self.cause = True, "stall"
         elif self._objective_reached():
             done, self.cause = True, "complete"
-        elif self.steps >= MAX_AGENT_STEPS:
+        elif self.steps >= self.max_steps:
             done, self.cause = True, "timeout"
 
         self.episode_reward += reward
