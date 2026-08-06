@@ -34,17 +34,20 @@ recoverable from the checkpoint archive.
 
 ## Scientific safeguards
 
-- Generalized advantage estimation cuts traces at the correct transition and
-  distinguishes external truncations from intrinsic puzzle deadlines.
+- Generalized advantage estimation cuts traces at the correct transition.
+  Intrinsic environment deadlines are reported with `truncated` and
+  `task_deadline` flags, but remain task endings for return computation; only
+  administrative/external rollout cutoffs bootstrap the critic.
 - Finite-horizon observations expose remaining time. Driving policies also see
   track phase, cumulative objective state, wrong-way margin, recent progress,
   and one-time traffic-pass state used by rewards or termination.
 - PPO uses a tanh-squashed Gaussian and applies the matching log-probability
   correction, so sampled actions and optimized likelihoods agree.
-- Raw scores remain unchanged for people and leaderboards; PPO receives the
-  same rewards multiplied by a disclosed positive constant so critic targets
-  remain numerically well-conditioned. Constant entropy pressure is disabled,
-  allowing continuous controls to become precise.
+- The trainer multiplies each immediate environment reward by the global
+  constant `0.01` before it enters PPO (and before any external-cutoff
+  bootstrap). Unscaled rewards remain unchanged for the UI, leaderboards, and
+  evaluation reports. Constant entropy pressure is disabled, allowing
+  continuous controls to become precise.
 - Critic explained variance, value bias, value clipping, and action spread are
   emitted live and stored with each checkpoint.
 - Partial rollouts are learned from instead of silently discarded.
@@ -55,15 +58,19 @@ recoverable from the checkpoint archive.
 - Checkpoint sidecars are self-hashed and cross-checked against metadata inside
   the tensor payload; corrupt archived branches are rejected before a restore.
 - By default, checkpoints are evaluated on ten fixed, versioned test starts so
-  independent training seeds are directly comparable. Reports include mean, standard
-  deviation, success rate, a 95% Wilson interval, evaluation count, seed, and
-  update count.
+  separately trained policies can be compared on the same environment starts.
+  The current campaign reports use one optimizer/training seed (`42`); ten
+  evaluation starts or 100 holdout starts measure environment-start robustness,
+  not optimizer-seed replication. Reports include mean, standard deviation,
+  success rate, a 95% Wilson interval, evaluation count, seed, and update count.
 - Driving training uses a disclosed 75% canonical / 25% rolling-checkpoint
   mixture. Rolling states reconstruct speed, clock, task progress, fuel, and
   traffic from a curvature/grip braking envelope; selection and replay keep
   their unchanged fixed start-line distributions.
-- Wet Apex assigns the same -40 terminal cost to collision, wrong-way, and
-  stall failures, so standing still is not safer than attempting the lap.
+- Wet Apex assigns the same nominal -40 terminal cost to collision, wrong-way,
+  and stall failures. This aligns the raw terminal costs, but equal costs alone
+  do not prove that delayed inactivity is neutral under discounting; the
+  verified result is empirical evidence for the complete training protocol.
 - Lunar Lander uses a fixed-suite, performance-gated reverse-altitude
   curriculum: touchdown rehearsals first, then 30-100, 100-250, and 250-500
   unit approach bands before the canonical descent. Drone Course likewise
@@ -71,14 +78,18 @@ recoverable from the checkpoint archive.
   Each frontier advances after one >=90% deterministic evaluation. Lander
   then mixes active-frontier and mastered easier starts equally; every Drone
   reset targets its active frontier because longer starts already traverse
-  mastered later gates. Curriculum state is checkpointed exactly, and its
-  diagnostics never enter full-course checkpoint selection.
+  mastered later gates. Curriculum evaluation is therefore a training-control
+  signal, not a passive diagnostic. Its state is checkpointed exactly, while
+  its results remain excluded from full-course checkpoint selection.
 - The benchmark campaign freezes checkpoint selection before an optional
-  100-start holdout at a disjoint seed range. Holdout outcomes cannot affect
-  early stopping or checkpoint choice.
+  100-start holdout at a disjoint seed range. Within one campaign, those starts
+  cannot affect early stopping or checkpoint choice. The same holdout range has
+  been reused while iterating across branches, however, so these results are
+  validation evidence rather than a never-seen project-wide final test.
 - The default campaign selects and stops at the first statistically qualifying
-  fixed-suite checkpoint; the independent 100-start holdout is the confirmation
-  layer. `--confirmations` remains available for stricter selection studies.
+  fixed-suite checkpoint; the post-selection 100-start holdout is the
+  within-campaign confirmation layer. `--confirmations` remains available for
+  stricter selection studies.
 - A fixed canonical rollout is retained only for comparable ghost playback; it
   is not presented as the statistical evaluation result.
 - The UI ranks only checkpoints from the same versioned evaluation suite and
@@ -97,7 +108,9 @@ the observation exposed to PPO.
 The dark experiment library scales through family filters and search. Every
 experiment publishes its exact observation dimensions, reward terms, and
 termination conditions. The active workspace leads with the simulator, then a
-gold/silver/bronze policy podium; technical evidence is collapsed by default.
+Top Runs section. Evaluated runs with at least one success can earn
+gold/silver/bronze medals; zero-success runs use neutral Best Attempt ranks
+instead. Technical evidence is collapsed by default.
 It also combines:
 
 - an experiment brief and reproducibility settings;
@@ -144,7 +157,7 @@ npm --prefix frontend run build
 
 Fresh campaigns can be capped at 2,000 episodes and stopped after the first
 statistically qualifying checkpoint, before its frozen policy is tested on the
-disjoint holdout. See
+within-campaign post-selection holdout. See
 [`docs/benchmark-campaigns.md`](docs/benchmark-campaigns.md) for the exact solve
 contract, read-only checkpoint-volume holdout, and Docker commands.
 

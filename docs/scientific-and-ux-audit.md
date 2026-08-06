@@ -3,40 +3,47 @@
 This audit separates three questions that are easy to blur together:
 
 1. Can PPO find a policy on the fixed ten-start checkpoint-selection suite?
-2. Does the frozen policy generalize to 100 disjoint environment seeds?
+2. Does the frozen policy generalize to 100 post-selection environment starts?
 3. Is the experiment understandable and enjoyable to operate without exposing
    every diagnostic by default?
 
-The campaign cap is 2,000 **episodes** per training run. A puzzle is called
-solved only when a checkpoint first passes the fixed selection contract and
-then passes the untouched 100-start holdout. Training successes, reward peaks,
-and curriculum-only frontier tests are diagnostic evidence, not solves.
+The campaign cap is 2,000 **episodes** per training run. Under the campaign
+contract, a puzzle is called solved only when a checkpoint first passes the
+fixed selection contract and then passes the frozen 100-start holdout. The
+holdout is untouched during that run, but its seed range has been reused across
+iterative branches; these are validation results, not a never-seen project-wide
+final test. Training successes and reward peaks are not solves. Curriculum
+evaluations control frontier progression, but remain excluded from full-course
+checkpoint selection and cannot establish a solve by themselves.
 
 ## Experiment evidence matrix
 
-| Experiment | Main learning improvement or finding | Selected episode | Disjoint holdout |
+| Experiment | Main learning improvement or finding | Selected episode | Post-selection holdout |
 | --- | --- | ---: | ---: |
 | Apex GP | Fully observed driving state and rolling-start curriculum | 725 | 100/100 |
 | Velocità | Curvature/grip braking-envelope starts | 1,377 | 97/100 |
 | Grandville Streets | Dense signed progress with canonical replay retained | 726 | 100/100 |
 | Thunder Oval | Removed the scenario's harmful positive-throttle actor prior | 300 | 100/100 |
-| Apex GP — Wet | 90 s horizon plus equal unsafe-terminal costs removed the inactivity optimum | 1,150 | 100/100 |
+| Apex GP — Wet | A 90 s horizon and aligned nominal unsafe-terminal costs yielded a verified policy; equal raw costs alone are not time-neutral under discounting | 1,150 | 100/100 |
 | Glacier Lake | Grip-aware observations and rolling speed reconstruction | 100 | 100/100 |
 | Rally Ridge | Correct crash termination/visual persistence and rally progress/drift shaping | 1,825 | 97/100 |
 | Kart Sprint | Shared driving curriculum with unchanged fixed start | 1,501 | 93/100 |
 | Drift Trial | Progress coefficient restored while style remained the task metric | 1,704 | 96/100 |
 | Eco GP | Fuel state and objective completion made observable | 876 | 96/100 |
 | Traffic Rush | 90 s reachability, traffic-state reconstruction, and staged overtake rehearsal; terminal-cost follow-up running | — | Active |
-| Lunar Lander | Low-variance actor prior and performance-gated altitude curriculum; frontier-threshold follow-up pending | — | Active |
-| Pendulum Swing-Up | Correct continuous-action likelihood and timeout bootstrapping | 252 | 100/100 |
+| Lunar Lander | v13: undiscounted task returns plus descent-envelope shaping and a performance-gated altitude curriculum; fixed suite 10/10 | 380 | 98/100 |
+| Pendulum Swing-Up | Correct continuous-action likelihood and an observed finite horizon | 252 | 100/100 |
 | Drone Course | Reverse waypoint curriculum and momentum-aware handoff rehearsal; follow-up pending | — | Active |
 | Continuous Cart-Pole | Added a disclosed continuous-force, semi-implicit control task | 276 | 100/100 |
 | Mountain Car | Added normalized continuous Mountain Car dynamics | 53 | 100/100 |
 
 The machine-readable reports live in [`docs/results`](results/). Selection uses
-seeds 100000–100009; holdout uses seeds 200000–200099. Reports record the
-engine source digest, checkpoint digest, evaluation suite, Wilson interval,
-and whether evidence influenced selection.
+seeds 100000–100009; holdout uses seeds 200000–200099. The two ranges are
+separate within a campaign, but both are fixed and have been reused across
+iterative branches. Reports record the engine source digest, checkpoint digest,
+evaluation suite, Wilson interval, and whether evidence influenced selection.
+All current campaigns use optimizer/training seed 42; the 100 holdout seeds are
+environment-start variation, not 100 independent training replications.
 
 ## AI engineer viewpoint
 
@@ -44,29 +51,37 @@ and whether evidence influenced selection.
 
 - The continuous policy is a tanh-squashed Gaussian whose optimized log
   probability matches the bounded action actually sent to the environment.
-- Time-limit endings are marked as truncations and bootstrap the critic;
-  physical failures remain true terminals.
+- Intrinsic environment deadlines are marked with both `truncated` and
+  `task_deadline`, end the task, and do not bootstrap the critic. Only an
+  administrative/external rollout cutoff bootstraps; physical failures are
+  also terminal.
 - Partial rollouts are trained instead of being discarded, and episode state
   is not silently reset at arbitrary rollout boundaries.
 - Observations expose task-relevant hidden state: remaining time, checkpoint
   progress, stall margin, fuel, traffic positions/pass masks, and objective
   completion. This substantially reduces accidental partial observability.
-- Rewards shown to users remain in task units while PPO receives a disclosed
-  positive scaling constant. Critic scale, bias, clipping, explained variance,
-  action spread, and KL diagnostics are saved with checkpoints.
+- Each immediate environment reward is multiplied by the global constant
+  `0.01` before PPO and any external-cutoff bootstrap. The unscaled reward stays
+  in task units for the UI and evaluation. Critic scale, bias, clipping,
+  explained variance, action spread, and KL diagnostics are saved with
+  checkpoints.
 - Curriculum states reconstruct speed, heading, elapsed clock, fuel, and
   traffic rather than teleporting an otherwise impossible state. Curriculum
-  tests are training diagnostics only; canonical policy selection is unchanged.
-- Fixed selection and disjoint holdout are separated. The holdout cannot alter
-  checkpoint choice or early stopping.
+  evaluations actively control frontier progression, so they are training
+  signals; they remain excluded from canonical checkpoint selection.
+- Fixed selection and post-selection holdout are separated within each run.
+  Holdout outcomes cannot alter that run's checkpoint choice or early stopping,
+  but reuse across branches makes the present holdout validation evidence.
 - RNG state, schema versions, engine hashes, checkpoint hashes, and archived
   branch integrity checks make continuation and comparison auditable.
 
 ### Highest-priority remaining scientific work
 
 1. Replicate final configurations over at least 3–5 independent **training**
-   seeds and report median sample efficiency plus dispersion. A 100-seed
-   holdout measures environment-start robustness, not optimizer-seed variance.
+   seeds and report median sample efficiency plus dispersion. Current runs use
+   optimizer/training seed 42; a 100-seed holdout measures environment-start
+   robustness, not optimizer-seed variance. Reserve a locked, never-used seed
+   suite for the final project-level generalization claim.
 2. Add reference baselines: random, scripted heuristic, tabular where
    applicable, and at least one second deep-RL algorithm such as SAC. PPO-only
    success cannot distinguish task quality from algorithm compatibility.
@@ -87,11 +102,13 @@ their results should not be interpreted as real vehicle or flight performance.
 
 The strongest product decision is to treat the playground as something to
 watch first and inspect second. The active experiment now opens with the live
-visualization, immediately followed by a Top Runs podium. Gold, silver, and
-bronze cards expose success and the task-native score, with accessible medal
-labels and replay/resume actions. Learning charts, confidence intervals,
-protocol hashes, saved-run tables, and compute statistics remain available but
-start collapsed behind clearly named controls.
+visualization, immediately followed by Top Runs. Successful evaluated policies
+can receive gold, silver, and bronze medals; zero-success policies stay visually
+neutral and are labeled Best Attempt rather than being decorated as winners.
+Cards expose success and the task-native score, with accessible rank labels and
+replay/resume actions. Learning charts, confidence intervals, protocol hashes,
+saved-run tables, and compute statistics remain available but start collapsed
+behind clearly named controls.
 
 The dark instrument-panel visual language gives the simulator a consistent
 identity without turning every value into a glowing dashboard widget. Family
