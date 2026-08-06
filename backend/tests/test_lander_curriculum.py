@@ -44,6 +44,16 @@ class TestLanderApproachCurriculum(unittest.TestCase):
         )
 
     def test_training_mixture_covers_standard_touchdown_and_approach_states(self) -> None:
+        self.assertEqual(lander.STANDARD_START_PROBABILITY, 0.5)
+        self.assertEqual(lander.TOUCHDOWN_START_PROBABILITY, 0.25)
+        self.assertEqual(lander.APPROACH_START_PROBABILITY, 0.25)
+        self.assertEqual(
+            lander.STANDARD_START_PROBABILITY
+            + lander.TOUCHDOWN_START_PROBABILITY
+            + lander.APPROACH_START_PROBABILITY,
+            1.0,
+        )
+
         env = self.spec.make_training_env()
         env.rng.seed(42)
         starts = {"standard": 0, "touchdown": 0, "approach": 0}
@@ -76,7 +86,9 @@ class TestLanderApproachCurriculum(unittest.TestCase):
                 abs(env.theta), getattr(lander, f"{prefix}_THETA_MAX"))
             self.assertLessEqual(
                 abs(env.omega), getattr(lander, f"{prefix}_OMEGA_MAX"))
-            self.assertGreater(env.steps, 0)
+            descent_fraction = (env.y - 120.0) / (lander.PAD_Y - 120.0)
+            self.assertEqual(env.steps, round(180.0 * descent_fraction))
+            self.assertGreaterEqual(env.steps, 0)
             self.assertGreater(env.fuel, 0.0)
             self.assertLessEqual(env.fuel, 1.0)
 
@@ -101,6 +113,82 @@ class TestLanderApproachCurriculum(unittest.TestCase):
         self.assertLessEqual(starts["touchdown"], 270)
         self.assertGreaterEqual(starts["approach"], 180)
         self.assertLessEqual(starts["approach"], 270)
+
+    def test_approach_band_bridges_to_the_canonical_start_altitude(self) -> None:
+        self.assertEqual(lander.APPROACH_ALTITUDE_MIN, 30.0)
+        self.assertEqual(
+            lander.APPROACH_ALTITUDE_MAX,
+            lander.PAD_Y - 120.0,
+        )
+
+    def test_seeded_approach_samples_cover_old_and_extended_altitudes(self) -> None:
+        env = self.spec.make_training_env()
+        env.rng.seed(20260805)
+        altitudes = []
+
+        for _ in range(400):
+            env.reset()
+            if env._start_kind == "approach":
+                altitudes.append(lander.PAD_Y - env.y)
+
+        self.assertGreater(len(altitudes), 50)
+        self.assertTrue(all(30.0 <= altitude <= 500.0 for altitude in altitudes))
+        self.assertTrue(any(altitude <= 180.0 for altitude in altitudes))
+        self.assertTrue(any(altitude > 180.0 for altitude in altitudes))
+
+    def test_extended_approach_preserves_clock_fuel_observation_and_dynamics(self) -> None:
+        approach = self.spec.make_training_env()
+        approach.rng.seed(20260805)
+        for _ in range(400):
+            observation = approach.reset()
+            altitude = lander.PAD_Y - approach.y
+            if approach._start_kind == "approach" and altitude > 180.0:
+                break
+        else:
+            self.fail("seeded curriculum did not produce an extended approach start")
+
+        descent_fraction = (approach.y - 120.0) / (lander.PAD_Y - 120.0)
+        self.assertEqual(approach.steps, round(180.0 * descent_fraction))
+        self.assertGreaterEqual(approach.fuel, 1.0 - 0.5 * descent_fraction)
+        self.assertLessEqual(approach.fuel, 1.0 - 0.1 * descent_fraction)
+        np.testing.assert_allclose(observation, np.array([
+            (approach.x - lander.PAD_CX) / 300.0,
+            (approach.y - lander.PAD_Y) / 300.0,
+            approach.vx / 60.0,
+            approach.vy / 60.0,
+            np.sin(approach.theta),
+            np.cos(approach.theta),
+            approach.omega / 3.0,
+            approach.fuel,
+            1.0 - approach.steps / approach.max_steps,
+        ], dtype=np.float32))
+
+        standard = self.spec.make_env(True)
+        dynamic_state = (
+            "x", "y", "vx", "vy", "theta", "omega", "fuel", "steps",
+            "episode_reward", "landed", "cause", "_u_main", "_phi_prev",
+        )
+        for name in dynamic_state:
+            setattr(standard, name, getattr(approach, name))
+        approach._start_kind = "approach"
+        standard._start_kind = "standard"
+
+        action = np.array([0.1, -0.2], dtype=np.float32)
+        approach_result = approach.step(action)
+        standard_result = standard.step(action)
+
+        np.testing.assert_allclose(approach_result[0], standard_result[0])
+        self.assertAlmostEqual(approach_result[1], standard_result[1])
+        self.assertEqual(approach_result[2:], standard_result[2:])
+
+    def test_v6_curriculum_protocol_text_is_exact(self) -> None:
+        expected = (
+            "50% standard high-altitude starts; 25% touchdown rehearsal 5-18 units "
+            "above the pad; 25% braking approaches 30-500 units above the pad; all "
+            "sampled states expose velocity, tilt, time, and fuel"
+        )
+        self.assertEqual(lander.TRAINING_START_DISTRIBUTION, expected)
+        self.assertEqual(self.spec.training_start_distribution, expected)
 
     def test_touchdown_rehearsal_exposes_the_success_outcome(self) -> None:
         env = self.spec.make_training_env()
@@ -206,7 +294,7 @@ class TestLanderApproachCurriculum(unittest.TestCase):
         self.assertTrue(env.episode_summary()["success"])
         self.assertFalse(info["truncated"])
         self.assertFalse(info["task_deadline"])
-        self.assertEqual(self.spec.checkpoint_schema, 3)
+        self.assertEqual(self.spec.checkpoint_schema, 4)
 
 
 if __name__ == "__main__":
