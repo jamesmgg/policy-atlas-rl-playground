@@ -72,15 +72,21 @@ recoverable from the checkpoint archive.
   do not prove that delayed inactivity is neutral under discounting; the
   verified result is empirical evidence for the complete training protocol.
 - Lunar Lander uses a fixed-suite, performance-gated reverse-altitude
-  curriculum: touchdown rehearsals first, then 30-100, 100-250, and 250-500
-  unit approach bands before the canonical descent. Drone Course likewise
-  learns the final waypoint first, then unlocks each earlier course segment.
-  Each frontier advances after one >=90% deterministic evaluation. Lander
-  then mixes active-frontier and mastered easier starts equally; every Drone
-  reset targets its active frontier because longer starts already traverse
-  mastered later gates. Curriculum evaluation is therefore a training-control
-  signal, not a passive diagnostic. Its state is checkpointed exactly, while
-  its results remain excluded from full-course checkpoint selection.
+  curriculum: touchdown rehearsals first, then overlapping 30-100, 50-200,
+  and 100-500 unit approach bands before the canonical descent. Drone Course
+  likewise learns the final waypoint first, then unlocks each earlier course
+  segment. Lander optimizes undiscounted finite-horizon return (`gamma = 1.0`),
+  so a terminal failure has the same cost whether it happens immediately or
+  near the deadline; every other scenario retains `gamma = 0.995`. Lander's
+  touchdown frontier advances after one >=90% deterministic 20-start
+  evaluation; harder Lander frontiers use >=75%, while Drone frontiers retain
+  their >=90% gate. Once a Lander frontier has been mastered, half of resets
+  stay on the active frontier and the other half retain mastered easier work;
+  every Drone reset targets its active frontier because longer starts already
+  traverse mastered later gates. Curriculum evaluation is therefore a
+  training-control signal, not a passive diagnostic. Its state is checkpointed
+  exactly, while its results remain excluded from full-course checkpoint
+  selection.
 - The benchmark campaign freezes checkpoint selection before an optional
   100-start holdout at a disjoint seed range. Within one campaign, those starts
   cannot affect early stopping or checkpoint choice. The same holdout range has

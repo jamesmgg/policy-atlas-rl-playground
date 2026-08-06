@@ -43,6 +43,11 @@ EVALUATION_SEED_BASE = 100_000
 TRAINING_REWARD_SCALE = 0.01
 
 
+def scenario_discount_factor(spec) -> float:
+    """Return a scenario's declared discount with the legacy shared default."""
+    return float(getattr(spec, "training_discount_factor", GAMMA))
+
+
 def source_digest_for_root(root: Path) -> str:
     """Fingerprint a Python source tree independent of checkout line endings.
 
@@ -137,7 +142,7 @@ def bootstrap_time_limit(reward: float, next_value: float, done: bool,
 
 
 def training_reward(reward: float, next_value: float, done: bool,
-                    info: dict) -> float:
+                    info: dict, gamma: float = GAMMA) -> float:
     """Map display rewards into stable critic units before any bootstrap.
 
     Multiplying every reward by one positive constant preserves the policy
@@ -146,7 +151,7 @@ def training_reward(reward: float, next_value: float, done: bool,
     """
     scaled_reward = reward * TRAINING_REWARD_SCALE
     return bootstrap_time_limit(
-        scaled_reward, next_value, done, info, gamma=GAMMA)
+        scaled_reward, next_value, done, info, gamma=gamma)
 
 
 def actor_initialization_protocol(spec, env) -> dict:
@@ -529,7 +534,8 @@ class Trainer:
                     if done and info.get("truncated", False) else 0.0
                 )
                 buffer_reward = training_reward(
-                    reward, next_value, done, info)
+                    reward, next_value, done, info,
+                    gamma=scenario_discount_factor(self.spec))
                 buffer.add(obs, action, log_prob, buffer_reward, done, value)
                 self.total_steps += 1
 
@@ -554,8 +560,10 @@ class Trainer:
 
             if buffer.ptr > 0:
                 last_value = 0.0 if done else self.agent.get_value(obs)
-                buffer.compute_gae(last_value, done, gamma=GAMMA,
-                                   gae_lambda=GAE_LAMBDA)
+                buffer.compute_gae(
+                    last_value, done,
+                    gamma=scenario_discount_factor(self.spec),
+                    gae_lambda=GAE_LAMBDA)
                 metrics = self.agent.update(buffer)
                 self.update_count += 1
                 self.sps = buffer.ptr / max(time.perf_counter() - t0, 1e-6)
@@ -650,10 +658,10 @@ class Trainer:
         )
         eval_result["protocol"] = {
             "algorithm": "PPO",
-            "version": 13,
+            "version": 14,
             "rollout_steps": ROLLOUT_STEPS,
             "episode_aligned_rollouts": True,
-            "gamma": GAMMA,
+            "gamma": scenario_discount_factor(self.spec),
             "gae_lambda": GAE_LAMBDA,
             "learning_rate": ppo_defaults.LR,
             "clip_epsilon": ppo_defaults.CLIP_EPS,

@@ -7,6 +7,7 @@ seeding, evaluation aggregation, and the shared scenario contract.
 from __future__ import annotations
 
 import copy
+import inspect
 import json
 import math
 import random
@@ -78,6 +79,7 @@ class TestRolloutBoundaries(unittest.TestCase):
     def test_training_reward_scale_is_explicit_and_precedes_bootstrapping(self) -> None:
         training_reward = getattr(trainer_module, "training_reward", None)
         self.assertTrue(callable(training_reward), "training_reward is missing")
+        self.assertIn("gamma", inspect.signature(training_reward).parameters)
         self.assertAlmostEqual(
             training_reward(250.0, next_value=3.0, done=False, info={}),
             2.5,
@@ -101,6 +103,17 @@ class TestRolloutBoundaries(unittest.TestCase):
             ),
             2.5 + trainer_module.GAMMA * 3.0,
             msg="an external truncation bootstraps in scaled critic units",
+        )
+        self.assertAlmostEqual(
+            training_reward(
+                250.0,
+                next_value=3.0,
+                done=True,
+                info={"truncated": True, "task_deadline": False},
+                gamma=1.0,
+            ),
+            5.5,
+            msg="the scenario discount must also control external bootstrapping",
         )
 
     def test_every_fixed_horizon_is_marked_as_an_intrinsic_deadline(self) -> None:
@@ -801,7 +814,8 @@ class TestEvaluationProtocol(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 13)
+        self.assertEqual(protocol["version"], 14)
+        self.assertEqual(protocol["gamma"], trainer.spec.training_discount_factor)
         self.assertEqual(protocol["training_reward_scale"], 0.01)
         self.assertEqual(protocol["entropy_coefficient"], 0.0)
         self.assertEqual(protocol["value_loss_scale"], "rollout return RMS")
