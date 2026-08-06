@@ -69,11 +69,14 @@ class WetHorizonAblationTests(unittest.TestCase):
         self.assertEqual(env.cause, "timeout")
         self.assertTrue(info["task_deadline"])
 
-    def test_horizon_only_ablation_preserves_wet_learning_contract(self) -> None:
+    def test_extended_horizon_preserves_the_remaining_wet_contract(self) -> None:
         fixed = self.wet.make_env(False)
         training = self.wet.make_training_env()
 
-        self.assertEqual(fixed.reward_cfg, RewardConfig())
+        self.assertEqual(
+            fixed.reward_cfg,
+            RewardConfig(stall=-40.0, wrong_way=-40.0),
+        )
         self.assertEqual(fixed.params, physics.F1)
         self.assertEqual(training.start_line_probability, 0.75)
         self.assertEqual(training.rolling_checkpoint_indices, (11,))
@@ -95,7 +98,7 @@ class WetHorizonAblationTests(unittest.TestCase):
             "Complete at least one timed lap without leaving the circuit.",
         )
 
-    def test_schema_eight_refuses_a_schema_seven_wet_checkpoint(self) -> None:
+    def test_schema_nine_refuses_a_schema_seven_wet_checkpoint(self) -> None:
         env = self.wet.make_env(False)
         agent = PPOAgent(
             env.obs_dim, env.n_continuous, env.n_binary, torch.device("cpu"))
@@ -109,12 +112,12 @@ class WetHorizonAblationTests(unittest.TestCase):
                 "reward": 1.0, "metric": None, "trajectory": [],
             })
 
-            self.assertEqual(self.wet.checkpoint_schema, 8)
+            self.assertEqual(self.wet.checkpoint_schema, 9)
             self.assertEqual(current.list(), [])
             with self.assertRaises(IncompatibleCheckpointError):
                 current.load_into(25, agent)
 
-    def test_protocol_v10_records_the_exact_wet_horizon(self) -> None:
+    def test_protocol_v11_records_the_exact_wet_horizon(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "state.json").write_text(
@@ -145,7 +148,7 @@ class WetHorizonAblationTests(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 10)
+        self.assertEqual(protocol["version"], 11)
         self.assertEqual(protocol["task_horizon_steps"], 2250)
         self.assertEqual(protocol["task_horizon_seconds"], 90.0)
 

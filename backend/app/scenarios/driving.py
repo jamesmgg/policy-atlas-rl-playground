@@ -215,9 +215,10 @@ DRIVING_SPECS: list[ScenarioSpec] = [
         "apex-gp-wet", "Apex GP — Wet", "Weather",
         "Rain at Apex GP: reduced grip everywhere, standing water in three zones.",
         "APEX_GP",
+        reward=RewardConfig(stall=-40.0, wrong_way=-40.0),
         features=DrivingFeatures(global_grip=0.75, zones=WET_ZONES),
         training_rolling_checkpoints=(11,),
-        horizon_steps=2250, checkpoint_schema=8),
+        horizon_steps=2250, checkpoint_schema=9),
     _driving_spec(
         "glacier", "Glacier Lake", "Weather",
         "A circuit on ice. Gentle inputs preserve momentum; controlled slides can help rotation.",
