@@ -87,7 +87,7 @@ class DrivingCurriculumTests(unittest.TestCase):
     @unittest.skipUnless(HAS_ROLLING_CURRICULUM, "curriculum API not implemented")
     def test_traffic_fixed_evaluation_remains_canonical(self) -> None:
         spec = self.specs["traffic-rush"]
-        self.assertEqual(spec.checkpoint_schema, 16)
+        self.assertEqual(spec.checkpoint_schema, 18)
 
         env = spec.make_env(False)
         env.rng.seed(41)
@@ -322,17 +322,13 @@ class DrivingCurriculumTests(unittest.TestCase):
         spec = self.specs["traffic-rush"]
         disclosure = spec.training_start_distribution
         self.assertEqual(spec.info()["training_start_distribution"], disclosure)
-        self.assertEqual(
+        self.assertIn(
+            "episodes 1-200 sample 75% physical checkpoint-11 near-pass",
             disclosure,
-            "Performance-gated reverse Traffic curriculum over audited "
-            "physical checkpoints 11, 9, 3, then canonical 0: 80% active "
-            "frontier and 20% uniformly sampled mastered stages; two "
-            "distinct 10-seed confirmations at >=80% unlock checkpoints 9, "
-            "3, and 0, while two >=90% canonical confirmations complete the "
-            "curriculum; rolling states use the 70-90% curvature/grip "
-            "backward-braking envelope, an 80% reference clock with a "
-            "1-second reserve, time-advanced traffic and reconstructed pass "
-            "masks, and no reset reward",
+        )
+        self.assertIn(
+            "episodes 401 onward use nested speed-control starts only",
+            disclosure,
         )
 
 

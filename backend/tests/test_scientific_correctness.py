@@ -598,11 +598,14 @@ class TestExperimentContract(unittest.TestCase):
         dry = specs["apex-gp"].make_env(False)
         wet = specs["apex-gp-wet"].make_env(False)
         traffic = specs["traffic-rush"].make_env(False)
-        self.assertEqual(specs["traffic-rush"].checkpoint_schema, 16)
+        self.assertEqual(specs["traffic-rush"].checkpoint_schema, 18)
 
         self.assertGreaterEqual(dry.obs_dim, 17)  # base state + grip profile
         self.assertEqual(wet.obs_dim, dry.obs_dim)
-        self.assertEqual(traffic.obs_dim - dry.obs_dim, 12)  # 4 values x 3 bots
+        self.assertEqual(
+            traffic.obs_dim - dry.obs_dim,
+            15,  # 4 values x 3 bots + 3 Traffic guidance values
+        )
 
         first_bot = dry.obs_dim - 1  # traffic fields precede the shared time field
         traffic._bot_arcs[0] = (traffic.s_prev - 2.0) % traffic.track.total_length
@@ -909,7 +912,7 @@ class TestEvaluationProtocol(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 16)
+        self.assertEqual(protocol["version"], 18)
         self.assertEqual(protocol["gamma"], trainer.spec.training_discount_factor)
         self.assertEqual(protocol["training_reward_scale"], 0.01)
         self.assertEqual(protocol["entropy_coefficient"], 0.0)

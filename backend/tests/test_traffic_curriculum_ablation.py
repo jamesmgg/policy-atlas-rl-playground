@@ -91,12 +91,11 @@ class TrafficStageCurriculumAblationTests(unittest.TestCase):
                 wrong_way=-40.0,
                 timeout=-40.0,
                 terminalize_failure_time=True,
-                terminal_zero_course_potential=True,
+                retain_terminal_course_potential=True,
             ),
         )
-        # The live differences remain dense, but terminal-zero potential
-        # shaping prevents recurring course rewards from surviving the full
-        # episode return when no overtake is completed.
+        # The live differences remain dense and retain real local progress at
+        # failure, so later successful transitions are not erased at terminal.
         self.assertEqual(
             (
                 env.reward_cfg.progress,
@@ -379,7 +378,7 @@ class TrafficStageCurriculumAblationTests(unittest.TestCase):
                 } else 0.995
                 self.assertEqual(spec.training_discount_factor, expected)
 
-    def test_schema_sixteen_refuses_a_schema_fifteen_traffic_checkpoint(self) -> None:
+    def test_schema_eighteen_refuses_a_schema_seventeen_traffic_checkpoint(self) -> None:
         env = self.traffic.make_env(False)
         agent = PPOAgent(
             env.obs_dim, env.n_continuous, env.n_binary, torch.device("cpu"))
@@ -388,12 +387,12 @@ class TrafficStageCurriculumAblationTests(unittest.TestCase):
             current = CheckpointRegistry(
                 root, self.traffic.id,
                 schema_version=self.traffic.checkpoint_schema)
-            old = CheckpointRegistry(root, self.traffic.id, schema_version=15)
+            old = CheckpointRegistry(root, self.traffic.id, schema_version=17)
             old.save(25, agent, [{"reward": 1.0}], {
                 "reward": 1.0, "metric": 2.0, "trajectory": [],
             })
 
-            self.assertEqual(self.traffic.checkpoint_schema, 16)
+            self.assertEqual(self.traffic.checkpoint_schema, 18)
             self.assertEqual(current.list(), [])
             with self.assertRaises(IncompatibleCheckpointError):
                 current.load_into(
@@ -403,7 +402,7 @@ class TrafficStageCurriculumAblationTests(unittest.TestCase):
                     expected_evaluation_suite="current-suite",
                 )
 
-    def test_protocol_v16_discloses_the_terminalized_failure_clock(self) -> None:
+    def test_protocol_v18_discloses_the_terminalized_failure_clock(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "state.json").write_text(
@@ -453,21 +452,13 @@ class TrafficStageCurriculumAblationTests(unittest.TestCase):
                 "successful_completion": "elapsed live-step time cost only",
             },
         )
-        self.assertEqual(protocol["version"], 16)
+        self.assertEqual(protocol["version"], 18)
         self.assertEqual(protocol["gamma"], 1.0)
         self.assertEqual(protocol["task_horizon_steps"], 2250)
         self.assertEqual(protocol["task_horizon_seconds"], 90.0)
         self.assertEqual(
             protocol["training_start_distribution"],
-            "Performance-gated reverse Traffic curriculum over audited "
-            "physical checkpoints 11, 9, 3, then canonical 0: 80% active "
-            "frontier and 20% uniformly sampled mastered stages; two "
-            "distinct 10-seed confirmations at >=80% unlock checkpoints 9, "
-            "3, and 0, while two >=90% canonical confirmations complete the "
-            "curriculum; rolling states use the 70-90% curvature/grip "
-            "backward-braking envelope, an 80% reference clock with a "
-            "1-second reserve, time-advanced traffic and reconstructed pass "
-            "masks, and no reset reward",
+            self.traffic.training_start_distribution,
         )
 
 

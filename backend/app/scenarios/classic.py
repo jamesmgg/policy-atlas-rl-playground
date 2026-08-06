@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from ..envs import cartpole, drone, lander, mountain_car, pendulum
+from ..ppo.demonstrations import BehaviorCloningWarmStart
 from ..ppo.initialization import ActorInitialization
 from .spec import ScenarioSpec
 
@@ -20,6 +21,23 @@ DRONE_ACTOR_INITIALIZATION = ActorInitialization(
     scope="drone_hover_only",
     continuous_action_labels=("left_rotor_thrust", "right_rotor_thrust"),
     continuous_action_prior=(drone.HOVER_ACTION, drone.HOVER_ACTION),
+    continuous_log_std=(-2.0, -2.0),
+)
+
+DRONE_ACTOR_WARM_START = BehaviorCloningWarmStart(
+    id="drone-physics-demonstrations-v1",
+    expert_id="drone-physics-pd-v1",
+    expert_description=(
+        "bounded physics PD controller: 0.5-second desired-velocity response, "
+        "50 unit/s² acceleration cap, desired tilt atan2(ax, gravity-ay) "
+        "clipped to ±1 radian, and angular gains Kp=25/Kd=7; it generates "
+        "training targets only and is absent at inference"),
+    dataset_seed_base=600_000,
+    dataset_episodes=80,
+    dataset_start_description=(
+        "ordinary jittered canonical full-course starts, disjoint from fixed "
+        "selection and holdout seeds"),
+    dataset_builder=drone.behavior_cloning_dataset,
 )
 
 
@@ -81,21 +99,26 @@ CLASSIC_SPECS: list[ScenarioSpec] = [
         make_env=lambda jitter: drone.DroneEnv(jitter=jitter),
         scene=drone.scene,
         training_factory=lambda: drone.DroneEnv(
-            jitter=True, waypoint_start_curriculum=True),
+            jitter=True, episode_schedule=True),
         training_start_distribution=drone.TRAINING_START_DISTRIBUTION,
-        training_curriculum=drone.TRAINING_CURRICULUM,
+        training_schedule=drone.TRAINING_SCHEDULE,
         objective="Capture all waypoints while controlling attitude and energy use.",
         success="Capture all five waypoints without tipping or leaving the arena.",
         observations=("target-relative position", "linear velocity", "tilt and angular rate", "course progress"),
         observation_dimensions=("target horizontal offset / 300", "target vertical offset / 300",
-                                "horizontal velocity / 60", "vertical velocity / 60",
+                                "horizontal velocity / 100", "vertical velocity / 100",
+                                "desired horizontal velocity error / 100",
+                                "desired vertical velocity error / 100",
+                                "desired tilt error / 1.3",
                                 "sin tilt", "cos tilt", "angular rate / 4", "waypoint fraction",
                                 "remaining horizon fraction"),
         actions=("left-rotor thrust", "right-rotor thrust"),
         reward_terms=(
-            "terminal-zero potential: −(0.05 distance + 0.10 desired-velocity "
-            "error + 5.0 desired-tilt error)",
+            "segment-local progress auxiliary: change in −(0.05 distance "
+            "+ 0.10 desired-velocity error + 5.0 desired-tilt error)",
             "20–80 unit/s target speed from a 20 unit/s² braking envelope",
+            "waypoint captures reset the auxiliary baseline without a "
+            "cross-target jump; terminal segment cost is retained on failure",
             "+20 per waypoint and +50 course completion",
             "angular-rate and squared-thrust regularizers charged only on "
             "successful course completion",
@@ -106,7 +129,8 @@ CLASSIC_SPECS: list[ScenarioSpec] = [
         horizon_seconds=drone.DroneEnv.max_steps * drone.DroneEnv.dt,
         training_discount_factor=1.0,
         actor_initialization=DRONE_ACTOR_INITIALIZATION,
-        checkpoint_schema=15),
+        actor_warm_start=DRONE_ACTOR_WARM_START,
+        checkpoint_schema=17),
     ScenarioSpec(
         id="cartpole-balance", name="Continuous Cart-Pole", group="Foundations",
         kind="generic",

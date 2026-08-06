@@ -9,14 +9,19 @@ from __future__ import annotations
 
 import math
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 
 from .. import physics
 from ..physics import CarState, PhysicsParams
 from ..track import Track, heading_at
-from .base import TrainingCurriculumSpec
+from .base import (
+    EpisodeTrainingPhase,
+    EpisodeTrainingScheduleSpec,
+    TrainingControlSpec,
+    TrainingCurriculumSpec,
+)
 
 FRAME_SKIP = 2
 DT_AGENT = physics.DT * FRAME_SKIP   # 0.04 s per agent step
@@ -84,6 +89,7 @@ class RewardConfig:
     timeout: float = 0.0
     terminalize_failure_time: bool = False
     terminal_zero_course_potential: bool = False
+    retain_terminal_course_potential: bool = False
 
 
 FAILURE_TERMINAL_CAUSES = (
@@ -110,11 +116,92 @@ def terminal_zero_potential_delta(
     return next_potential - float(previous_potential)
 
 
+def retained_course_potential_delta(
+        previous_potential: float, current_potential: float) -> float:
+    """Local potential difference that retains the physical terminal state."""
+    return float(current_potential) - float(previous_potential)
+
+
 TRAFFIC_CURRICULUM_ID = "traffic-reverse-overtake-v1"
-TRAFFIC_CURRICULUM_STATE_VERSION = 1
+TRAFFIC_CURRICULUM_STATE_VERSION = 2
 TRAFFIC_CURRICULUM_FRONTIER_ORDER = (11, 9, 3, 0)
 TRAFFIC_CURRICULUM_ACTIVE_FRONTIER_PROBABILITY = 0.8
 TRAFFIC_CURRICULUM_CONSECUTIVE_CONFIRMATIONS = 2
+TRAFFIC_BOT3_SPEED_CONTROL_ID = "traffic-cp11-bot3-speed-v1"
+TRAFFIC_BOT3_SPEED_STATE_VERSION = 1
+TRAFFIC_BOT3_SPEED_STAGE_IDS = ("speed-18", "speed-24", "speed-30")
+TRAFFIC_BOT3_SPEEDS = (18.0, 24.0, 30.0)
+TRAFFIC_BOT3_SPEED_ACTIVE_STAGE_PROBABILITY = 0.8
+TRAFFIC_BOT3_SPEED_SUCCESS_RATE_THRESHOLD = 0.8
+TRAFFIC_BOT3_SPEED_CONSECUTIVE_CONFIRMATIONS = 2
+TRAFFIC_BOT3_REHEARSAL_SPEED = 12.0
+TRAFFIC_BOT3_REHEARSAL_SCHEDULE = (
+    (1, 200, 0.75),
+    (201, 400, 0.25),
+    (401, None, 0.0),
+)
+TRAFFIC_TRAINING_SCHEDULE = EpisodeTrainingScheduleSpec(
+    id="traffic-near-pass-episode-schedule-v1",
+    phases=(
+        EpisodeTrainingPhase(
+            id="near_pass_bootstrap",
+            start_episode=1,
+            end_episode=200,
+            mode_probabilities=(
+                ("near_pass_rehearsal", 0.75),
+                ("nested_speed_control", 0.25),
+            ),
+            description=(
+                "frequent physical checkpoint-11 bot3 rehearsals at 12 m/s "
+                "bridge the first clean-overtake signal"
+            ),
+        ),
+        EpisodeTrainingPhase(
+            id="near_pass_bridge",
+            start_episode=201,
+            end_episode=400,
+            mode_probabilities=(
+                ("near_pass_rehearsal", 0.25),
+                ("nested_speed_control", 0.75),
+            ),
+            description=(
+                "reduce near-pass rehearsal while the nested 18/24/30 m/s "
+                "proficiency control becomes dominant"
+            ),
+        ),
+        EpisodeTrainingPhase(
+            id="canonical_speed_consolidation",
+            start_episode=401,
+            end_episode=None,
+            mode_probabilities=(("nested_speed_control", 1.0),),
+            description=(
+                "retire the 12 m/s rehearsal and use only the proficiency-"
+                "gated nested control plus mastered outer frontiers"
+            ),
+        ),
+    ),
+    start_state_description=(
+        "the schedule affects only locked checkpoint-11 training resets; "
+        "12 m/s bot3 states preserve time-advanced arcs, masks, clock, and "
+        "zero reset reward"
+    ),
+    checkpoint_selection_description=(
+        "schedule and DAgger are training-only; fixed canonical full-course "
+        "learned-policy evaluation remains the sole selection signal"
+    ),
+)
+TRAFFIC_GUIDANCE_OBS_DIM = 3
+TRAFFIC_PURSUIT_LOOKAHEAD_BASE = 18.0
+TRAFFIC_PURSUIT_LOOKAHEAD_SPEED_SCALE = 0.25
+TRAFFIC_PASS_TARGET_LANE_FRACTION = 0.72
+TRAFFIC_PASS_GUIDANCE_REAR_LIMIT = -12.0
+TRAFFIC_PASS_GUIDANCE_AHEAD_LIMIT = 80.0
+TRAFFIC_REFERENCE_SPEED_FRACTION = 0.95
+TRAFFIC_PASS_SPEED_CAP = 62.0
+TRAFFIC_REFERENCE_HEADING_GAIN = 1.6
+TRAFFIC_REFERENCE_LATERAL_DAMPING = 0.3
+TRAFFIC_REFERENCE_ACCELERATION_GAIN = 8.0
+TRAFFIC_REFERENCE_BRAKING_GAIN = 10.0
 
 
 @dataclass(frozen=True)
@@ -168,6 +255,8 @@ class DrivingEnv:
                         + TASK_OBS_DIM
                         + (1 if self.features.fuel else 0)
                         + (4 * len(self.features.bots))
+                        + (TRAFFIC_GUIDANCE_OBS_DIM
+                           if self.features.metric == "overtakes" else 0)
                         + 1)
         # Per-sample grip from global surface + zones.
         grip = np.full(self.track.n, self.features.global_grip)
@@ -382,11 +471,12 @@ class DrivingEnv:
                 + cfg.lap * int(self.laps))
 
     def course_reward_potential_protocol(self) -> dict | None:
-        """Disclose the exact terminal-zero shaping contract when enabled."""
+        """Disclose the exact course-progress credit contract when enabled."""
         cfg = self.reward_cfg
-        if not cfg.terminal_zero_course_potential:
+        if (not cfg.terminal_zero_course_potential
+                and not cfg.retain_terminal_course_potential):
             return None
-        return {
+        protocol = {
             "enabled": True,
             "state_potential": (
                 f"{cfg.progress:g} * signed_progress + "
@@ -394,10 +484,20 @@ class DrivingEnv:
                 f"{cfg.lap:g} * completed_laps"
             ),
             "live_transition": "potential(next_state) - potential(state)",
-            "terminal_potential": 0.0,
-            "episode_sum": "-potential(start_state)",
             "discount_factor": 1.0,
         }
+        if cfg.terminal_zero_course_potential:
+            protocol.update({
+                "terminal_potential": 0.0,
+                "episode_sum": "-potential(start_state)",
+            })
+        else:
+            protocol.update({
+                "terminal_potential": "retained physical end potential",
+                "episode_sum": (
+                    "potential(end_state) - potential(start_state)"),
+            })
+        return protocol
 
     # ------------------------------------------------------------------ step
 
@@ -434,11 +534,13 @@ class DrivingEnv:
             self._stall_steps += 1
 
         reward = cfg.time
-        if not cfg.terminal_zero_course_potential:
+        if (not cfg.terminal_zero_course_potential
+                and not cfg.retain_terminal_course_potential):
             reward += cfg.progress * ds
 
         while self.progress >= self._cp_threshold():
-            if not cfg.terminal_zero_course_potential:
+            if (not cfg.terminal_zero_course_potential
+                    and not cfg.retain_terminal_course_potential):
                 reward += cfg.checkpoint
             self.next_cp += 1
             if (self.next_cp - 1) % len(track.checkpoint_arcs) == 0:
@@ -448,7 +550,8 @@ class DrivingEnv:
                 self.last_lap_time = lap_time
                 if self.best_lap_time is None or lap_time < self.best_lap_time:
                     self.best_lap_time = lap_time
-                if not cfg.terminal_zero_course_potential:
+                if (not cfg.terminal_zero_course_potential
+                        and not cfg.retain_terminal_course_potential):
                     reward += cfg.lap
 
         curv = float(track.curvature[self.idx])
@@ -510,6 +613,13 @@ class DrivingEnv:
             )
             self._course_reward_potential_prev = (
                 0.0 if done else current_potential)
+        elif cfg.retain_terminal_course_potential:
+            current_potential = self.course_reward_potential()
+            reward += retained_course_potential_delta(
+                self._course_reward_potential_prev,
+                current_potential,
+            )
+            self._course_reward_potential_prev = current_potential
 
         if done:
             reward += terminal_failure_time_cost(
@@ -581,6 +691,62 @@ class DrivingEnv:
             if math.hypot(self.car.x - bx, self.car.y - by) < CONTACT_DIST:
                 return True
         return False
+
+    def traffic_guidance(self) -> dict:
+        """Expose a disclosed geometric lane and speed target for Traffic."""
+        target_lane_fraction = 0.0
+        target_bot_index = None
+        nearest_gap = math.inf
+        for index, bot in enumerate(self.features.bots):
+            if self._bot_passed[index]:
+                continue
+            gap = self._bot_signed_gap(index)
+            if (TRAFFIC_PASS_GUIDANCE_REAR_LIMIT < gap
+                    < TRAFFIC_PASS_GUIDANCE_AHEAD_LIMIT
+                    and gap < nearest_gap):
+                nearest_gap = gap
+                target_bot_index = index + 1
+                target_lane_fraction = (
+                    -TRAFFIC_PASS_TARGET_LANE_FRACTION
+                    if bot.lat_frac >= 0.0
+                    else TRAFFIC_PASS_TARGET_LANE_FRACTION
+                )
+
+        lookahead = max(
+            10.0,
+            TRAFFIC_PURSUIT_LOOKAHEAD_BASE
+            + TRAFFIC_PURSUIT_LOOKAHEAD_SPEED_SCALE * self.car.speed,
+        )
+        ahead_index = self.track.index_ahead(self.idx, lookahead)
+        target = (
+            self.track.centerline[ahead_index]
+            + self.track.normals[ahead_index]
+            * target_lane_fraction
+            * self.track.half_widths[ahead_index]
+        )
+        desired_heading = math.atan2(
+            float(target[1]) - self.car.y,
+            float(target[0]) - self.car.x,
+        )
+        heading_error = math.atan2(
+            math.sin(desired_heading - self.car.heading),
+            math.cos(desired_heading - self.car.heading),
+        )
+        speed_target = (
+            self.rolling_speed_limit(self.idx)
+            * TRAFFIC_REFERENCE_SPEED_FRACTION
+        )
+        if target_bot_index is not None:
+            speed_target = min(speed_target, TRAFFIC_PASS_SPEED_CAP)
+        return {
+            "target_bot_index": target_bot_index,
+            "target_lane_fraction": target_lane_fraction,
+            "heading_error_normalized": float(np.clip(
+                heading_error / self.params.max_steer, -2.5, 2.5)),
+            "speed_target_mps": float(speed_target),
+            "speed_target_fraction": float(
+                speed_target / self.params.max_speed),
+        }
 
     # ----------------------------------------------------------------- protocol
 
@@ -761,8 +927,37 @@ class DrivingEnv:
                 obs[cursor + 2] = bot.lat_frac
                 obs[cursor + 3] = float(self._bot_passed[i])
                 cursor += 4
+        if self.features.metric == "overtakes":
+            guidance = self.traffic_guidance()
+            obs[cursor] = guidance["target_lane_fraction"]
+            obs[cursor + 1] = guidance["heading_error_normalized"]
+            obs[cursor + 2] = guidance["speed_target_fraction"]
+            cursor += TRAFFIC_GUIDANCE_OBS_DIM
         obs[cursor] = max(0.0, 1.0 - self.steps / self.max_steps)
         return obs
+
+
+def traffic_reference_action(env: DrivingEnv) -> np.ndarray:
+    """Training-only pure-pursuit teacher for reproducible demonstrations."""
+    guidance = env.traffic_guidance()
+    speed_error = guidance["speed_target_mps"] - env.car.v_long
+    throttle = np.clip(
+        speed_error / (
+            TRAFFIC_REFERENCE_ACCELERATION_GAIN
+            if speed_error >= 0.0
+            else TRAFFIC_REFERENCE_BRAKING_GAIN
+        ),
+        -1.0,
+        1.0,
+    )
+    steering = np.clip(
+        TRAFFIC_REFERENCE_HEADING_GAIN
+        * guidance["heading_error_normalized"]
+        - TRAFFIC_REFERENCE_LATERAL_DAMPING * env.car.v_lat / 25.0,
+        -1.0,
+        1.0,
+    )
+    return np.array([throttle, steering, 0.0], dtype=np.float32)
 
 
 @dataclass
@@ -776,6 +971,7 @@ class TrafficCurriculumEnv(DrivingEnv):
 
     traffic_stage_curriculum: bool = False
     forced_start_checkpoint: int | None = None
+    forced_bot3_speed_stage: str | None = None
     _curriculum_position: int = field(default=0, init=False, repr=False)
     _curriculum_pass_streak: int = field(default=0, init=False, repr=False)
     _curriculum_complete: bool = field(default=False, init=False, repr=False)
@@ -784,17 +980,49 @@ class TrafficCurriculumEnv(DrivingEnv):
         default=None, init=False, repr=False)
     _curriculum_last_evaluation_episode: int | None = field(
         default=None, init=False, repr=False)
+    _bot3_speed_position: int = field(default=0, init=False, repr=False)
+    _bot3_speed_pass_streak: int = field(default=0, init=False, repr=False)
+    _bot3_speed_complete: bool = field(default=False, init=False, repr=False)
+    _bot3_speed_evaluations: int = field(default=0, init=False, repr=False)
+    _bot3_speed_last_success_rate: float | None = field(
+        default=None, init=False, repr=False)
+    _bot3_speed_last_evaluation_episode: int | None = field(
+        default=None, init=False, repr=False)
+    _traffic_canonical_features: DrivingFeatures = field(
+        init=False, repr=False)
 
     def __post_init__(self):
+        self._traffic_canonical_features = self.features
+        if len(self.features.bots) != 3:
+            raise ValueError("Traffic curriculum requires exactly three bots")
         if (self.forced_start_checkpoint is not None
                 and self.forced_start_checkpoint
                 not in TRAFFIC_CURRICULUM_FRONTIER_ORDER):
             raise ValueError(
                 "forced Traffic checkpoint must be one of 11, 9, 3, or 0")
+        if (self.forced_bot3_speed_stage is not None
+                and self.forced_bot3_speed_stage
+                not in TRAFFIC_BOT3_SPEED_STAGE_IDS):
+            raise ValueError("unknown forced Traffic bot3 speed stage")
+        if (self.forced_bot3_speed_stage is not None
+                and self.forced_start_checkpoint != 11):
+            raise ValueError("bot3 speed stages are defined only at checkpoint 11")
         super().__post_init__()
 
     def reset(self) -> np.ndarray:
         checkpoint = self._sample_start_checkpoint()
+        bot3_speed = self._bot3_speed_for_reset(checkpoint)
+        canonical_bots = self._traffic_canonical_features.bots
+        self.features = replace(
+            self._traffic_canonical_features,
+            bots=(
+                *canonical_bots[:2],
+                replace(
+                    canonical_bots[2],
+                    speed=bot3_speed,
+                ),
+            ),
+        )
         if checkpoint == 0:
             self.random_start = False
             self.start_line_probability = 0.0
@@ -804,6 +1032,64 @@ class TrafficCurriculumEnv(DrivingEnv):
             self.start_line_probability = 0.0
             self.rolling_checkpoint_indices = (checkpoint,)
         return super().reset()
+
+    def reset_for_training_episode(self, episode: int) -> np.ndarray:
+        """Reset using the one-based episode that selects rehearsal exposure."""
+        if episode < 1:
+            raise ValueError("training episode must be one-based")
+        self._training_episode = int(episode)
+        try:
+            return self.reset()
+        finally:
+            del self._training_episode
+
+    def _bot3_speed_for_reset(self, checkpoint: int) -> float:
+        """Choose a training-only speed only for the active cp11 frontier."""
+        if self.forced_bot3_speed_stage is not None:
+            position = TRAFFIC_BOT3_SPEED_STAGE_IDS.index(
+                self.forced_bot3_speed_stage)
+            return TRAFFIC_BOT3_SPEEDS[position]
+        if (not self.traffic_stage_curriculum
+                or checkpoint != 11
+                or self._curriculum_position != 0
+                or self._bot3_speed_complete):
+            return TRAFFIC_BOT3_SPEEDS[-1]
+        training_episode = getattr(self, "_training_episode", 1)
+        self._training_phase, training_mode = (
+            TRAFFIC_TRAINING_SCHEDULE.sample_mode(
+                self.rng, training_episode)
+        )
+        if training_mode == "near_pass_rehearsal":
+            return TRAFFIC_BOT3_REHEARSAL_SPEED
+        active = TRAFFIC_BOT3_SPEEDS[self._bot3_speed_position]
+        mastered = TRAFFIC_BOT3_SPEEDS[:self._bot3_speed_position]
+        if (not mastered
+                or self.rng.random()
+                < TRAFFIC_BOT3_SPEED_ACTIVE_STAGE_PROBABILITY):
+            return active
+        return self.rng.choice(mastered)
+
+    def bot3_catchup_diagnostics(self) -> dict:
+        """Describe the current physical catch-up task for Traffic bot 3."""
+        gap = self._bot_gap(2)
+        remaining_seconds = max(
+            (self.max_steps - self.steps) * self.dt, 0.0)
+        required_average_speed = (
+            self.features.bots[2].speed + gap / remaining_seconds
+            if remaining_seconds > 0.0 else math.inf
+        )
+        return {
+            "checkpoint": (
+                self.track.checkpoints.index(self.idx)
+                if self.idx in self.track.checkpoints else None
+            ),
+            "bot_index": 3,
+            "bot_speed_mps": float(self.features.bots[2].speed),
+            "gap_m": float(gap),
+            "remaining_seconds": float(remaining_seconds),
+            "required_average_speed_mps": float(required_average_speed),
+            "pass_masks": list(self._bot_passed),
+        }
 
     def _sample_start_checkpoint(self) -> int:
         if self.forced_start_checkpoint is not None:
@@ -837,7 +1123,107 @@ class TrafficCurriculumEnv(DrivingEnv):
             "last_success_rate": self._curriculum_last_success_rate,
             "last_evaluation_episode": (
                 self._curriculum_last_evaluation_episode),
+            "bot3_speed": self.training_control_state(),
         }
+
+    def training_control_state(self) -> dict:
+        """Return the exact nested cp11 bot3 speed-control state."""
+        stage = TRAFFIC_BOT3_SPEED_STAGE_IDS[self._bot3_speed_position]
+        return {
+            "version": TRAFFIC_BOT3_SPEED_STATE_VERSION,
+            "control_id": TRAFFIC_BOT3_SPEED_CONTROL_ID,
+            "stage_position": self._bot3_speed_position,
+            "stage": stage,
+            "speed_mps": TRAFFIC_BOT3_SPEEDS[self._bot3_speed_position],
+            "mastered": list(
+                TRAFFIC_BOT3_SPEED_STAGE_IDS[:self._bot3_speed_position]),
+            "pass_streak": self._bot3_speed_pass_streak,
+            "complete": self._bot3_speed_complete,
+            "evaluations": self._bot3_speed_evaluations,
+            "last_success_rate": self._bot3_speed_last_success_rate,
+            "last_evaluation_episode": (
+                self._bot3_speed_last_evaluation_episode),
+        }
+
+    def _validated_training_control_state(self, state: dict) -> dict:
+        """Validate nested state without mutating either curriculum layer."""
+        try:
+            position = int(state["stage_position"])
+            pass_streak = int(state["pass_streak"])
+            evaluations = int(state["evaluations"])
+            complete = bool(state["complete"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("invalid Traffic bot3 speed state") from exc
+        if int(state.get("version", -1)) != TRAFFIC_BOT3_SPEED_STATE_VERSION:
+            raise ValueError("unsupported Traffic bot3 speed state version")
+        if state.get("control_id") != TRAFFIC_BOT3_SPEED_CONTROL_ID:
+            raise ValueError("Traffic bot3 speed control id does not match")
+        if not 0 <= position < len(TRAFFIC_BOT3_SPEED_STAGE_IDS):
+            raise ValueError("invalid Traffic bot3 speed stage position")
+        if state.get("stage") != TRAFFIC_BOT3_SPEED_STAGE_IDS[position]:
+            raise ValueError("Traffic bot3 speed stage does not match position")
+        if float(state.get("speed_mps", math.nan)) != (
+                TRAFFIC_BOT3_SPEEDS[position]):
+            raise ValueError("Traffic bot3 speed does not match stage")
+        mastered = state.get("mastered", [])
+        if not isinstance(mastered, (list, tuple)):
+            raise ValueError("Traffic bot3 speed mastered stages are invalid")
+        if list(mastered) != list(
+                TRAFFIC_BOT3_SPEED_STAGE_IDS[:position]):
+            raise ValueError(
+                "Traffic bot3 speed mastered stages are inconsistent")
+        if not 0 <= pass_streak <= (
+                TRAFFIC_BOT3_SPEED_CONSECUTIVE_CONFIRMATIONS):
+            raise ValueError("invalid Traffic bot3 speed confirmation streak")
+        if (not complete
+                and pass_streak
+                >= TRAFFIC_BOT3_SPEED_CONSECUTIVE_CONFIRMATIONS):
+            raise ValueError(
+                "incomplete Traffic bot3 speed state cannot retain a "
+                "completed confirmation streak")
+        if (complete
+                and pass_streak
+                != TRAFFIC_BOT3_SPEED_CONSECUTIVE_CONFIRMATIONS):
+            raise ValueError(
+                "complete Traffic bot3 speed state must retain its "
+                "completed confirmation streak")
+        if evaluations < 0:
+            raise ValueError("invalid Traffic bot3 speed evaluation count")
+        if complete and position != len(TRAFFIC_BOT3_SPEED_STAGE_IDS) - 1:
+            raise ValueError("only canonical 30 m/s speed can be complete")
+        last_success_rate = state.get("last_success_rate")
+        if last_success_rate is not None:
+            last_success_rate = float(last_success_rate)
+            if not 0.0 <= last_success_rate <= 1.0:
+                raise ValueError("invalid Traffic bot3 speed success rate")
+        last_evaluation_episode = state.get("last_evaluation_episode")
+        if last_evaluation_episode is not None:
+            last_evaluation_episode = int(last_evaluation_episode)
+            if last_evaluation_episode < 0:
+                raise ValueError(
+                    "invalid Traffic bot3 speed evaluation episode")
+        return {
+            "position": position,
+            "pass_streak": pass_streak,
+            "complete": complete,
+            "evaluations": evaluations,
+            "last_success_rate": last_success_rate,
+            "last_evaluation_episode": last_evaluation_episode,
+        }
+
+    def _apply_training_control_state(self, validated: dict) -> None:
+        self._bot3_speed_position = validated["position"]
+        self._bot3_speed_pass_streak = validated["pass_streak"]
+        self._bot3_speed_complete = validated["complete"]
+        self._bot3_speed_evaluations = validated["evaluations"]
+        self._bot3_speed_last_success_rate = validated["last_success_rate"]
+        self._bot3_speed_last_evaluation_episode = (
+            validated["last_evaluation_episode"])
+
+    def restore_training_control_state(self, state: dict) -> None:
+        """Atomically restore the validated nested bot3 speed state."""
+        validated = self._validated_training_control_state(state)
+        self._apply_training_control_state(validated)
 
     def restore_training_curriculum_state(self, state: dict) -> None:
         """Restore a validated Traffic gate saved with the checkpoint RNG."""
@@ -846,10 +1232,13 @@ class TrafficCurriculumEnv(DrivingEnv):
         if int(state.get("version", -1)) != TRAFFIC_CURRICULUM_STATE_VERSION:
             raise ValueError("unsupported Traffic curriculum state version")
 
-        position = int(state["frontier_position"])
-        pass_streak = int(state["pass_streak"])
-        evaluations = int(state["evaluations"])
-        complete = bool(state["complete"])
+        try:
+            position = int(state["frontier_position"])
+            pass_streak = int(state["pass_streak"])
+            evaluations = int(state["evaluations"])
+            complete = bool(state["complete"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("invalid Traffic curriculum state") from exc
         last_success_rate = state.get("last_success_rate")
         last_evaluation_episode = state.get("last_evaluation_episode")
         if not 0 <= position < len(TRAFFIC_CURRICULUM_FRONTIER_ORDER):
@@ -879,6 +1268,16 @@ class TrafficCurriculumEnv(DrivingEnv):
                 raise ValueError(
                     "invalid Traffic curriculum evaluation episode")
 
+        bot3_speed = state.get("bot3_speed")
+        if not isinstance(bot3_speed, dict):
+            raise ValueError("Traffic curriculum state lacks bot3 speed control")
+        validated_speed = self._validated_training_control_state(bot3_speed)
+        if position > 0 and not validated_speed["complete"]:
+            raise ValueError(
+                "an unlocked Traffic frontier requires canonical 30 m/s "
+                "proficiency")
+
+        self._apply_training_control_state(validated_speed)
         self._curriculum_position = position
         self._curriculum_pass_streak = pass_streak
         self._curriculum_complete = complete
@@ -893,6 +1292,95 @@ class TrafficCurriculumEnv(DrivingEnv):
         self._curriculum_evaluations = 0
         self._curriculum_last_success_rate = None
         self._curriculum_last_evaluation_episode = None
+        self._bot3_speed_position = 0
+        self._bot3_speed_pass_streak = 0
+        self._bot3_speed_complete = False
+        self._bot3_speed_evaluations = 0
+        self._bot3_speed_last_success_rate = None
+        self._bot3_speed_last_evaluation_episode = None
+
+    def record_training_control_evaluation(
+            self, success_rate: float,
+            control: TrainingControlSpec, *,
+            evaluation_episode: int | None = None) -> dict:
+        """Apply one distinct fixed-suite result to the cp11 speed gate."""
+        if control.id != TRAFFIC_BOT3_SPEED_CONTROL_ID:
+            raise ValueError("training control id does not match Traffic")
+        if tuple(control.stage_ids) != TRAFFIC_BOT3_SPEED_STAGE_IDS:
+            raise ValueError("bot3 speed stage order does not match Traffic")
+        if (control.consecutive_confirmations
+                != TRAFFIC_BOT3_SPEED_CONSECUTIVE_CONFIRMATIONS):
+            raise ValueError("bot3 speed confirmation count does not match")
+        if not 0.0 <= success_rate <= 1.0:
+            raise ValueError("bot3 speed success rate must be in [0, 1]")
+        if evaluation_episode is None:
+            evaluation_episode = (
+                0 if self._bot3_speed_last_evaluation_episode is None
+                else self._bot3_speed_last_evaluation_episode + 1)
+        evaluation_episode = int(evaluation_episode)
+        if evaluation_episode < 0:
+            raise ValueError(
+                "bot3 speed evaluation episode must be non-negative")
+
+        before = self.training_control_state()
+        passed = success_rate >= control.success_rate_threshold
+        if self._bot3_speed_last_evaluation_episode == evaluation_episode:
+            return self._training_control_transition(
+                before, before, success_rate, passed, evaluation_episode,
+                ignored_duplicate=True, unlocked=False, completed=False)
+        if (self._bot3_speed_last_evaluation_episode is not None
+                and evaluation_episode
+                < self._bot3_speed_last_evaluation_episode):
+            raise ValueError(
+                "bot3 speed evaluation episodes must be monotonic")
+
+        self._bot3_speed_evaluations += 1
+        self._bot3_speed_last_success_rate = float(success_rate)
+        self._bot3_speed_last_evaluation_episode = evaluation_episode
+        unlocked = False
+        completed = False
+        if not self._bot3_speed_complete:
+            self._bot3_speed_pass_streak = (
+                self._bot3_speed_pass_streak + 1 if passed else 0)
+            if (self._bot3_speed_pass_streak
+                    >= control.consecutive_confirmations):
+                if (self._bot3_speed_position
+                        < len(TRAFFIC_BOT3_SPEED_STAGE_IDS) - 1):
+                    self._bot3_speed_position += 1
+                    self._bot3_speed_pass_streak = 0
+                    unlocked = True
+                else:
+                    self._bot3_speed_complete = True
+                    completed = True
+        after = self.training_control_state()
+        return self._training_control_transition(
+            before, after, success_rate, passed, evaluation_episode,
+            ignored_duplicate=False, unlocked=unlocked,
+            completed=completed)
+
+    @staticmethod
+    def _training_control_transition(
+            before: dict, after: dict, success_rate: float, passed: bool,
+            evaluation_episode: int, *, ignored_duplicate: bool,
+            unlocked: bool, completed: bool) -> dict:
+        return {
+            "success_rate": float(success_rate),
+            "passed": passed,
+            "evaluation_episode": evaluation_episode,
+            "ignored_duplicate": ignored_duplicate,
+            "stage_before": before["stage"],
+            "stage_after": after["stage"],
+            "speed_mps_before": before["speed_mps"],
+            "speed_mps_after": after["speed_mps"],
+            "mastered_before": before["mastered"],
+            "mastered_after": after["mastered"],
+            "confirmation_streak_before": before["pass_streak"],
+            "confirmation_streak_after": after["pass_streak"],
+            "complete_before": before["complete"],
+            "complete_after": after["complete"],
+            "unlocked": unlocked,
+            "completed": completed,
+        }
 
     def record_training_curriculum_evaluation(
             self, success_rate: float,
@@ -918,10 +1406,15 @@ class TrafficCurriculumEnv(DrivingEnv):
         before = self.training_curriculum_state()
         threshold = curriculum.success_rate_threshold_for(before["frontier"])
         passed = success_rate >= threshold
+        prerequisite_met = (
+            before["frontier"] != 11
+            or before["bot3_speed"]["complete"]
+        )
         if self._curriculum_last_evaluation_episode == evaluation_episode:
             return self._curriculum_transition(
                 before, before, success_rate, threshold, passed,
-                evaluation_episode, ignored_duplicate=True, unlocked=False)
+                prerequisite_met, evaluation_episode,
+                ignored_duplicate=True, unlocked=False)
         if (self._curriculum_last_evaluation_episode is not None
                 and evaluation_episode
                 < self._curriculum_last_evaluation_episode):
@@ -934,7 +1427,8 @@ class TrafficCurriculumEnv(DrivingEnv):
         unlocked = False
         if not self._curriculum_complete:
             self._curriculum_pass_streak = (
-                self._curriculum_pass_streak + 1 if passed else 0)
+                self._curriculum_pass_streak + 1
+                if passed and prerequisite_met else 0)
             if (self._curriculum_pass_streak
                     >= curriculum.consecutive_confirmations):
                 if (self._curriculum_position
@@ -947,17 +1441,20 @@ class TrafficCurriculumEnv(DrivingEnv):
         after = self.training_curriculum_state()
         return self._curriculum_transition(
             before, after, success_rate, threshold, passed,
-            evaluation_episode, ignored_duplicate=False, unlocked=unlocked)
+            prerequisite_met, evaluation_episode,
+            ignored_duplicate=False, unlocked=unlocked)
 
     @staticmethod
     def _curriculum_transition(
             before: dict, after: dict, success_rate: float,
-            threshold: float, passed: bool, evaluation_episode: int, *,
+            threshold: float, passed: bool, prerequisite_met: bool,
+            evaluation_episode: int, *,
             ignored_duplicate: bool, unlocked: bool) -> dict:
         return {
             "success_rate": float(success_rate),
             "success_rate_threshold": threshold,
             "passed": passed,
+            "prerequisite_met": prerequisite_met,
             "evaluation_episode": evaluation_episode,
             "ignored_duplicate": ignored_duplicate,
             "frontier_before": before["frontier"],
