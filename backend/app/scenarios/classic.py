@@ -28,7 +28,7 @@ CLASSIC_SPECS: list[ScenarioSpec] = [
         termination_conditions=("terrain contact", "leaving the arena", "24-second horizon"),
         difficulty="Advanced", horizon_steps=lander.LanderEnv.max_steps,
         horizon_seconds=lander.LanderEnv.max_steps * lander.LanderEnv.dt,
-        checkpoint_schema=2),
+        checkpoint_schema=3),
     ScenarioSpec(
         id="pendulum-swingup", name="Pendulum Swing-Up", group="Classic",
         kind="generic",
@@ -70,7 +70,7 @@ CLASSIC_SPECS: list[ScenarioSpec] = [
         termination_conditions=("all waypoints captured", "tip or arena exit", "36-second horizon"),
         difficulty="Advanced", horizon_steps=drone.DroneEnv.max_steps,
         horizon_seconds=drone.DroneEnv.max_steps * drone.DroneEnv.dt,
-        checkpoint_schema=3),
+        checkpoint_schema=4),
     ScenarioSpec(
         id="cartpole-balance", name="Continuous Cart-Pole", group="Foundations",
         kind="generic",

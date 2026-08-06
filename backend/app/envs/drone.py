@@ -13,15 +13,28 @@ T_MAX = 70.0       # per rotor; hover needs ~0.36 each
 TORQUE = 8.0
 TIP_OVER = 1.3
 CAPTURE_DIST = 25.0
+HORIZON_STEPS = 900
 
 WAYPOINTS: list[tuple[float, float]] = [
     (250, 500), (700, 420), (450, 180), (820, 160), (150, 250),
 ]
 START = (500.0, 560.0)
+_COURSE_POINTS = (START, *WAYPOINTS)
+_SEGMENT_DISTANCES = tuple(
+    math.dist(start, end)
+    for start, end in zip(_COURSE_POINTS, _COURSE_POINTS[1:])
+)
+_COURSE_DISTANCE = sum(_SEGMENT_DISTANCES)
+WAYPOINT_START_STEPS = tuple(
+    round(HORIZON_STEPS * sum(_SEGMENT_DISTANCES[:completed])
+          / _COURSE_DISTANCE)
+    for completed in range(1, len(WAYPOINTS))
+)
 CANONICAL_START_PROBABILITY = 0.5
 TRAINING_START_DISTRIBUTION = (
     "50% canonical full-course start; 50% uniform later waypoint "
-    "segments (targets 2-5) from the preceding waypoint"
+    "segments (targets 2-5) from the preceding waypoint with "
+    "cumulative-distance elapsed clocks"
 )
 
 
@@ -45,7 +58,7 @@ class DroneEnv:
     obs_dim = 9
     n_continuous = 2
     n_binary = 0
-    max_steps = 900
+    max_steps = HORIZON_STEPS
     dt = DT
 
     def __post_init__(self):
@@ -62,7 +75,8 @@ class DroneEnv:
             self.x += self.rng.uniform(-30.0, 30.0)
         self.vx = self.vy = 0.0
         self.theta = self.omega = 0.0
-        self.steps = 0
+        self.steps = (0 if self.k == 0
+                      else WAYPOINT_START_STEPS[self.k - 1])
         self.episode_reward = 0.0
         self.cause = "running"
         self._d_prev = self._dist()

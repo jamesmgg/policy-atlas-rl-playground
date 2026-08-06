@@ -57,6 +57,8 @@ class TestDroneWaypointCurriculum(unittest.TestCase):
                 self.assertEqual(env.k, 0)
                 self.assertEqual(env.y, drone.START[1])
                 self.assertEqual(float(observation[7]), 0.0)
+                self.assertEqual(env.steps, 0)
+                self.assertEqual(float(observation[-1]), 1.0)
 
         self.assertEqual((canonical.x, canonical.y), drone.START)
 
@@ -65,24 +67,36 @@ class TestDroneWaypointCurriculum(unittest.TestCase):
         self.assertTrue(getattr(training, "waypoint_start_curriculum", False))
         training.rng.seed(9)
 
-        observation = training.reset()
-        for _ in range(100):
-            if training.k > 0:
-                break
+        expected_steps = {1: 110, 2: 305, 3: 453, 4: 611}
+        observed: set[int] = set()
+        for _ in range(800):
             observation = training.reset()
+            if training.k == 0:
+                continue
+            observed.add(training.k)
 
-        self.assertGreater(training.k, 0, "seed must exercise a segment reset")
-        target_x, target_y = drone.WAYPOINTS[training.k]
-        self.assertAlmostEqual(float(observation[0]),
-                               (target_x - training.x) / 300.0, places=6)
-        self.assertAlmostEqual(float(observation[1]),
-                               (target_y - training.y) / 300.0, places=6)
-        self.assertAlmostEqual(float(observation[7]),
-                               training.k / len(drone.WAYPOINTS), places=6)
-        self.assertEqual(float(observation[-1]), 1.0)
-        self.assertEqual(training.steps, 0)
-        self.assertEqual(training.episode_reward, 0.0)
-        self.assertEqual(training.cause, "running")
+            target_x, target_y = drone.WAYPOINTS[training.k]
+            self.assertAlmostEqual(float(observation[0]),
+                                   (target_x - training.x) / 300.0, places=6)
+            self.assertAlmostEqual(float(observation[1]),
+                                   (target_y - training.y) / 300.0, places=6)
+            self.assertAlmostEqual(float(observation[7]),
+                                   training.k / len(drone.WAYPOINTS), places=6)
+            self.assertEqual(training.steps, expected_steps[training.k])
+            self.assertAlmostEqual(
+                float(observation[-1]),
+                1.0 - expected_steps[training.k] / training.max_steps,
+                places=6,
+            )
+            self.assertEqual(training.episode_reward, 0.0)
+            self.assertEqual(training.cause, "running")
+
+        self.assertEqual(observed, set(expected_steps))
+        remaining = [
+            1.0 - expected_steps[k] / training.max_steps
+            for k in sorted(expected_steps)
+        ]
+        self.assertTrue(all(a > b for a, b in zip(remaining, remaining[1:])))
 
     def test_start_source_does_not_change_transition_or_reward(self) -> None:
         curriculum = get_spec("drone-hover").make_training_env()
@@ -116,9 +130,10 @@ class TestDroneWaypointCurriculum(unittest.TestCase):
         self.assertEqual(
             getattr(spec, "training_start_distribution", None),
             "50% canonical full-course start; 50% uniform later waypoint "
-            "segments (targets 2-5) from the preceding waypoint",
+            "segments (targets 2-5) from the preceding waypoint with "
+            "cumulative-distance elapsed clocks",
         )
-        self.assertEqual(spec.checkpoint_schema, 3)
+        self.assertEqual(spec.checkpoint_schema, 4)
 
 
 if __name__ == "__main__":

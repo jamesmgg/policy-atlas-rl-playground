@@ -26,6 +26,7 @@ PAD_Y = 620.0
 PAD_CX = (PAD_X0 + PAD_X1) / 2
 
 SAFE_VX, SAFE_VY, SAFE_THETA = 8.0, 14.0, 0.25
+FAILURE_REWARD = -100.0
 
 # Half of training episodes retain the evaluation start distribution. A short
 # terminal-rehearsal band makes the sparse successful touchdown discoverable;
@@ -203,12 +204,13 @@ class LanderEnv:
                 self.landed = True
                 self.cause = "landed"
             else:
-                reward -= 100.0
+                reward += FAILURE_REWARD
                 self.cause = "crash"
         elif self.x < 0 or self.x > 1000 or self.y < 0:
-            reward -= 100.0
+            reward += FAILURE_REWARD
             done, self.cause = True, "out_of_bounds"
         elif self.steps >= self.max_steps:
+            reward += FAILURE_REWARD
             done, self.cause = True, "timeout"
 
         self.episode_reward += reward
