@@ -23,6 +23,7 @@ class ActorInitialization:
     scope: str
     continuous_action_labels: tuple[str, ...]
     continuous_action_prior: tuple[float, ...]
+    continuous_log_std: tuple[float, ...] | None = None
     binary_action_labels: tuple[str, ...] = ()
     binary_probability_prior: tuple[float, ...] = ()
 
@@ -31,6 +32,17 @@ class ActorInitialization:
                 self.continuous_action_prior):
             raise ValueError(
                 "continuous action labels and priors must have equal length")
+        if self.continuous_log_std is None:
+            object.__setattr__(
+                self,
+                "continuous_log_std",
+                (INITIAL_CONTINUOUS_LOG_STD,) * len(
+                    self.continuous_action_prior),
+            )
+        if len(self.continuous_log_std) != len(
+                self.continuous_action_prior):
+            raise ValueError(
+                "continuous log std and priors must have equal length")
         if len(self.binary_action_labels) != len(
                 self.binary_probability_prior):
             raise ValueError(
@@ -40,6 +52,8 @@ class ActorInitialization:
             raise ValueError(
                 "continuous action priors must be finite and strictly inside "
                 "[-1, 1]")
+        if any(not math.isfinite(value) for value in self.continuous_log_std):
+            raise ValueError("continuous log std values must be finite")
         if any(not math.isfinite(value) or not 0.0 < value < 1.0
                for value in self.binary_probability_prior):
             raise ValueError(
@@ -77,7 +91,7 @@ class ActorInitialization:
             "continuous_action_labels": list(self.continuous_action_labels),
             "continuous_action_prior": list(self.continuous_action_prior),
             "continuous_latent_bias": list(self.continuous_latent_bias),
-            "continuous_log_std": [INITIAL_CONTINUOUS_LOG_STD] * n_continuous,
+            "continuous_log_std": list(self.continuous_log_std),
             "continuous_head_weight_std": CONTINUOUS_HEAD_WEIGHT_STD,
             "binary_action_labels": list(self.binary_action_labels),
             "binary_probability_prior": list(self.binary_probability_prior),
