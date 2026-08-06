@@ -531,7 +531,8 @@ class Trainer:
             "device": str(self.device),
             "ghost_episode": self.ghost["episode"] if self.ghost else None,
             "ppo_diagnostics": getattr(self, "latest_update_metrics", None),
-            "actor_warm_start": self.actor_warm_start_diagnostics,
+            "actor_warm_start": getattr(
+                self, "actor_warm_start_diagnostics", None),
         }
 
     # ------------------------------------------------------------- train loop
