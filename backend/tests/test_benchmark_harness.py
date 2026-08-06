@@ -200,17 +200,36 @@ class ReportShapeTests(unittest.TestCase):
             "scenario_id": "one",
             "seed": 42,
             "state": "solved",
+            "engine_source_sha256": "engine-a",
+            "selection": {
+                "suite": "selection-n10",
+                "checkpoint": {
+                    "episode": 25,
+                    "checkpoint_sha256": "selected-tensor",
+                },
+            },
             "holdout": {
                 "state": "complete",
                 "episodes": 100,
+                "requested_episodes": 100,
+                "seed_base": 200_000,
+                "seed_end": 200_099,
+                "requested_seed_base": 200_000,
+                "requested_seed_end": 200_099,
+                "engine_source_sha256": "engine-a",
+                "selected_checkpoint_episode": 25,
+                "selected_checkpoint_sha256": "selected-tensor",
                 "success_rate": 0.95,
                 "success_ci_low": 0.88,
                 "seed_range_disjoint_from_selection": True,
+                "seed_range_disjoint_from_training_curriculum": True,
             },
         }
         verdict = campaign_verdict(
             [verified_run], criteria=criteria, require_holdout=True,
             expected_runs=1,
+            expected_holdout_episodes=100,
+            expected_holdout_seed_base=200_000,
         )
         self.assertTrue(verdict["all_verified"])
         self.assertEqual(verdict["verified_runs"], 1)
@@ -221,11 +240,53 @@ class ReportShapeTests(unittest.TestCase):
             {**verified_run, "holdout": {
                 **verified_run["holdout"], "success_rate": 0.5,
             }},
+            {**verified_run, "holdout": {
+                **verified_run["holdout"],
+                "engine_source_sha256": "different-engine",
+            }},
+            {
+                **verified_run,
+                "engine_source_sha256": None,
+                "holdout": {
+                    **verified_run["holdout"],
+                    "engine_source_sha256": None,
+                },
+            },
+            {**verified_run, "holdout": {
+                **verified_run["holdout"],
+                "selected_checkpoint_sha256": "different-tensor",
+            }},
+            {
+                **verified_run,
+                "selection": {
+                    **verified_run["selection"],
+                    "checkpoint": {
+                        **verified_run["selection"]["checkpoint"],
+                        "checkpoint_sha256": None,
+                    },
+                },
+                "holdout": {
+                    **verified_run["holdout"],
+                    "selected_checkpoint_sha256": None,
+                },
+            },
+            {**verified_run, "holdout": {
+                **verified_run["holdout"], "episodes": 99,
+            }},
+            {**verified_run, "holdout": {
+                **verified_run["holdout"], "seed_base": 200_001,
+            }},
+            {**verified_run, "holdout": {
+                **verified_run["holdout"],
+                "seed_range_disjoint_from_training_curriculum": False,
+            }},
         ):
             with self.subTest(run=bad_run):
                 failed = campaign_verdict(
                     [bad_run], criteria=criteria, require_holdout=True,
                     expected_runs=1,
+                    expected_holdout_episodes=100,
+                    expected_holdout_seed_base=200_000,
                 )
                 self.assertFalse(failed["all_verified"])
                 self.assertTrue(failed["failures"])
@@ -495,6 +556,63 @@ class DeterministicAgent:
 
 
 class HoldoutTests(unittest.TestCase):
+    def test_extracts_every_serialized_training_curriculum_seed_range(self) -> None:
+        extract = getattr(
+            benchmark_module, "training_curriculum_seed_ranges", None)
+        self.assertTrue(callable(extract), "seed-range extractor is missing")
+        protocol = {
+            "training_curriculum": (
+                get_spec("drone-hover").training_curriculum.protocol()
+            ),
+        }
+
+        ranges = extract(protocol)
+
+        self.assertEqual(
+            [(item["segment"], item["seed_base"], item["seed_end"])
+             for item in ranges],
+            [
+                (4, 204_000, 204_009),
+                (3, 203_000, 203_009),
+                (2, 202_000, 202_009),
+                (1, 201_000, 201_009),
+                (0, 200_000, 200_009),
+            ],
+        )
+
+    def test_current_drone_protocol_rejects_default_holdout_overlap(self) -> None:
+        protocol = {
+            "engine_source_sha256": "engine-a",
+            "training_curriculum": (
+                get_spec("drone-hover").training_curriculum.protocol()
+            ),
+        }
+        run = {
+            "scenario_id": "drone-hover",
+            "engine_source_sha256": "engine-a",
+            "selection": {
+                "suite": "selection-n10",
+                "seed_base": 100_000,
+                "checkpoint": {
+                    "episode": 25,
+                    "evaluation_episodes": 10,
+                    "metadata_sha256": "meta",
+                    "checkpoint_sha256": "tensor",
+                    "protocol": protocol,
+                },
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmp, self.assertRaisesRegex(
+            ValueError, "training curriculum.*segment 0",
+        ):
+            evaluate_selected_checkpoint(
+                run,
+                checkpoint_root=Path(tmp),
+                episodes=100,
+                seed_base=200_000,
+            )
+
     def test_holdout_uses_distinct_seed_range_and_records_raw_trials(self) -> None:
         seen_samples: list[int] = []
         spec = SimpleNamespace(

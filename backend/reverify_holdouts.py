@@ -166,6 +166,8 @@ def reverify_report(
         criteria=criteria,
         require_holdout=True,
         expected_runs=expected_runs,
+        expected_holdout_episodes=episodes,
+        expected_holdout_seed_base=seed_base,
     )
     revised["verification"] = verdict
     revised["state"] = "verified" if verdict["all_verified"] else "incomplete"

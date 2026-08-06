@@ -210,6 +210,8 @@ def campaign_verdict(
     criteria: SolveCriteria,
     require_holdout: bool,
     expected_runs: int,
+    expected_holdout_episodes: int | None = None,
+    expected_holdout_seed_base: int | None = None,
 ) -> dict[str, Any]:
     """Decide whether every requested run has independent solve evidence."""
     failures: list[dict[str, Any]] = []
@@ -224,10 +226,49 @@ def campaign_verdict(
                 reasons.append(
                     f"holdout state is {holdout.get('state', 'missing')}")
             else:
+                selection = run.get("selection") or {}
+                selected = selection.get("checkpoint") or {}
+                selected_engine = run.get("engine_source_sha256")
+                selected_tensor = selected.get("checkpoint_sha256")
+                if not isinstance(selected_engine, str) or not selected_engine:
+                    reasons.append("selection engine digest is missing")
+                elif (holdout.get("engine_source_sha256")
+                      != selected_engine):
+                    reasons.append("holdout engine digest does not match selection")
+                if not isinstance(selected_tensor, str) or not selected_tensor:
+                    reasons.append("selected tensor hash is missing")
+                elif (holdout.get("selected_checkpoint_sha256")
+                      != selected_tensor):
+                    reasons.append("holdout tensor hash does not match selection")
+                if (holdout.get("selected_checkpoint_episode")
+                        != selected.get("episode")):
+                    reasons.append("holdout checkpoint episode does not match selection")
                 if not holdout.get("seed_range_disjoint_from_selection", False):
                     reasons.append("holdout seeds overlap checkpoint selection")
-                if int(holdout.get("episodes") or 0) < criteria.min_eval_episodes:
+                if not holdout.get(
+                    "seed_range_disjoint_from_training_curriculum", False
+                ):
+                    reasons.append("holdout seeds overlap training curriculum")
+                observed_episodes = int(holdout.get("episodes") or 0)
+                if observed_episodes < criteria.min_eval_episodes:
                     reasons.append("holdout evaluation is too small")
+                if expected_holdout_episodes is not None:
+                    if observed_episodes != expected_holdout_episodes:
+                        reasons.append("holdout episode count differs from request")
+                    if (holdout.get("requested_episodes")
+                            != expected_holdout_episodes):
+                        reasons.append("holdout request count is inconsistent")
+                if (expected_holdout_seed_base is not None
+                        and expected_holdout_episodes is not None):
+                    expected_end = (expected_holdout_seed_base
+                                    + expected_holdout_episodes - 1)
+                    if (holdout.get("seed_base") != expected_holdout_seed_base
+                            or holdout.get("seed_end") != expected_end):
+                        reasons.append("holdout seed range differs from request")
+                    if (holdout.get("requested_seed_base")
+                            != expected_holdout_seed_base
+                            or holdout.get("requested_seed_end") != expected_end):
+                        reasons.append("holdout requested seed range is inconsistent")
                 rate = holdout.get("success_rate")
                 if rate is None or float(rate) < criteria.min_success_rate:
                     reasons.append("holdout success rate is below threshold")
@@ -298,6 +339,76 @@ def _seed_ranges_overlap(first_base: int, first_count: int,
     return first_base < second_end and second_base < first_end
 
 
+def training_curriculum_seed_ranges(
+    protocol: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    """Expand every fixed segment suite disclosed by a training curriculum."""
+    if not protocol:
+        return []
+    curriculum = protocol.get("training_curriculum")
+    if curriculum is None:
+        return []
+    if not isinstance(curriculum, dict):
+        raise ValueError("training curriculum protocol must be an object")
+    segments = curriculum.get("frontier_order")
+    evaluation = curriculum.get("segment_evaluation")
+    if not isinstance(segments, list) or not segments:
+        raise ValueError("training curriculum frontier_order must be non-empty")
+    if not isinstance(evaluation, dict):
+        raise ValueError("training curriculum segment evaluation is missing")
+
+    def required_integer(field: str, *, minimum: int = 0) -> int:
+        value = evaluation.get(field)
+        if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+            raise ValueError(
+                f"training curriculum {field} must be an integer >= {minimum}")
+        return value
+
+    seed_base = required_integer("seed_base")
+    stride = required_integer("segment_seed_stride", minimum=1)
+    episodes = required_integer("episodes", minimum=1)
+    ranges: list[dict[str, Any]] = []
+    seen: set[int] = set()
+    max_seed = 2 ** 32 - 1
+    for raw_segment in segments:
+        if isinstance(raw_segment, bool) or not isinstance(raw_segment, int):
+            raise ValueError("training curriculum segments must be integers")
+        if raw_segment in seen:
+            raise ValueError("training curriculum segments must be distinct")
+        seen.add(raw_segment)
+        start = seed_base + raw_segment * stride
+        end = start + episodes - 1
+        if not 0 <= start <= end <= max_seed:
+            raise ValueError("training curriculum seed range is outside uint32")
+        ranges.append({
+            "curriculum_id": curriculum.get("id"),
+            "segment": raw_segment,
+            "episodes": episodes,
+            "seed_base": start,
+            "seed_end": end,
+        })
+    return ranges
+
+
+def _assert_holdout_disjoint_from_training_curriculum(
+    seed_base: int,
+    episodes: int,
+    ranges: list[dict[str, Any]],
+) -> None:
+    for seed_range in ranges:
+        if _seed_ranges_overlap(
+            seed_base,
+            episodes,
+            int(seed_range["seed_base"]),
+            int(seed_range["episodes"]),
+        ):
+            raise ValueError(
+                "holdout seed range overlaps training curriculum segment "
+                f"{seed_range['segment']} seeds "
+                f"{seed_range['seed_base']}-{seed_range['seed_end']}"
+            )
+
+
 def _wilson_interval(successes: int, total: int, z: float = 1.96
                      ) -> tuple[float | None, float | None]:
     if total <= 0:
@@ -326,6 +437,7 @@ def evaluate_holdout(
     selection_seed_base: int,
     selection_episodes: int,
     engine_digest: str,
+    curriculum_seed_ranges: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Evaluate a frozen selected policy on starts never used for selection."""
     if episodes < 1:
@@ -334,6 +446,9 @@ def evaluate_holdout(
         seed_base, episodes, selection_seed_base, selection_episodes
     ):
         raise ValueError("holdout seed range overlaps the selection suite")
+    curriculum_seed_ranges = curriculum_seed_ranges or []
+    _assert_holdout_disjoint_from_training_curriculum(
+        seed_base, episodes, curriculum_seed_ranges)
 
     trials: list[dict[str, Any]] = []
     for index in range(episodes):
@@ -387,6 +502,8 @@ def evaluate_holdout(
         "selection_seed_base": selection_seed_base,
         "selection_seed_end": selection_seed_base + selection_episodes - 1,
         "seed_range_disjoint_from_selection": True,
+        "seed_range_disjoint_from_training_curriculum": True,
+        "training_curriculum_seed_ranges": curriculum_seed_ranges,
         "deterministic_policy": True,
         "engine_source_sha256": engine_digest,
         "reward_mean": reward_mean,
@@ -471,6 +588,17 @@ def evaluate_selected_checkpoint(
 
     checkpoint = selection["checkpoint"]
     checkpoint_episode = int(checkpoint["episode"])
+    curriculum_ranges = training_curriculum_seed_ranges(
+        checkpoint.get("protocol"))
+    if _seed_ranges_overlap(
+        seed_base,
+        episodes,
+        int(selection["seed_base"]),
+        int(checkpoint["evaluation_episodes"]),
+    ):
+        raise ValueError("holdout seed range overlaps the selection suite")
+    _assert_holdout_disjoint_from_training_curriculum(
+        seed_base, episodes, curriculum_ranges)
     from app.scenarios import get_spec
 
     spec = get_spec(run_result["scenario_id"])
@@ -498,9 +626,13 @@ def evaluate_selected_checkpoint(
         selection_seed_base=int(selection["seed_base"]),
         selection_episodes=int(checkpoint["evaluation_episodes"]),
         engine_digest=run_result["engine_source_sha256"],
+        curriculum_seed_ranges=curriculum_ranges,
     )
     return {
         "state": "complete",
+        "requested_episodes": episodes,
+        "requested_seed_base": seed_base,
+        "requested_seed_end": seed_base + episodes - 1,
         "selected_checkpoint_episode": checkpoint_episode,
         "selected_checkpoint_sha256": metadata.get("checkpoint_sha256"),
         "selection_reason": selection.get("reason"),
@@ -866,6 +998,8 @@ def main(argv: list[str] | None = None) -> int:
             "role": "post_selection_only",
             "episodes": args.holdout_episodes,
             "seed_base": args.holdout_seed_base,
+            "seed_end": (args.holdout_seed_base + args.holdout_episodes - 1
+                         if args.holdout_episodes > 0 else None),
             "checkpoint_root": (str(args.checkpoint_root)
                                 if args.checkpoint_root is not None else None),
             "influences_selection": False,
@@ -918,6 +1052,11 @@ def main(argv: list[str] | None = None) -> int:
                         "state": "failed",
                         "error": str(exc),
                         "requested_episodes": args.holdout_episodes,
+                        "requested_seed_base": args.holdout_seed_base,
+                        "requested_seed_end": (
+                            args.holdout_seed_base + args.holdout_episodes - 1
+                            if args.holdout_episodes > 0 else None
+                        ),
                     }
                 report["runs"].append(result)
                 report["current"] = None
@@ -941,6 +1080,10 @@ def main(argv: list[str] | None = None) -> int:
         criteria=criteria,
         require_holdout=args.holdout_episodes > 0,
         expected_runs=len(selected) * len(seeds),
+        expected_holdout_episodes=(
+            args.holdout_episodes if args.holdout_episodes > 0 else None),
+        expected_holdout_seed_base=(
+            args.holdout_seed_base if args.holdout_episodes > 0 else None),
     )
     report["verification"] = verdict
     report["state"] = "verified" if verdict["all_verified"] else "incomplete"
