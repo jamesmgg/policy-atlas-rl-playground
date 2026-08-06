@@ -55,7 +55,7 @@ class WetTerminalSectorCurriculumTests(unittest.TestCase):
             if self.specs[scenario_id].kind == "driving"
             and scenario_id != "apex-gp-wet"
         }
-        self.assertEqual(other_driving_starts["traffic-rush"], (3, 9, 11))
+        self.assertEqual(other_driving_starts["traffic-rush"], (11,))
         self.assertTrue(all(
             starts is None
             for scenario_id, starts in other_driving_starts.items()

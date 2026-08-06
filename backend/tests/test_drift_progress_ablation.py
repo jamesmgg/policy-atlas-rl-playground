@@ -51,7 +51,7 @@ class DriftProgressAblationTests(unittest.TestCase):
     def test_drift_reward_revision_uses_a_fresh_checkpoint_schema(self) -> None:
         self.assertEqual(self.spec.checkpoint_schema, 8)
         self.assertEqual(self.specs["rally-ridge"].checkpoint_schema, 7)
-        self.assertEqual(self.specs["traffic-rush"].checkpoint_schema, 15)
+        self.assertEqual(self.specs["traffic-rush"].checkpoint_schema, 16)
 
     def test_other_driving_reward_contracts_are_explicit(self) -> None:
         expected = {
@@ -59,12 +59,14 @@ class DriftProgressAblationTests(unittest.TestCase):
             "rally-ridge": RewardConfig(drift_corner=0.008),
             "eco-gp": RewardConfig(fuel_empty=-5.0),
             "traffic-rush": RewardConfig(
+                drift_corner=0.0,
                 overtake=8.0,
                 contact=-40.0,
                 stall=-40.0,
                 wrong_way=-40.0,
                 timeout=-40.0,
                 terminalize_failure_time=True,
+                terminal_zero_course_potential=True,
             ),
         }
         for scenario_id, reward in expected.items():

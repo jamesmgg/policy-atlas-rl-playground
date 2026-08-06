@@ -53,6 +53,21 @@ class TrainingCurriculumSpec:
     segment_seed_stride: int
     start_state_description: str
     make_evaluation_env: Callable[[int], Env]
+    success_rate_threshold_by_frontier: tuple[tuple[int, float], ...] = ()
+
+    def success_rate_threshold_for(self, frontier: int) -> float:
+        """Return an optional frontier-specific gate, else the shared gate."""
+        if frontier not in self.frontier_order:
+            raise ValueError(f"segment {frontier} is outside the curriculum")
+        matches = [threshold for segment, threshold
+                   in self.success_rate_threshold_by_frontier
+                   if segment == frontier]
+        if len(matches) > 1:
+            raise ValueError(f"segment {frontier} has duplicate thresholds")
+        threshold = (matches[0] if matches else self.success_rate_threshold)
+        if not 0.0 <= threshold <= 1.0:
+            raise ValueError("curriculum success-rate threshold must be in [0, 1]")
+        return float(threshold)
 
     def evaluation_seed(self, segment: int, episode_index: int) -> int:
         if segment not in self.frontier_order:
@@ -71,6 +86,17 @@ class TrainingCurriculumSpec:
 
     def protocol(self) -> dict:
         """JSON-safe exact disclosure stored with every policy checkpoint."""
+        gate = {
+            "success_rate_threshold": self.success_rate_threshold,
+            "comparison": ">=",
+            "consecutive_confirmations": self.consecutive_confirmations,
+            "distinct_checkpoint_episodes": True,
+        }
+        if self.success_rate_threshold_by_frontier:
+            gate["success_rate_threshold_by_frontier"] = {
+                str(frontier): self.success_rate_threshold_for(frontier)
+                for frontier in self.frontier_order
+            }
         return {
             "id": self.id,
             "frontier_order": list(self.frontier_order),
@@ -79,12 +105,7 @@ class TrainingCurriculumSpec:
                 "mastered_later_segments": "uniform remainder",
                 "empty_mastered_fallback": "100% active frontier",
             },
-            "gate": {
-                "success_rate_threshold": self.success_rate_threshold,
-                "comparison": ">=",
-                "consecutive_confirmations": self.consecutive_confirmations,
-                "distinct_checkpoint_episodes": True,
-            },
+            "gate": gate,
             "segment_evaluation": {
                 "suite_version": self.evaluation_suite_version,
                 "episodes": self.evaluation_episodes,

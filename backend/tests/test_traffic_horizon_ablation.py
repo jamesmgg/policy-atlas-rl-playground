@@ -78,12 +78,14 @@ class TrafficHorizonAblationTests(unittest.TestCase):
         self.assertEqual(
             env.reward_cfg,
             RewardConfig(
+                drift_corner=0.0,
                 overtake=8.0,
                 contact=-40.0,
                 stall=-40.0,
                 wrong_way=-40.0,
                 timeout=-40.0,
                 terminalize_failure_time=True,
+                terminal_zero_course_potential=True,
             ),
         )
         self.assertEqual(
@@ -94,17 +96,22 @@ class TrafficHorizonAblationTests(unittest.TestCase):
         )
         self.assertEqual(
             self.traffic.training_start_distribution,
-            "75% canonical start; 25% uniform checkpoints 3,9,11 as rolling "
-            "states at 70-90% of the curvature/grip backward-braking "
-            "envelope; clock integrates an 80% envelope with a 1-second "
-            "reserve; time-advanced traffic and pass masks; no reset reward",
+            "Performance-gated reverse Traffic curriculum over audited "
+            "physical checkpoints 11, 9, 3, then canonical 0: 80% active "
+            "frontier and 20% uniformly sampled mastered stages; two "
+            "distinct 10-seed confirmations at >=80% unlock checkpoints 9, "
+            "3, and 0, while two >=90% canonical confirmations complete the "
+            "curriculum; rolling states use the 70-90% curvature/grip "
+            "backward-braking envelope, an 80% reference clock with a "
+            "1-second reserve, time-advanced traffic and reconstructed pass "
+            "masks, and no reset reward",
         )
         self.assertEqual(
             self.traffic.success,
             "Overtake all three traffic cars in one episode.",
         )
 
-    def test_schema_fifteen_refuses_a_schema_eight_traffic_checkpoint(self) -> None:
+    def test_schema_sixteen_refuses_a_schema_eight_traffic_checkpoint(self) -> None:
         env = self.traffic.make_env(False)
         agent = PPOAgent(
             env.obs_dim, env.n_continuous, env.n_binary, torch.device("cpu"))
@@ -118,12 +125,12 @@ class TrafficHorizonAblationTests(unittest.TestCase):
                 "reward": 1.0, "metric": 1.0, "trajectory": [],
             })
 
-            self.assertEqual(self.traffic.checkpoint_schema, 15)
+            self.assertEqual(self.traffic.checkpoint_schema, 16)
             self.assertEqual(current.list(), [])
             with self.assertRaises(IncompatibleCheckpointError):
                 current.load_into(25, agent)
 
-    def test_protocol_v15_records_the_exact_task_horizon(self) -> None:
+    def test_protocol_v16_records_the_exact_task_horizon(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "state.json").write_text(
@@ -154,7 +161,7 @@ class TrafficHorizonAblationTests(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 15)
+        self.assertEqual(protocol["version"], 16)
         self.assertEqual(protocol["task_horizon_steps"], 2250)
         self.assertEqual(protocol["task_horizon_seconds"], 90.0)
 

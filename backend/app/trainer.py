@@ -658,9 +658,11 @@ class Trainer:
         )
         failure_clock_protocol = getattr(
             self.env, "failure_clock_protocol", None)
+        course_reward_potential_protocol = getattr(
+            self.env, "course_reward_potential_protocol", None)
         eval_result["protocol"] = {
             "algorithm": "PPO",
-            "version": 15,
+            "version": 16,
             "rollout_steps": ROLLOUT_STEPS,
             "episode_aligned_rollouts": True,
             "gamma": scenario_discount_factor(self.spec),
@@ -683,6 +685,10 @@ class Trainer:
             "failure_clock_regularizer": (
                 failure_clock_protocol()
                 if callable(failure_clock_protocol) else None
+            ),
+            "course_reward_potential": (
+                course_reward_potential_protocol()
+                if callable(course_reward_potential_protocol) else None
             ),
             "training_curriculum": (
                 self.spec.training_curriculum.protocol()

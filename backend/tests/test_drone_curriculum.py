@@ -394,7 +394,7 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             payload = trainer.registry.load(0)
 
         self.assertEqual(meta["schema_version"], 6)
-        self.assertEqual(meta["protocol"]["version"], 15)
+        self.assertEqual(meta["protocol"]["version"], 16)
         self.assertEqual(meta["protocol"]["training_curriculum"],
                          EXPECTED_CURRICULUM_PROTOCOL)
         diagnostic = meta["training_diagnostics"]["training_curriculum"]
@@ -416,7 +416,7 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             "apex-gp": 7, "velocita": 7, "grandville": 7,
             "thunder-oval": 7, "apex-gp-wet": 7, "glacier": 7,
             "rally-ridge": 7, "kart-sprint": 7, "drift-trial": 8,
-            "eco-gp": 7, "traffic-rush": 15, "lunar-lander": 5,
+            "eco-gp": 7, "traffic-rush": 16, "lunar-lander": 5,
             "pendulum-swingup": 2, "cartpole-balance": 2,
             "mountain-car": 3,
         }
@@ -425,11 +425,21 @@ class TestDroneReverseCurriculum(unittest.TestCase):
 
         self.assertEqual({key: spec.checkpoint_schema
                           for key, spec in non_drone.items()}, expected_schemas)
-        self.assertTrue(all(spec.training_curriculum is None
-                            for spec in non_drone.values()))
-        self.assertFalse(any(hasattr(spec.make_training_env(),
-                                     "training_curriculum_state")
-                             for spec in non_drone.values()))
+        self.assertTrue(all(
+            spec.training_curriculum is None
+            for scenario_id, spec in non_drone.items()
+            if scenario_id != "traffic-rush"
+        ))
+        self.assertIsNotNone(non_drone["traffic-rush"].training_curriculum)
+        self.assertFalse(any(
+            hasattr(spec.make_training_env(), "training_curriculum_state")
+            for scenario_id, spec in non_drone.items()
+            if scenario_id != "traffic-rush"
+        ))
+        self.assertTrue(hasattr(
+            non_drone["traffic-rush"].make_training_env(),
+            "training_curriculum_state",
+        ))
 
     def test_curriculum_and_schema_are_explicit_in_scenario_metadata(self) -> None:
         self.assertEqual(
