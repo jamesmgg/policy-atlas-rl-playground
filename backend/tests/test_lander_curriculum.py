@@ -47,14 +47,22 @@ class TestLanderScientificContract(unittest.TestCase):
                       0.0, 1.0, 1.0], dtype=np.float32),
         )
 
-    def test_altitude_frontiers_bridge_touchdown_to_canonical(self) -> None:
+    def test_altitude_frontiers_overlap_from_low_approach_to_canonical(self) -> None:
         self.assertEqual(lander.TOUCHDOWN_ALTITUDE_MIN, 5.0)
         self.assertEqual(lander.TOUCHDOWN_ALTITUDE_MAX, 18.0)
         self.assertEqual(lander.APPROACH_FRONTIER_ALTITUDES, {
             3: (30.0, 100.0),
-            2: (100.0, 250.0),
-            1: (250.0, lander.PAD_Y - 120.0),
+            2: (50.0, 200.0),
+            1: (100.0, lander.PAD_Y - 120.0),
         })
+        self.assertLess(
+            lander.APPROACH_FRONTIER_ALTITUDES[2][0],
+            lander.APPROACH_FRONTIER_ALTITUDES[3][1],
+        )
+        self.assertLess(
+            lander.APPROACH_FRONTIER_ALTITUDES[1][0],
+            lander.APPROACH_FRONTIER_ALTITUDES[2][1],
+        )
         self.assertEqual(lander.APPROACH_ALTITUDE_MIN, 30.0)
         self.assertEqual(lander.APPROACH_ALTITUDE_MAX,
                          lander.PAD_Y - 120.0)
@@ -173,7 +181,7 @@ class TestLanderScientificContract(unittest.TestCase):
         self.assertTrue(env.episode_summary()["success"])
         self.assertFalse(info["truncated"])
         self.assertFalse(info["task_deadline"])
-        self.assertEqual(self.spec.checkpoint_schema, 8)
+        self.assertEqual(self.spec.checkpoint_schema, 9)
 
 
 if __name__ == "__main__":

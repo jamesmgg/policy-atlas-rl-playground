@@ -21,7 +21,7 @@ from app.settings import Settings
 EXPECTED_START_STATE = (
     "k4 touchdown altitude 5-18 with pad offset <=20, |vx|<=3, vy 0-6, "
     "|tilt|<=0.08, |rate|<=0.05; k3/k2/k1 approach altitude "
-    "30-100/100-250/250-500 with pad offset <=35, |vx|<=6, vy 2-18, "
+    "30-100/50-200/100-500 with pad offset <=35, |vx|<=6, vy 2-18, "
     "|tilt|<=0.18, |rate|<=0.25; k0 canonical x=500, y=120, vy=rate=0, "
     "fuel=1, elapsed=0 with seeded |vx|<=15 and |tilt|<=0.15; "
     "rehearsals preserve altitude-derived elapsed time and fuel"
@@ -438,8 +438,8 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
             meta = trainer.registry.list()[0]
             payload = trainer.registry.load(25)
 
-        self.assertEqual(meta["schema_version"], 8)
-        self.assertEqual(meta["protocol"]["version"], 11)
+        self.assertEqual(meta["schema_version"], 9)
+        self.assertEqual(meta["protocol"]["version"], 12)
         self.assertEqual(meta["protocol"]["training_curriculum"],
                          EXPECTED_CURRICULUM_PROTOCOL)
         diagnostic = meta["training_diagnostics"]["training_curriculum"]
@@ -458,7 +458,8 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
         expected_distribution = (
             "Performance-gated reverse altitude curriculum: begin with 100% "
             "touchdown rehearsals at k4 (5-18 units above the pad); unlock low "
-            "k3 (30-100), mid k2 (100-250), high k1 (250-500), then canonical "
+            "k3 (30-100), overlapping k2 (50-200), high k1 (100-500), "
+            "then canonical "
             "k0 descents after one >=90% fixed 20-start k4 evaluation and "
             ">=75% at each harder frontier; "
             "thereafter the active frontier receives 50% of resets and mastered "
@@ -467,7 +468,7 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
         self.assertEqual(self.spec.training_start_distribution,
                          expected_distribution)
         self.assertEqual(self.curriculum.protocol(), EXPECTED_CURRICULUM_PROTOCOL)
-        self.assertEqual(self.spec.checkpoint_schema, 8)
+        self.assertEqual(self.spec.checkpoint_schema, 9)
         self.assertEqual(self.spec.actor_initialization.continuous_log_std,
                          (-1.2, -1.2))
 

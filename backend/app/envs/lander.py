@@ -54,8 +54,8 @@ TOUCHDOWN_OMEGA_MAX = 0.05
 APPROACH_ALTITUDE_MIN, APPROACH_ALTITUDE_MAX = 30.0, 500.0
 APPROACH_FRONTIER_ALTITUDES = {
     3: (30.0, 100.0),
-    2: (100.0, 250.0),
-    1: (250.0, 500.0),
+    2: (50.0, 200.0),
+    1: (100.0, 500.0),
 }
 APPROACH_X_OFFSET_MAX = 35.0
 APPROACH_VX_MAX = 6.0
@@ -65,7 +65,8 @@ APPROACH_OMEGA_MAX = 0.25
 TRAINING_START_DISTRIBUTION = (
     "Performance-gated reverse altitude curriculum: begin with 100% "
     "touchdown rehearsals at k4 (5-18 units above the pad); unlock low "
-    "k3 (30-100), mid k2 (100-250), high k1 (250-500), then canonical "
+    "k3 (30-100), overlapping k2 (50-200), high k1 (100-500), "
+    "then canonical "
     "k0 descents after one >=90% fixed 20-start k4 evaluation and "
     ">=75% at each harder frontier; "
     "thereafter the active frontier receives 50% of resets and mastered "
@@ -500,7 +501,7 @@ TRAINING_CURRICULUM = TrainingCurriculumSpec(
     start_state_description=(
         "k4 touchdown altitude 5-18 with pad offset <=20, |vx|<=3, vy 0-6, "
         "|tilt|<=0.08, |rate|<=0.05; k3/k2/k1 approach altitude "
-        "30-100/100-250/250-500 with pad offset <=35, |vx|<=6, vy 2-18, "
+        "30-100/50-200/100-500 with pad offset <=35, |vx|<=6, vy 2-18, "
         "|tilt|<=0.18, |rate|<=0.25; k0 canonical x=500, y=120, vy=rate=0, "
         "fuel=1, elapsed=0 with seeded |vx|<=15 and |tilt|<=0.15; "
         "rehearsals preserve altitude-derived elapsed time and fuel"
