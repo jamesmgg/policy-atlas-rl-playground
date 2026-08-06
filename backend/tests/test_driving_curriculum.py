@@ -87,7 +87,7 @@ class DrivingCurriculumTests(unittest.TestCase):
     @unittest.skipUnless(HAS_ROLLING_CURRICULUM, "curriculum API not implemented")
     def test_traffic_fixed_evaluation_remains_canonical(self) -> None:
         spec = self.specs["traffic-rush"]
-        self.assertEqual(spec.checkpoint_schema, 9)
+        self.assertEqual(spec.checkpoint_schema, 16)
 
         env = spec.make_env(False)
         env.rng.seed(41)
@@ -104,8 +104,12 @@ class DrivingCurriculumTests(unittest.TestCase):
     @unittest.skipUnless(HAS_ROLLING_CURRICULUM, "curriculum API not implemented")
     def test_traffic_training_uses_only_audited_rolling_checkpoints(self) -> None:
         env = self.specs["traffic-rush"].make_training_env()
-        self.assertEqual(env.start_line_probability, 0.75)
-        env.start_line_probability = 0.0
+        self.assertEqual(env.start_line_probability, 0.0)
+        self.assertEqual(env.rolling_checkpoint_indices, (11,))
+        self.assertEqual(
+            self.specs["traffic-rush"].training_curriculum.frontier_order,
+            (11, 9, 3, 0),
+        )
         env.rng.seed(42)
 
         sampled = set()
@@ -113,7 +117,7 @@ class DrivingCurriculumTests(unittest.TestCase):
             env.reset()
             sampled.add(env.track.checkpoints.index(env.idx))
 
-        self.assertEqual(sampled, {1, 2, 3})
+        self.assertEqual(sampled, {11})
 
     @unittest.skipUnless(HAS_ROLLING_CURRICULUM, "curriculum API not implemented")
     def test_generic_driving_training_still_uses_every_rolling_checkpoint(self) -> None:
@@ -320,10 +324,15 @@ class DrivingCurriculumTests(unittest.TestCase):
         self.assertEqual(spec.info()["training_start_distribution"], disclosure)
         self.assertEqual(
             disclosure,
-            "75% canonical start; 25% uniform checkpoints 1..3 as rolling "
-            "states at 70-90% of the curvature/grip backward-braking "
-            "envelope; clock integrates an 80% envelope with a 1-second "
-            "reserve; time-advanced traffic and pass masks; no reset reward",
+            "Performance-gated reverse Traffic curriculum over audited "
+            "physical checkpoints 11, 9, 3, then canonical 0: 80% active "
+            "frontier and 20% uniformly sampled mastered stages; two "
+            "distinct 10-seed confirmations at >=80% unlock checkpoints 9, "
+            "3, and 0, while two >=90% canonical confirmations complete the "
+            "curriculum; rolling states use the 70-90% curvature/grip "
+            "backward-braking envelope, an 80% reference clock with a "
+            "1-second reserve, time-advanced traffic and reconstructed pass "
+            "masks, and no reset reward",
         )
 
 

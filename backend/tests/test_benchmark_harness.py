@@ -576,6 +576,25 @@ def legacy_overlapping_drone_curriculum_protocol() -> dict:
     }
 
 
+def drone_curriculum_with_momentum_protocol(
+    *, control_seed_base: int = 500_000,
+) -> dict:
+    """Serialized v16 shape: integer outer segments plus string control stages."""
+    curriculum = legacy_overlapping_drone_curriculum_protocol()
+    curriculum["segment_evaluation"]["seed_base"] = 400_000
+    curriculum["training_control"] = {
+        "id": "drone-k4-momentum-v1",
+        "stages": ["foundation", "bridge", "hard"],
+        "control_evaluation": {
+            "suite_version": "drone-momentum-control-v1",
+            "episodes": 10,
+            "seed_base": control_seed_base,
+            "stage_seed_stride": 1_000,
+        },
+    }
+    return curriculum
+
+
 class HoldoutTests(unittest.TestCase):
     def test_extracts_every_serialized_training_curriculum_seed_range(self) -> None:
         extract = getattr(
@@ -598,6 +617,96 @@ class HoldoutTests(unittest.TestCase):
                 (0, 200_000, 200_009),
             ],
         )
+
+    def test_extracts_nested_string_training_control_stage_seed_ranges(
+        self,
+    ) -> None:
+        ranges = benchmark_module.training_curriculum_seed_ranges({
+            "training_curriculum": drone_curriculum_with_momentum_protocol(),
+        })
+
+        control_ranges = [
+            item for item in ranges
+            if item.get("range_kind") == "training_control"
+        ]
+        self.assertEqual(
+            [(item["stage"], item["seed_base"], item["seed_end"])
+             for item in control_ranges],
+            [
+                ("foundation", 500_000, 500_009),
+                ("bridge", 501_000, 501_009),
+                ("hard", 502_000, 502_009),
+            ],
+        )
+        self.assertEqual(
+            [item["segment"] for item in ranges
+             if item.get("range_kind") == "training_curriculum"],
+            [4, 3, 2, 1, 0],
+            "nested controls must not replace the outer segment audit",
+        )
+
+    def test_training_control_stage_objects_are_also_audited(self) -> None:
+        curriculum = drone_curriculum_with_momentum_protocol()
+        curriculum["training_control"]["stages"] = [
+            {"id": "foundation", "start_state": "easy"},
+            {"id": "bridge", "start_state": "medium"},
+            {"id": "hard", "start_state": "hard"},
+        ]
+
+        ranges = benchmark_module.training_curriculum_seed_ranges({
+            "training_curriculum": curriculum,
+        })
+
+        self.assertEqual(
+            [item["stage"] for item in ranges if "stage" in item],
+            ["foundation", "bridge", "hard"],
+        )
+
+    def test_rejects_holdout_overlap_with_nested_training_control_stage(
+        self,
+    ) -> None:
+        protocol = {
+            "engine_source_sha256": "engine-a",
+            "training_curriculum": drone_curriculum_with_momentum_protocol(
+                control_seed_base=200_000),
+        }
+        run = {
+            "scenario_id": "drone-hover",
+            "engine_source_sha256": "engine-a",
+            "selection": {
+                "suite": "selection-n10",
+                "seed_base": 100_000,
+                "checkpoint": {
+                    "episode": 25,
+                    "evaluation_episodes": 10,
+                    "metadata_sha256": "meta",
+                    "checkpoint_sha256": "tensor",
+                    "protocol": protocol,
+                },
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmp, self.assertRaisesRegex(
+            ValueError, "training control.*foundation",
+        ):
+            evaluate_selected_checkpoint(
+                run,
+                checkpoint_root=Path(tmp),
+                episodes=100,
+                seed_base=200_000,
+            )
+
+    def test_rejects_invalid_or_duplicate_training_control_stage_ids(self) -> None:
+        for stages in (["foundation", "foundation"], ["foundation", 2]):
+            with self.subTest(stages=stages):
+                curriculum = drone_curriculum_with_momentum_protocol()
+                curriculum["training_control"]["stages"] = stages
+                with self.assertRaisesRegex(
+                    ValueError, "training control stage",
+                ):
+                    benchmark_module.training_curriculum_seed_ranges({
+                        "training_curriculum": curriculum,
+                    })
 
     def test_legacy_drone_protocol_rejects_default_holdout_overlap(self) -> None:
         protocol = {
