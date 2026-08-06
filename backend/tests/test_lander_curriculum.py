@@ -114,6 +114,47 @@ class TestLanderApproachCurriculum(unittest.TestCase):
         self.assertGreaterEqual(starts["approach"], 180)
         self.assertLessEqual(starts["approach"], 270)
 
+    def test_episode_501_switches_to_canonical_consolidation_starts(self) -> None:
+        self.assertEqual(lander.CURRICULUM_BOOTSTRAP_EPISODES, 500)
+        self.assertEqual(lander.CONSOLIDATION_STANDARD_START_PROBABILITY, 0.75)
+        self.assertEqual(lander.CONSOLIDATION_TOUCHDOWN_START_PROBABILITY, 0.0)
+        self.assertEqual(lander.CONSOLIDATION_APPROACH_START_PROBABILITY, 0.25)
+        self.assertEqual(
+            lander.CONSOLIDATION_STANDARD_START_PROBABILITY
+            + lander.CONSOLIDATION_TOUCHDOWN_START_PROBABILITY
+            + lander.CONSOLIDATION_APPROACH_START_PROBABILITY,
+            1.0,
+        )
+
+        bootstrap = self.spec.make_training_env()
+        bootstrap.rng.seed(20260806)
+        bootstrap_starts = {"standard": 0, "touchdown": 0, "approach": 0}
+        for _ in range(1200):
+            bootstrap.reset_for_training_episode(500)
+            bootstrap_starts[bootstrap._start_kind] += 1
+
+        consolidation = self.spec.make_training_env()
+        consolidation.rng.seed(20260806)
+        consolidation_starts = {
+            "standard": 0, "touchdown": 0, "approach": 0,
+        }
+        for _ in range(1200):
+            consolidation.reset_for_training_episode(501)
+            consolidation_starts[consolidation._start_kind] += 1
+
+        self.assertGreaterEqual(bootstrap_starts["standard"], 520)
+        self.assertLessEqual(bootstrap_starts["standard"], 680)
+        self.assertGreaterEqual(bootstrap_starts["touchdown"], 240)
+        self.assertLessEqual(bootstrap_starts["touchdown"], 360)
+        self.assertGreaterEqual(bootstrap_starts["approach"], 240)
+        self.assertLessEqual(bootstrap_starts["approach"], 360)
+
+        self.assertGreaterEqual(consolidation_starts["standard"], 820)
+        self.assertLessEqual(consolidation_starts["standard"], 980)
+        self.assertEqual(consolidation_starts["touchdown"], 0)
+        self.assertGreaterEqual(consolidation_starts["approach"], 220)
+        self.assertLessEqual(consolidation_starts["approach"], 380)
+
     def test_approach_band_bridges_to_the_canonical_start_altitude(self) -> None:
         self.assertEqual(lander.APPROACH_ALTITUDE_MIN, 30.0)
         self.assertEqual(
@@ -181,11 +222,13 @@ class TestLanderApproachCurriculum(unittest.TestCase):
         self.assertAlmostEqual(approach_result[1], standard_result[1])
         self.assertEqual(approach_result[2:], standard_result[2:])
 
-    def test_v6_curriculum_protocol_text_is_exact(self) -> None:
+    def test_v7_curriculum_protocol_text_is_exact(self) -> None:
         expected = (
-            "50% standard high-altitude starts; 25% touchdown rehearsal 5-18 units "
-            "above the pad; 25% braking approaches 30-500 units above the pad; all "
-            "sampled states expose velocity, tilt, time, and fuel"
+            "episodes 1-500: 50% standard high-altitude starts, 25% touchdown "
+            "rehearsal 5-18 units above the pad, and 25% braking approaches "
+            "30-500 units above the pad; episodes 501+: 75% standard and 25% "
+            "braking approaches with touchdown rehearsal disabled; all sampled "
+            "states expose velocity, tilt, time, and fuel"
         )
         self.assertEqual(lander.TRAINING_START_DISTRIBUTION, expected)
         self.assertEqual(self.spec.training_start_distribution, expected)
@@ -294,7 +337,7 @@ class TestLanderApproachCurriculum(unittest.TestCase):
         self.assertTrue(env.episode_summary()["success"])
         self.assertFalse(info["truncated"])
         self.assertFalse(info["task_deadline"])
-        self.assertEqual(self.spec.checkpoint_schema, 4)
+        self.assertEqual(self.spec.checkpoint_schema, 5)
 
 
 if __name__ == "__main__":

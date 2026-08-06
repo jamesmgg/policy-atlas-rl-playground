@@ -420,7 +420,7 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             "apex-gp": 7, "velocita": 7, "grandville": 7,
             "thunder-oval": 7, "apex-gp-wet": 7, "glacier": 7,
             "rally-ridge": 7, "kart-sprint": 7, "drift-trial": 8,
-            "eco-gp": 7, "traffic-rush": 8, "lunar-lander": 4,
+            "eco-gp": 7, "traffic-rush": 8, "lunar-lander": 5,
             "pendulum-swingup": 2, "cartpole-balance": 2,
             "mountain-car": 3,
         }
