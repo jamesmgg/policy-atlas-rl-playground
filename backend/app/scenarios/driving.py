@@ -19,6 +19,14 @@ DRIVING_ACTOR_INITIALIZATION = ActorInitialization(
     binary_probability_prior=(0.05,),
 )
 
+THUNDER_ACTOR_INITIALIZATION = ActorInitialization(
+    scope="thunder_oval_only",
+    continuous_action_labels=("throttle_brake", "steering"),
+    continuous_action_prior=(0.0, 0.0),
+    binary_action_labels=("drift",),
+    binary_probability_prior=(0.05,),
+)
+
 
 @lru_cache(maxsize=None)
 def _track(name: str) -> Track:
@@ -49,6 +57,7 @@ def _driving_spec(id: str, name: str, group: str, description: str,
                   success: str = "Complete at least one timed lap without leaving the circuit.",
                   difficulty: str = "Intermediate",
                   training_rolling_checkpoints: tuple[int, ...] | None = None,
+                  actor_initialization: ActorInitialization = DRIVING_ACTOR_INITIALIZATION,
                   checkpoint_schema: int = 7) -> ScenarioSpec:
     reward_terms = [
         f"{reward.progress:g} × signed forward arc progress",
@@ -151,7 +160,7 @@ def _driving_spec(id: str, name: str, group: str, description: str,
         difficulty=difficulty,
         horizon_steps=DrivingEnv.max_steps,
         horizon_seconds=DrivingEnv.max_steps * DrivingEnv.dt,
-        actor_initialization=DRIVING_ACTOR_INITIALIZATION,
+        actor_initialization=actor_initialization,
         checkpoint_schema=checkpoint_schema,
     )
 
@@ -180,7 +189,8 @@ DRIVING_SPECS: list[ScenarioSpec] = [
     _driving_spec(
         "thunder-oval", "Thunder Oval", "Circuits",
         "Pure oval speedway. Find the line, keep your foot in.",
-        "THUNDER_OVAL"),
+        "THUNDER_OVAL",
+        actor_initialization=THUNDER_ACTOR_INITIALIZATION),
     _driving_spec(
         "apex-gp-wet", "Apex GP — Wet", "Weather",
         "Rain at Apex GP: reduced grip everywhere, standing water in three zones.",
