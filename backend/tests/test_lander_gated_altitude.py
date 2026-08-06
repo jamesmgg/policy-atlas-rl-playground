@@ -36,7 +36,7 @@ EXPECTED_CURRICULUM_PROTOCOL = {
         "empty_mastered_fallback": "100% active frontier",
     },
     "gate": {
-        "success_rate_threshold": 0.9,
+        "success_rate_threshold": 0.75,
         "comparison": ">=",
         "consecutive_confirmations": 1,
         "distinct_checkpoint_episodes": True,
@@ -76,7 +76,7 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
 
     def pass_frontier(self, env, *, episode: int | None = None) -> dict:
         return env.record_training_curriculum_evaluation(
-            0.9, self.curriculum, evaluation_episode=episode)
+            0.75, self.curriculum, evaluation_episode=episode)
 
     def assert_rehearsal_state(self, env, frontier: int) -> None:
         altitude = lander.PAD_Y - env.y
@@ -162,8 +162,10 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
 
     def test_gate_requires_threshold_and_distinct_monotonic_checkpoints(self) -> None:
         training = self.spec.make_training_env()
+        self.assertEqual(lander.CURRICULUM_SUCCESS_RATE_THRESHOLD, 0.75)
+        self.assertEqual(self.curriculum.success_rate_threshold, 0.75)
         failed = training.record_training_curriculum_evaluation(
-            0.899, self.curriculum, evaluation_episode=25)
+            0.749, self.curriculum, evaluation_episode=25)
         unlocked = self.pass_frontier(training, episode=50)
         duplicate = self.pass_frontier(training, episode=50)
 
@@ -389,8 +391,8 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
                 "seed": 42, "trajectory": [],
             }
             frontier = {
-                "frontier": 4, "episodes": 20, "successes": 18,
-                "success_rate": 0.9,
+                "frontier": 4, "episodes": 20, "successes": 15,
+                "success_rate": 0.75,
                 "evaluation_suite": "lander-altitude-eval-v1-k4-n20",
                 "seeds": list(range(304_000, 304_020)),
             }
@@ -400,8 +402,8 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
             meta = trainer.registry.list()[0]
             payload = trainer.registry.load(25)
 
-        self.assertEqual(meta["schema_version"], 6)
-        self.assertEqual(meta["protocol"]["version"], 9)
+        self.assertEqual(meta["schema_version"], 7)
+        self.assertEqual(meta["protocol"]["version"], 10)
         self.assertEqual(meta["protocol"]["training_curriculum"],
                          EXPECTED_CURRICULUM_PROTOCOL)
         diagnostic = meta["training_diagnostics"]["training_curriculum"]
@@ -420,14 +422,14 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
             "Performance-gated reverse altitude curriculum: begin with 100% "
             "touchdown rehearsals at k4 (5-18 units above the pad); unlock low "
             "k3 (30-100), mid k2 (100-250), high k1 (250-500), then canonical "
-            "k0 descents after one >=90% fixed 20-start frontier evaluation; "
+            "k0 descents after one >=75% fixed 20-start frontier evaluation; "
             "thereafter the active frontier receives 50% of resets and mastered "
             "easier frontiers uniformly share the remainder"
         )
         self.assertEqual(self.spec.training_start_distribution,
                          expected_distribution)
         self.assertEqual(self.curriculum.protocol(), EXPECTED_CURRICULUM_PROTOCOL)
-        self.assertEqual(self.spec.checkpoint_schema, 6)
+        self.assertEqual(self.spec.checkpoint_schema, 7)
         self.assertEqual(self.spec.actor_initialization.continuous_log_std,
                          (-1.2, -1.2))
 

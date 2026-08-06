@@ -36,7 +36,7 @@ FAILURE_REWARD = -100.0
 # mixture so advancing the frontier does not abruptly remove positive examples.
 CURRICULUM_FRONTIER_ORDER = (4, 3, 2, 1, 0)
 CURRICULUM_ACTIVE_FRONTIER_PROBABILITY = 0.5
-CURRICULUM_SUCCESS_RATE_THRESHOLD = 0.9
+CURRICULUM_SUCCESS_RATE_THRESHOLD = 0.75
 CURRICULUM_CONSECUTIVE_CONFIRMATIONS = 1
 TOUCHDOWN_ALTITUDE_MIN, TOUCHDOWN_ALTITUDE_MAX = 5.0, 18.0
 TOUCHDOWN_X_OFFSET_MAX = 20.0
@@ -59,7 +59,7 @@ TRAINING_START_DISTRIBUTION = (
     "Performance-gated reverse altitude curriculum: begin with 100% "
     "touchdown rehearsals at k4 (5-18 units above the pad); unlock low "
     "k3 (30-100), mid k2 (100-250), high k1 (250-500), then canonical "
-    "k0 descents after one >=90% fixed 20-start frontier evaluation; "
+    "k0 descents after one >=75% fixed 20-start frontier evaluation; "
     "thereafter the active frontier receives 50% of resets and mastered "
     "easier frontiers uniformly share the remainder"
 )
