@@ -62,6 +62,8 @@ recoverable from the checkpoint archive.
   mixture. Rolling states reconstruct speed, clock, task progress, fuel, and
   traffic from a curvature/grip braking envelope; selection and replay keep
   their unchanged fixed start-line distributions.
+- Wet Apex assigns the same -40 terminal cost to collision, wrong-way, and
+  stall failures, so standing still is not safer than attempting the lap.
 - Lunar Lander uses a fixed-suite, performance-gated reverse-altitude
   curriculum: touchdown rehearsals first, then 30-100, 100-250, and 250-500
   unit approach bands before the canonical descent. Drone Course likewise

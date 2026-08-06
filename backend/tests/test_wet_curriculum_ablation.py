@@ -42,7 +42,7 @@ class WetTerminalSectorCurriculumTests(unittest.TestCase):
         wet_eval = self.specs["apex-gp-wet"].make_env(False)
         glacier_training = self.specs["glacier"].make_training_env()
 
-        self.assertEqual(self.specs["apex-gp-wet"].checkpoint_schema, 8)
+        self.assertEqual(self.specs["apex-gp-wet"].checkpoint_schema, 9)
         self.assertFalse(wet_eval.random_start)
         self.assertEqual(wet_eval.steps, 0)
         self.assertEqual(wet_eval.idx, 0)
