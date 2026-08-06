@@ -53,6 +53,14 @@ class TrainingCurriculumSpec:
     segment_seed_stride: int
     start_state_description: str
     make_evaluation_env: Callable[[int], Env]
+    frontier_success_rate_thresholds: tuple[tuple[int, float], ...] = ()
+
+    def success_rate_threshold_for(self, frontier: int) -> float:
+        """Return the advancement threshold for one curriculum frontier."""
+        if frontier not in self.frontier_order:
+            raise ValueError(f"segment {frontier} is outside the curriculum")
+        thresholds = dict(self.frontier_success_rate_thresholds)
+        return thresholds.get(frontier, self.success_rate_threshold)
 
     def evaluation_seed(self, segment: int, episode_index: int) -> int:
         if segment not in self.frontier_order:
@@ -81,6 +89,13 @@ class TrainingCurriculumSpec:
             },
             "gate": {
                 "success_rate_threshold": self.success_rate_threshold,
+                "success_rate_threshold_by_frontier": [
+                    {
+                        "frontier": frontier,
+                        "threshold": self.success_rate_threshold_for(frontier),
+                    }
+                    for frontier in self.frontier_order
+                ],
                 "comparison": ">=",
                 "consecutive_confirmations": self.consecutive_confirmations,
                 "distinct_checkpoint_episodes": True,

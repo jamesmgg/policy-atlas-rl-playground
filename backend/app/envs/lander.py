@@ -37,6 +37,13 @@ FAILURE_REWARD = -100.0
 CURRICULUM_FRONTIER_ORDER = (4, 3, 2, 1, 0)
 CURRICULUM_ACTIVE_FRONTIER_PROBABILITY = 0.5
 CURRICULUM_SUCCESS_RATE_THRESHOLD = 0.75
+CURRICULUM_SUCCESS_RATE_THRESHOLDS = (
+    (4, 0.9),
+    (3, 0.75),
+    (2, 0.75),
+    (1, 0.75),
+    (0, 0.75),
+)
 CURRICULUM_CONSECUTIVE_CONFIRMATIONS = 1
 TOUCHDOWN_ALTITUDE_MIN, TOUCHDOWN_ALTITUDE_MAX = 5.0, 18.0
 TOUCHDOWN_X_OFFSET_MAX = 20.0
@@ -59,7 +66,8 @@ TRAINING_START_DISTRIBUTION = (
     "Performance-gated reverse altitude curriculum: begin with 100% "
     "touchdown rehearsals at k4 (5-18 units above the pad); unlock low "
     "k3 (30-100), mid k2 (100-250), high k1 (250-500), then canonical "
-    "k0 descents after one >=75% fixed 20-start frontier evaluation; "
+    "k0 descents after one >=90% fixed 20-start k4 evaluation and "
+    ">=75% at each harder frontier; "
     "thereafter the active frontier receives 50% of resets and mastered "
     "easier frontiers uniformly share the remainder"
 )
@@ -232,6 +240,8 @@ class LanderEnv:
                 != CURRICULUM_ACTIVE_FRONTIER_PROBABILITY
                 or curriculum.success_rate_threshold
                 != CURRICULUM_SUCCESS_RATE_THRESHOLD
+                or curriculum.frontier_success_rate_thresholds
+                != CURRICULUM_SUCCESS_RATE_THRESHOLDS
                 or curriculum.consecutive_confirmations
                 != CURRICULUM_CONSECUTIVE_CONFIRMATIONS):
             raise ValueError("curriculum gate does not match Lander")
@@ -249,10 +259,13 @@ class LanderEnv:
             raise ValueError("curriculum evaluation episode must be non-negative")
 
         before = self.training_curriculum_state()
-        passed = success_rate >= curriculum.success_rate_threshold
+        success_rate_threshold = curriculum.success_rate_threshold_for(
+            before["frontier"])
+        passed = success_rate >= success_rate_threshold
         if self._curriculum_last_evaluation_episode == evaluation_episode:
             return {
                 "success_rate": success_rate,
+                "success_rate_threshold": success_rate_threshold,
                 "passed": passed,
                 "evaluation_episode": evaluation_episode,
                 "ignored_duplicate": True,
@@ -287,6 +300,7 @@ class LanderEnv:
         after = self.training_curriculum_state()
         return {
             "success_rate": success_rate,
+            "success_rate_threshold": success_rate_threshold,
             "passed": passed,
             "evaluation_episode": evaluation_episode,
             "ignored_duplicate": False,
@@ -492,4 +506,5 @@ TRAINING_CURRICULUM = TrainingCurriculumSpec(
         "rehearsals preserve altitude-derived elapsed time and fuel"
     ),
     make_evaluation_env=make_frontier_evaluation_env,
+    frontier_success_rate_thresholds=CURRICULUM_SUCCESS_RATE_THRESHOLDS,
 )

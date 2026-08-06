@@ -66,8 +66,9 @@ recoverable from the checkpoint archive.
   curriculum: touchdown rehearsals first, then 30-100, 100-250, and 250-500
   unit approach bands before the canonical descent. Drone Course likewise
   learns the final waypoint first, then unlocks each earlier course segment.
-  Lander frontiers advance after one >=75% deterministic 20-start evaluation;
-  Drone frontiers retain their >=90% gate. Once a Lander frontier has been
+  Lander's touchdown frontier advances after one >=90% deterministic 20-start
+  evaluation; harder Lander frontiers use >=75%, while Drone frontiers retain
+  their >=90% gate. Once a Lander frontier has been
   mastered, half of resets stay on the active frontier and the other half
   retain mastered easier work. Curriculum state is checkpointed exactly, and
   its diagnostics never enter full-course checkpoint selection.

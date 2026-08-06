@@ -29,6 +29,13 @@ EXPECTED_CURRICULUM_PROTOCOL = {
     },
     "gate": {
         "success_rate_threshold": 0.9,
+        "success_rate_threshold_by_frontier": [
+            {"frontier": 4, "threshold": 0.9},
+            {"frontier": 3, "threshold": 0.9},
+            {"frontier": 2, "threshold": 0.9},
+            {"frontier": 1, "threshold": 0.9},
+            {"frontier": 0, "threshold": 0.9},
+        ],
         "comparison": ">=",
         "consecutive_confirmations": 1,
         "distinct_checkpoint_episodes": True,
@@ -394,7 +401,7 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             payload = trainer.registry.load(0)
 
         self.assertEqual(meta["schema_version"], 6)
-        self.assertEqual(meta["protocol"]["version"], 10)
+        self.assertEqual(meta["protocol"]["version"], 11)
         self.assertEqual(meta["protocol"]["training_curriculum"],
                          EXPECTED_CURRICULUM_PROTOCOL)
         diagnostic = meta["training_diagnostics"]["training_curriculum"]
