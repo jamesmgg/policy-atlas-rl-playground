@@ -152,11 +152,18 @@ class TrainingCurriculumSpec:
     training_control: TrainingControlSpec | None = None
 
     def success_rate_threshold_for(self, frontier: int) -> float:
-        """Return the advancement threshold for one curriculum frontier."""
+        """Return an optional frontier-specific gate, else the shared gate."""
         if frontier not in self.frontier_order:
             raise ValueError(f"segment {frontier} is outside the curriculum")
-        thresholds = dict(self.frontier_success_rate_thresholds)
-        return thresholds.get(frontier, self.success_rate_threshold)
+        matches = [threshold for segment, threshold
+                   in self.frontier_success_rate_thresholds
+                   if segment == frontier]
+        if len(matches) > 1:
+            raise ValueError(f"segment {frontier} has duplicate thresholds")
+        threshold = (matches[0] if matches else self.success_rate_threshold)
+        if not 0.0 <= threshold <= 1.0:
+            raise ValueError("curriculum success-rate threshold must be in [0, 1]")
+        return float(threshold)
 
     def evaluation_seed(self, segment: int, episode_index: int) -> int:
         if segment not in self.frontier_order:

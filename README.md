@@ -67,6 +67,11 @@ recoverable from the checkpoint archive.
   mixture. Rolling states reconstruct speed, clock, task progress, fuel, and
   traffic from a curvature/grip braking envelope; selection and replay keep
   their unchanged fixed start-line distributions.
+- Traffic Rush assigns the same -40 terminal cost to collision, contact,
+  wrong-way, and stall failures, so waiting safely cannot dominate attempting
+  the overtake objective. Its reverse curriculum rehearses checkpoints 11, 9,
+  3, and then the canonical start; reconstructed pass masks describe inherited
+  state and are never counted as newly learned overtakes.
 - Wet Apex assigns the same nominal -40 terminal cost to collision, wrong-way,
   and stall failures. This aligns the raw terminal costs, but equal costs alone
   do not prove that delayed inactivity is neutral under discounting; the
@@ -109,8 +114,8 @@ recoverable from the checkpoint archive.
   rewarding the counter-thrust needed to reverse inbound momentum. Attitude
   and thrust regularizers are accumulated and charged only when the course is
   completed, ranking successful controllers by efficiency without making an
-  early crash cheaper than a longer failed attempt. Other scenarios retain
-  `gamma = 0.995`.
+  early crash cheaper than a longer failed attempt. Traffic Rush, Lunar Lander,
+  and Drone Course use `gamma = 1.0`; other scenarios retain `gamma = 0.995`.
   Segment gates use suite v3 at seeds 400,000 and above; momentum controls use
   versioned suites at 500,000 and above. Both are disjoint from checkpoint
   selection (100,000+) and the default holdout (200,000+).

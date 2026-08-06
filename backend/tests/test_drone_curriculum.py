@@ -948,7 +948,7 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             payload = trainer.registry.load(25)
 
         self.assertEqual(meta["schema_version"], 15)
-        self.assertEqual(meta["protocol"]["version"], 15)
+        self.assertEqual(meta["protocol"]["version"], 16)
         self.assertEqual(meta["protocol"]["gamma"], 1.0)
         self.assertEqual(meta["protocol"]["training_curriculum"],
                          EXPECTED_CURRICULUM_PROTOCOL)
@@ -1045,11 +1045,11 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             "apex-gp": 7, "velocita": 7, "grandville": 7,
             "thunder-oval": 7, "apex-gp-wet": 9, "glacier": 7,
             "rally-ridge": 7, "kart-sprint": 7, "drift-trial": 8,
-            "eco-gp": 7, "traffic-rush": 9,
+            "eco-gp": 7,
             "pendulum-swingup": 2, "cartpole-balance": 2,
             "mountain-car": 3,
         }
-        curriculum_ids = {"drone-hover", "lunar-lander"}
+        curriculum_ids = {"drone-hover", "lunar-lander", "traffic-rush"}
         non_curriculum = {spec.id: spec for spec in list_specs()
                           if spec.id not in curriculum_ids}
 
@@ -1068,8 +1068,9 @@ class TestDroneReverseCurriculum(unittest.TestCase):
         self.assertEqual(
             {spec.id for spec in list_specs()
              if spec.training_discount_factor == 1.0},
-            {"lunar-lander", "drone-hover"},
+            {"traffic-rush", "lunar-lander", "drone-hover"},
         )
+        self.assertEqual(get_spec("traffic-rush").checkpoint_schema, 16)
 
     def test_curriculum_and_schema_are_explicit_in_scenario_metadata(self) -> None:
         self.assertEqual(

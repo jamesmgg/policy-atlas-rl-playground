@@ -16,6 +16,7 @@ import numpy as np
 from .. import physics
 from ..physics import CarState, PhysicsParams
 from ..track import Track, heading_at
+from .base import TrainingCurriculumSpec
 
 FRAME_SKIP = 2
 DT_AGENT = physics.DT * FRAME_SKIP   # 0.04 s per agent step
@@ -80,6 +81,40 @@ class RewardConfig:
     overtake: float = 0.0
     contact: float = 0.0
     fuel_empty: float = 0.0
+    timeout: float = 0.0
+    terminalize_failure_time: bool = False
+    terminal_zero_course_potential: bool = False
+
+
+FAILURE_TERMINAL_CAUSES = (
+    "collision", "contact", "stall", "wrong_way", "timeout",
+)
+
+
+def terminal_failure_time_cost(
+        reward_cfg: RewardConfig, *, cause: str, steps: int,
+        max_steps: int) -> float:
+    """Charge failed episodes for the unused clock without taxing success."""
+    if (not reward_cfg.terminalize_failure_time
+            or cause not in FAILURE_TERMINAL_CAUSES):
+        return 0.0
+    remaining_steps = max(int(max_steps) - int(steps), 0)
+    return float(reward_cfg.time) * remaining_steps
+
+
+def terminal_zero_potential_delta(
+        previous_potential: float, current_potential: float, *,
+        terminal: bool) -> float:
+    """Potential difference with every terminal state defined to have zero."""
+    next_potential = 0.0 if terminal else float(current_potential)
+    return next_potential - float(previous_potential)
+
+
+TRAFFIC_CURRICULUM_ID = "traffic-reverse-overtake-v1"
+TRAFFIC_CURRICULUM_STATE_VERSION = 1
+TRAFFIC_CURRICULUM_FRONTIER_ORDER = (11, 9, 3, 0)
+TRAFFIC_CURRICULUM_ACTIVE_FRONTIER_PROBABILITY = 0.8
+TRAFFIC_CURRICULUM_CONSECUTIVE_CONFIRMATIONS = 2
 
 
 @dataclass(frozen=True)
@@ -259,6 +294,7 @@ class DrivingEnv:
                                 for s in unwrapped_bot_arcs]
         self.overtakes = sum(self._bot_passed)
         self._bot_prev_gap = [self._bot_gap(i) for i in range(len(self.features.bots))]
+        self._course_reward_potential_prev = self.course_reward_potential()
         return self._obs()
 
     # ------------------------------------------------------ rolling curriculum
@@ -337,6 +373,32 @@ class DrivingEnv:
         )
         return max(0, min(elapsed, latest_safe))
 
+    def course_reward_potential(self) -> float:
+        """Course-shaping state whose live differences match legacy rewards."""
+        cfg = self.reward_cfg
+        completed_checkpoints = max(int(self.next_cp) - 1, 0)
+        return (cfg.progress * float(self.progress)
+                + cfg.checkpoint * completed_checkpoints
+                + cfg.lap * int(self.laps))
+
+    def course_reward_potential_protocol(self) -> dict | None:
+        """Disclose the exact terminal-zero shaping contract when enabled."""
+        cfg = self.reward_cfg
+        if not cfg.terminal_zero_course_potential:
+            return None
+        return {
+            "enabled": True,
+            "state_potential": (
+                f"{cfg.progress:g} * signed_progress + "
+                f"{cfg.checkpoint:g} * completed_checkpoints + "
+                f"{cfg.lap:g} * completed_laps"
+            ),
+            "live_transition": "potential(next_state) - potential(state)",
+            "terminal_potential": 0.0,
+            "episode_sum": "-potential(start_state)",
+            "discount_factor": 1.0,
+        }
+
     # ------------------------------------------------------------------ step
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, dict]:
@@ -371,10 +433,13 @@ class DrivingEnv:
         else:
             self._stall_steps += 1
 
-        reward = cfg.progress * ds + cfg.time
+        reward = cfg.time
+        if not cfg.terminal_zero_course_potential:
+            reward += cfg.progress * ds
 
         while self.progress >= self._cp_threshold():
-            reward += cfg.checkpoint
+            if not cfg.terminal_zero_course_potential:
+                reward += cfg.checkpoint
             self.next_cp += 1
             if (self.next_cp - 1) % len(track.checkpoint_arcs) == 0:
                 self.laps += 1
@@ -383,7 +448,8 @@ class DrivingEnv:
                 self.last_lap_time = lap_time
                 if self.best_lap_time is None or lap_time < self.best_lap_time:
                     self.best_lap_time = lap_time
-                reward += cfg.lap
+                if not cfg.terminal_zero_course_potential:
+                    reward += cfg.lap
 
         curv = float(track.curvature[self.idx])
         in_corner = abs(curv) > CORNER_CURV
@@ -404,9 +470,10 @@ class DrivingEnv:
             self.fuel = max(self.fuel - self.features.fuel.rate
                             * max(throttle, 0.0) ** 2 * DT_AGENT, 0.0)
 
+        pass_candidates: list[int] = []
         contact = False
         if self.features.bots:
-            reward += self._step_bots()
+            pass_candidates = self._advance_bots()
             contact = self._check_contact()
 
         done = False
@@ -425,10 +492,32 @@ class DrivingEnv:
         elif self._stall_steps >= STALL_WINDOW:
             reward += cfg.stall
             done, self.cause = True, "stall"
-        elif self._objective_reached():
-            done, self.cause = True, "complete"
-        elif self.steps >= self.max_steps:
-            done, self.cause = True, "timeout"
+
+        if not done:
+            reward += self._commit_bot_passes(pass_candidates)
+            if self._objective_reached():
+                done, self.cause = True, "complete"
+            elif self.steps >= self.max_steps:
+                reward += cfg.timeout
+                done, self.cause = True, "timeout"
+
+        if cfg.terminal_zero_course_potential:
+            current_potential = self.course_reward_potential()
+            reward += terminal_zero_potential_delta(
+                self._course_reward_potential_prev,
+                current_potential,
+                terminal=done,
+            )
+            self._course_reward_potential_prev = (
+                0.0 if done else current_potential)
+
+        if done:
+            reward += terminal_failure_time_cost(
+                cfg,
+                cause=self.cause,
+                steps=self.steps,
+                max_steps=self.max_steps,
+            )
 
         self.episode_reward += reward
         deadline = done and self.cause == "timeout"
@@ -458,20 +547,33 @@ class DrivingEnv:
         return ((self._bot_arcs[i] - self.s_prev + length / 2.0) % length
                 - length / 2.0)
 
-    def _step_bots(self) -> float:
+    def _advance_bots(self) -> list[int]:
+        """Advance traffic and return uncommitted clean-pass candidates."""
         L = self.track.total_length
-        reward = 0.0
+        candidates: list[int] = []
         for i, bot in enumerate(self.features.bots):
             self._bot_arcs[i] = (self._bot_arcs[i] + bot.speed * DT_AGENT) % L
             g = self._bot_gap(i)
             prev = self._bot_prev_gap[i]
             # Car passes bot: small positive gap wraps to almost-L.
             if not self._bot_passed[i] and prev < 30.0 and g > L - 30.0:
-                self._bot_passed[i] = True
-                self.overtakes = sum(self._bot_passed)
-                reward += self.reward_cfg.overtake
+                candidates.append(i)
             self._bot_prev_gap[i] = g
+        return candidates
+
+    def _commit_bot_passes(self, candidates: list[int]) -> float:
+        """Commit safe pass candidates exactly once after failure checks."""
+        reward = 0.0
+        for i in candidates:
+            if not self._bot_passed[i]:
+                self._bot_passed[i] = True
+                reward += self.reward_cfg.overtake
+        self.overtakes = sum(self._bot_passed)
         return reward
+
+    def _step_bots(self) -> float:
+        """Advance and commit directly for legacy low-level callers."""
+        return self._commit_bot_passes(self._advance_bots())
 
     def _check_contact(self) -> bool:
         for i in range(len(self.features.bots)):
@@ -481,6 +583,26 @@ class DrivingEnv:
         return False
 
     # ----------------------------------------------------------------- protocol
+
+    def failure_clock_protocol(self) -> dict | None:
+        """Describe the optional failure-only time-to-go regularizer."""
+        cfg = self.reward_cfg
+        if not cfg.terminalize_failure_time:
+            return None
+        return {
+            "enabled": True,
+            "time_per_step": cfg.time,
+            "failure_causes": list(FAILURE_TERMINAL_CAUSES),
+            "remaining_cost_formula": (
+                "time_per_step * max(horizon_steps - terminal_step, 0)"
+            ),
+            "canonical_failure_clock_total": cfg.time * self.max_steps,
+            "rolling_start_semantics": (
+                "constant over the remaining suffix from each sampled start; "
+                "no reset reward"
+            ),
+            "successful_completion": "elapsed live-step time cost only",
+        }
 
     def _objective_reached(self) -> bool:
         kind = self.features.metric
@@ -641,3 +763,210 @@ class DrivingEnv:
                 cursor += 4
         obs[cursor] = max(0.0, 1.0 - self.steps / self.max_steps)
         return obs
+
+
+@dataclass
+class TrafficCurriculumEnv(DrivingEnv):
+    """Traffic-only reverse curriculum over audited physical checkpoints.
+
+    The canonical evaluation factory deliberately continues to construct the
+    base :class:`DrivingEnv`; this subclass is reserved for training-control
+    stages and the stochastic training-start distribution.
+    """
+
+    traffic_stage_curriculum: bool = False
+    forced_start_checkpoint: int | None = None
+    _curriculum_position: int = field(default=0, init=False, repr=False)
+    _curriculum_pass_streak: int = field(default=0, init=False, repr=False)
+    _curriculum_complete: bool = field(default=False, init=False, repr=False)
+    _curriculum_evaluations: int = field(default=0, init=False, repr=False)
+    _curriculum_last_success_rate: float | None = field(
+        default=None, init=False, repr=False)
+    _curriculum_last_evaluation_episode: int | None = field(
+        default=None, init=False, repr=False)
+
+    def __post_init__(self):
+        if (self.forced_start_checkpoint is not None
+                and self.forced_start_checkpoint
+                not in TRAFFIC_CURRICULUM_FRONTIER_ORDER):
+            raise ValueError(
+                "forced Traffic checkpoint must be one of 11, 9, 3, or 0")
+        super().__post_init__()
+
+    def reset(self) -> np.ndarray:
+        checkpoint = self._sample_start_checkpoint()
+        if checkpoint == 0:
+            self.random_start = False
+            self.start_line_probability = 0.0
+            self.rolling_checkpoint_indices = None
+        else:
+            self.random_start = True
+            self.start_line_probability = 0.0
+            self.rolling_checkpoint_indices = (checkpoint,)
+        return super().reset()
+
+    def _sample_start_checkpoint(self) -> int:
+        if self.forced_start_checkpoint is not None:
+            return self.forced_start_checkpoint
+        if not self.traffic_stage_curriculum:
+            return 0
+        frontier = TRAFFIC_CURRICULUM_FRONTIER_ORDER[
+            self._curriculum_position]
+        mastered = TRAFFIC_CURRICULUM_FRONTIER_ORDER[
+            :self._curriculum_position]
+        if (not mastered
+                or self.rng.random()
+                < TRAFFIC_CURRICULUM_ACTIVE_FRONTIER_PROBABILITY):
+            return frontier
+        return self.rng.choice(mastered)
+
+    def training_curriculum_state(self) -> dict:
+        """Return all gate state required for an exact resumed reset stream."""
+        frontier = TRAFFIC_CURRICULUM_FRONTIER_ORDER[
+            self._curriculum_position]
+        return {
+            "id": TRAFFIC_CURRICULUM_ID,
+            "version": TRAFFIC_CURRICULUM_STATE_VERSION,
+            "frontier_position": self._curriculum_position,
+            "frontier": frontier,
+            "mastered": list(TRAFFIC_CURRICULUM_FRONTIER_ORDER[
+                :self._curriculum_position]),
+            "pass_streak": self._curriculum_pass_streak,
+            "complete": self._curriculum_complete,
+            "evaluations": self._curriculum_evaluations,
+            "last_success_rate": self._curriculum_last_success_rate,
+            "last_evaluation_episode": (
+                self._curriculum_last_evaluation_episode),
+        }
+
+    def restore_training_curriculum_state(self, state: dict) -> None:
+        """Restore a validated Traffic gate saved with the checkpoint RNG."""
+        if state.get("id") != TRAFFIC_CURRICULUM_ID:
+            raise ValueError("Traffic curriculum state id is incompatible")
+        if int(state.get("version", -1)) != TRAFFIC_CURRICULUM_STATE_VERSION:
+            raise ValueError("unsupported Traffic curriculum state version")
+
+        position = int(state["frontier_position"])
+        pass_streak = int(state["pass_streak"])
+        evaluations = int(state["evaluations"])
+        complete = bool(state["complete"])
+        last_success_rate = state.get("last_success_rate")
+        last_evaluation_episode = state.get("last_evaluation_episode")
+        if not 0 <= position < len(TRAFFIC_CURRICULUM_FRONTIER_ORDER):
+            raise ValueError("invalid Traffic curriculum frontier position")
+        if int(state.get("frontier", -1)) != (
+                TRAFFIC_CURRICULUM_FRONTIER_ORDER[position]):
+            raise ValueError(
+                "Traffic curriculum frontier does not match position")
+        if list(state.get("mastered", [])) != list(
+                TRAFFIC_CURRICULUM_FRONTIER_ORDER[:position]):
+            raise ValueError(
+                "Traffic curriculum mastered checkpoints are inconsistent")
+        if not 0 <= pass_streak <= TRAFFIC_CURRICULUM_CONSECUTIVE_CONFIRMATIONS:
+            raise ValueError("invalid Traffic curriculum confirmation streak")
+        if evaluations < 0:
+            raise ValueError("invalid Traffic curriculum evaluation count")
+        if (complete
+                and position != len(TRAFFIC_CURRICULUM_FRONTIER_ORDER) - 1):
+            raise ValueError("only the canonical Traffic frontier can complete")
+        if last_success_rate is not None:
+            last_success_rate = float(last_success_rate)
+            if not 0.0 <= last_success_rate <= 1.0:
+                raise ValueError("invalid Traffic curriculum success rate")
+        if last_evaluation_episode is not None:
+            last_evaluation_episode = int(last_evaluation_episode)
+            if last_evaluation_episode < 0:
+                raise ValueError(
+                    "invalid Traffic curriculum evaluation episode")
+
+        self._curriculum_position = position
+        self._curriculum_pass_streak = pass_streak
+        self._curriculum_complete = complete
+        self._curriculum_evaluations = evaluations
+        self._curriculum_last_success_rate = last_success_rate
+        self._curriculum_last_evaluation_episode = last_evaluation_episode
+
+    def reset_training_curriculum(self) -> None:
+        self._curriculum_position = 0
+        self._curriculum_pass_streak = 0
+        self._curriculum_complete = False
+        self._curriculum_evaluations = 0
+        self._curriculum_last_success_rate = None
+        self._curriculum_last_evaluation_episode = None
+
+    def record_training_curriculum_evaluation(
+            self, success_rate: float,
+            curriculum: TrainingCurriculumSpec, *,
+            evaluation_episode: int | None = None) -> dict:
+        """Apply one distinct fixed-suite result to the active-stage gate."""
+        if curriculum.id != TRAFFIC_CURRICULUM_ID:
+            raise ValueError("curriculum id does not match Traffic")
+        if (tuple(curriculum.frontier_order)
+                != TRAFFIC_CURRICULUM_FRONTIER_ORDER):
+            raise ValueError("curriculum frontier order does not match Traffic")
+        if not 0.0 <= success_rate <= 1.0:
+            raise ValueError("curriculum success rate must be in [0, 1]")
+        if evaluation_episode is None:
+            evaluation_episode = (
+                0 if self._curriculum_last_evaluation_episode is None
+                else self._curriculum_last_evaluation_episode + 1)
+        evaluation_episode = int(evaluation_episode)
+        if evaluation_episode < 0:
+            raise ValueError(
+                "curriculum evaluation episode must be non-negative")
+
+        before = self.training_curriculum_state()
+        threshold = curriculum.success_rate_threshold_for(before["frontier"])
+        passed = success_rate >= threshold
+        if self._curriculum_last_evaluation_episode == evaluation_episode:
+            return self._curriculum_transition(
+                before, before, success_rate, threshold, passed,
+                evaluation_episode, ignored_duplicate=True, unlocked=False)
+        if (self._curriculum_last_evaluation_episode is not None
+                and evaluation_episode
+                < self._curriculum_last_evaluation_episode):
+            raise ValueError(
+                "curriculum evaluation episodes must be monotonic")
+
+        self._curriculum_evaluations += 1
+        self._curriculum_last_success_rate = float(success_rate)
+        self._curriculum_last_evaluation_episode = evaluation_episode
+        unlocked = False
+        if not self._curriculum_complete:
+            self._curriculum_pass_streak = (
+                self._curriculum_pass_streak + 1 if passed else 0)
+            if (self._curriculum_pass_streak
+                    >= curriculum.consecutive_confirmations):
+                if (self._curriculum_position
+                        < len(TRAFFIC_CURRICULUM_FRONTIER_ORDER) - 1):
+                    self._curriculum_position += 1
+                    self._curriculum_pass_streak = 0
+                    unlocked = True
+                else:
+                    self._curriculum_complete = True
+        after = self.training_curriculum_state()
+        return self._curriculum_transition(
+            before, after, success_rate, threshold, passed,
+            evaluation_episode, ignored_duplicate=False, unlocked=unlocked)
+
+    @staticmethod
+    def _curriculum_transition(
+            before: dict, after: dict, success_rate: float,
+            threshold: float, passed: bool, evaluation_episode: int, *,
+            ignored_duplicate: bool, unlocked: bool) -> dict:
+        return {
+            "success_rate": float(success_rate),
+            "success_rate_threshold": threshold,
+            "passed": passed,
+            "evaluation_episode": evaluation_episode,
+            "ignored_duplicate": ignored_duplicate,
+            "frontier_before": before["frontier"],
+            "frontier_after": after["frontier"],
+            "mastered_before": before["mastered"],
+            "mastered_after": after["mastered"],
+            "confirmation_streak_before": before["pass_streak"],
+            "confirmation_streak_after": after["pass_streak"],
+            "complete_before": before["complete"],
+            "complete_after": after["complete"],
+            "unlocked": unlocked,
+        }

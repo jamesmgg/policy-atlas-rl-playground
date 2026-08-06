@@ -1,11 +1,24 @@
 """The 11 driving scenarios: tracks x physics x features."""
 from __future__ import annotations
 
+from dataclasses import replace
 from functools import lru_cache
 
 from .. import physics, track as tracks
-from ..envs.driving import (Bot, DrivingEnv, DrivingFeatures, FuelConfig,
-                            RewardConfig, Zone)
+from ..envs.base import TrainingCurriculumSpec
+from ..envs.driving import (
+    TRAFFIC_CURRICULUM_ACTIVE_FRONTIER_PROBABILITY,
+    TRAFFIC_CURRICULUM_CONSECUTIVE_CONFIRMATIONS,
+    TRAFFIC_CURRICULUM_FRONTIER_ORDER,
+    TRAFFIC_CURRICULUM_ID,
+    Bot,
+    DrivingEnv,
+    DrivingFeatures,
+    FuelConfig,
+    RewardConfig,
+    TrafficCurriculumEnv,
+    Zone,
+)
 from ..ppo.initialization import ActorInitialization
 from ..track import Track, build_track
 from .spec import ScenarioSpec
@@ -59,14 +72,25 @@ def _driving_spec(id: str, name: str, group: str, description: str,
                   training_rolling_checkpoints: tuple[int, ...] | None = None,
                   horizon_steps: int = DrivingEnv.max_steps,
                   actor_initialization: ActorInitialization = DRIVING_ACTOR_INITIALIZATION,
+                  training_discount_factor: float = 0.995,
                   checkpoint_schema: int = 7) -> ScenarioSpec:
-    reward_terms = [
-        f"{reward.progress:g} × signed forward arc progress",
-        f"{reward.time:g} time cost per control step",
-        f"+{reward.checkpoint:g} per checkpoint and +{reward.lap:g} per lap",
-        f"{reward.collision:g} off-track, {reward.wrong_way:g} wrong-way, "
-        f"and {reward.stall:g} stall penalties",
-    ]
+    if reward.terminal_zero_course_potential:
+        reward_terms = [
+            "terminal-zero course potential: live progress/checkpoint/lap "
+            "differences are dense, terminal potential is 0, and the episode "
+            "sum = -potential(start)",
+            f"{reward.time:g} time cost per control step",
+            f"{reward.collision:g} off-track, {reward.wrong_way:g} wrong-way, "
+            f"and {reward.stall:g} stall penalties",
+        ]
+    else:
+        reward_terms = [
+            f"{reward.progress:g} × signed forward arc progress",
+            f"{reward.time:g} time cost per control step",
+            f"+{reward.checkpoint:g} per checkpoint and +{reward.lap:g} per lap",
+            f"{reward.collision:g} off-track, {reward.wrong_way:g} wrong-way, "
+            f"and {reward.stall:g} stall penalties",
+        ]
     if reward.style_coef:
         reward_terms.append(
             f"up to {reward.style_coef:g} × forward distance × speed × "
@@ -79,6 +103,15 @@ def _driving_spec(id: str, name: str, group: str, description: str,
         reward_terms.append(f"+{reward.overtake:g} per clean overtake")
     if features.fuel:
         reward_terms.append("quadratic throttle drains the fixed fuel budget")
+    if reward.timeout:
+        reward_terms.append(
+            f"{reward.timeout:g} task-deadline timeout penalty")
+    if reward.terminalize_failure_time:
+        reward_terms.append(
+            f"canonical failures pay the full {reward.time * horizon_steps:g} "
+            "horizon time budget; rolling-start failures pay their constant "
+            "remaining-suffix budget; successful completion pays elapsed "
+            "live-step time only")
     horizon_seconds = horizon_steps * DrivingEnv.dt
     termination = [
         "leaving the circuit", "wrong-way regression",
@@ -181,6 +214,7 @@ def _driving_spec(id: str, name: str, group: str, description: str,
         horizon_steps=horizon_steps,
         horizon_seconds=horizon_seconds,
         actor_initialization=actor_initialization,
+        training_discount_factor=training_discount_factor,
         checkpoint_schema=checkpoint_schema,
     )
 
@@ -191,6 +225,81 @@ WET_ZONES = (
     Zone(0.15, 0.22, 0.55, RAIN),
     Zone(0.55, 0.63, 0.45, RAIN),
     Zone(0.80, 0.86, 0.55, RAIN),
+)
+
+TRAFFIC_REWARD = RewardConfig(
+    drift_corner=0.0,
+    overtake=8.0,
+    contact=-40.0,
+    stall=-40.0,
+    wrong_way=-40.0,
+    timeout=-40.0,
+    terminalize_failure_time=True,
+    terminal_zero_course_potential=True,
+)
+TRAFFIC_FEATURES = DrivingFeatures(
+    bots=(Bot(0.25, 18.0, -0.4), Bot(0.50, 24.0, 0.0),
+          Bot(0.75, 30.0, 0.4)),
+    metric="overtakes",
+)
+TRAFFIC_TRAINING_START_DISTRIBUTION = (
+    "Performance-gated reverse Traffic curriculum over audited physical "
+    "checkpoints 11, 9, 3, then canonical 0: 80% active frontier and 20% "
+    "uniformly sampled mastered stages; two distinct 10-seed confirmations "
+    "at >=80% unlock checkpoints 9, 3, and 0, while two >=90% canonical "
+    "confirmations complete the curriculum; rolling states use the 70-90% "
+    "curvature/grip backward-braking envelope, an 80% reference clock with "
+    "a 1-second reserve, time-advanced traffic and reconstructed pass masks, "
+    "and no reset reward"
+)
+
+
+def _make_traffic_training_env() -> TrafficCurriculumEnv:
+    return TrafficCurriculumEnv(
+        _track("APEX_GP"),
+        params=physics.F1,
+        reward_cfg=TRAFFIC_REWARD,
+        features=TRAFFIC_FEATURES,
+        jitter=True,
+        max_steps=2250,
+        traffic_stage_curriculum=True,
+    )
+
+
+def _make_traffic_stage_evaluation_env(
+        checkpoint: int) -> TrafficCurriculumEnv:
+    if checkpoint not in TRAFFIC_CURRICULUM_FRONTIER_ORDER:
+        raise ValueError("Traffic checkpoint must be one of 11, 9, 3, or 0")
+    return TrafficCurriculumEnv(
+        _track("APEX_GP"),
+        params=physics.F1,
+        reward_cfg=TRAFFIC_REWARD,
+        features=TRAFFIC_FEATURES,
+        jitter=True,
+        max_steps=2250,
+        forced_start_checkpoint=checkpoint,
+    )
+
+
+TRAFFIC_TRAINING_CURRICULUM = TrainingCurriculumSpec(
+    id=TRAFFIC_CURRICULUM_ID,
+    frontier_order=TRAFFIC_CURRICULUM_FRONTIER_ORDER,
+    active_frontier_probability=(
+        TRAFFIC_CURRICULUM_ACTIVE_FRONTIER_PROBABILITY),
+    success_rate_threshold=0.8,
+    consecutive_confirmations=TRAFFIC_CURRICULUM_CONSECUTIVE_CONFIRMATIONS,
+    evaluation_suite_version="traffic-stage-eval-v1",
+    evaluation_episodes=10,
+    evaluation_seed_base=700_000,
+    segment_seed_stride=1_000,
+    start_state_description=(
+        "audited APEX_GP checkpoint with curvature/grip speed envelope, "
+        "time-advanced bots, reconstructed pass masks, and no reset reward"
+    ),
+    make_evaluation_env=_make_traffic_stage_evaluation_env,
+    frontier_success_rate_thresholds=(
+        (11, 0.8), (9, 0.8), (3, 0.8), (0, 0.9),
+    ),
 )
 
 DRIVING_SPECS: list[ScenarioSpec] = [
@@ -255,18 +364,23 @@ DRIVING_SPECS: list[ScenarioSpec] = [
         metric_label="laps on tank", metric_mode="max",
         objective="Maximize distance while minimizing quadratic throttle use.",
         success="Complete one lap on the fixed fuel budget."),
-    _driving_spec(
-        "traffic-rush", "Traffic Rush", "Objectives",
-        "Three slower cars share the track. Overtake cleanly — contact ends it.",
-        "APEX_GP",
-        reward=RewardConfig(overtake=8.0, contact=-40.0),
-        features=DrivingFeatures(
-            bots=(Bot(0.25, 18.0, -0.4), Bot(0.50, 24.0, 0.0),
-                  Bot(0.75, 30.0, 0.4)),
-            metric="overtakes"),
-        metric_label="overtakes", metric_mode="max",
-        objective="Pass traffic without contact while maintaining forward progress.",
-        success="Overtake all three traffic cars in one episode.",
-        difficulty="Advanced", training_rolling_checkpoints=(1, 2, 3),
-        horizon_steps=2250, checkpoint_schema=9),
+    replace(
+        _driving_spec(
+            "traffic-rush", "Traffic Rush", "Objectives",
+            "Three slower cars share the track. Overtake cleanly — contact ends it.",
+            "APEX_GP",
+            reward=TRAFFIC_REWARD,
+            features=TRAFFIC_FEATURES,
+            metric_label="overtakes", metric_mode="max",
+            objective=(
+                "Pass traffic without contact while maintaining forward "
+                "progress."),
+            success="Overtake all three traffic cars in one episode.",
+            difficulty="Advanced",
+            horizon_steps=2250, training_discount_factor=1.0,
+            checkpoint_schema=16),
+        training_factory=_make_traffic_training_env,
+        training_start_distribution=TRAFFIC_TRAINING_START_DISTRIBUTION,
+        training_curriculum=TRAFFIC_TRAINING_CURRICULUM,
+    ),
 ]
