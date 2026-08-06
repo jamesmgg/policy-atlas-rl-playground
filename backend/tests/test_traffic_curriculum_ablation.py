@@ -403,7 +403,7 @@ class TrafficStageCurriculumAblationTests(unittest.TestCase):
                     expected_evaluation_suite="current-suite",
                 )
 
-    def test_protocol_v16_discloses_the_terminalized_failure_clock(self) -> None:
+    def test_protocol_v17_discloses_the_terminalized_failure_clock(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "state.json").write_text(
@@ -453,7 +453,7 @@ class TrafficStageCurriculumAblationTests(unittest.TestCase):
                 "successful_completion": "elapsed live-step time cost only",
             },
         )
-        self.assertEqual(protocol["version"], 16)
+        self.assertEqual(protocol["version"], 17)
         self.assertEqual(protocol["gamma"], 1.0)
         self.assertEqual(protocol["task_horizon_steps"], 2250)
         self.assertEqual(protocol["task_horizon_seconds"], 90.0)

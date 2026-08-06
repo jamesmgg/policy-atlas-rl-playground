@@ -909,7 +909,7 @@ class TestEvaluationProtocol(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 16)
+        self.assertEqual(protocol["version"], 17)
         self.assertEqual(protocol["gamma"], trainer.spec.training_discount_factor)
         self.assertEqual(protocol["training_reward_scale"], 0.01)
         self.assertEqual(protocol["entropy_coefficient"], 0.0)

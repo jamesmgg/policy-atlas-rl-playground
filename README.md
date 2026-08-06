@@ -90,36 +90,49 @@ recoverable from the checkpoint archive.
   training-control signal, not a passive diagnostic. Its state is checkpointed
   exactly, while its results remain excluded from full-course checkpoint
   selection.
-- Drone Course uses a fixed-suite, performance-gated reverse curriculum that
-  learns the final waypoint first, then unlocks each earlier course segment
-  after one >=90% segment evaluation. Before the first unlock, every reset
-  targets the active frontier; afterward, half target the active frontier while
-  half uniformly rehearse mastered later segments to prevent forgetting.
-  While the final segment is locked, a nested momentum control progresses from
-  signed -20 to 20 units/s starts, through inbound 20 to 60, to the unchanged
-  hard inbound 60 to 100 range. Each band advances after one >=80% deterministic
-  10-start control suite; 75% of resets use the active band and 25% uniformly
-  retain mastered easier bands. The unchanged hard v3 segment gate runs only
-  after all three bands are proficient. Later outer frontiers use hard inbound
-  starts. Canonical evaluation and holdout starts remain unchanged at rest.
-  Fresh Drone policies also begin at the physically neutral -2/7 action on
-  both rotors (total thrust equals gravity), with exploration variance unchanged.
-  Drone uses an undiscounted finite-horizon objective (`gamma = 1.0`), and both
-  crash and timeout apply the same terminal failure cost so hovering until the
-  deadline is not an artificially safe strategy. Its terminal-zero shaping
-  potential combines waypoint distance (0.05), error from a 20--80 unit/s
-  braking-envelope velocity target (0.10), and error from the corresponding
-  one-second desired tilt (5.0). At `gamma = 1.0` it telescopes to a fixed
-  start-state constant, preserving terminal-outcome ordering while immediately
-  rewarding the counter-thrust needed to reverse inbound momentum. Attitude
-  and thrust regularizers are accumulated and charged only when the course is
-  completed, ranking successful controllers by efficiency without making an
-  early crash cheaper than a longer failed attempt. Traffic Rush, Lunar Lander,
-  and Drone Course use `gamma = 1.0`; other scenarios retain `gamma = 0.995`.
-  Segment gates use suite v3 at seeds 400,000 and above; momentum controls use
-  versioned suites at 500,000 and above. Both are disjoint from checkpoint
-  selection (100,000+) and the default holdout (200,000+).
-  Curriculum state is checkpointed exactly, and its diagnostics never enter
+- Drone Course uses a fixed, episode-number schedule that never reads
+  evaluation outcomes. Episodes 1--200 use 100% short approaches; 201--450 use
+  30% approaches and 70% half-segments; 451--800 use 10% approaches, 20%
+  half-segments, and 70% hard handoffs; episode 801 onward uses 5% approaches,
+  5% half-segments, 30% hard handoffs, and 60% unchanged canonical courses.
+  The segment is sampled uniformly across all five directions. Approaches begin
+  120 units before a target at rest, half-segments begin halfway from the prior
+  waypoint, and hard handoffs reproduce inbound 60--100 unit/s momentum. A
+  training-only segment ends after its one capture and awards only the ordinary
+  +20 capture reward; it is never labeled a canonical solve.
+- Drone Course is explicitly **not** a pure model-free-from-scratch experiment.
+  Before PPO, its actor receives a deterministic behavior-cloning warm start
+  from 80 successful physics-controller trajectories at seeds 600,000--600,079
+  (66,978 state/action pairs in the current dataset). Adam fits the shared torso
+  and bounded-action mean head for 60 unshuffled passes; the expert is absent at
+  inference and PPO subsequently fine-tunes the policy. The demonstrations are
+  disjoint from checkpoint-selection seeds (100,000+) and default holdout seeds
+  (200,000+), and their SHA-256 digest, optimizer contract, sample count, and
+  final loss are stored with checkpoints. Drone exploration begins at latent
+  log standard deviation -2.0 per rotor.
+- The Drone observation exposes 12 Markov control features: target-relative
+  position, velocity, desired-velocity error, desired-tilt error, sine/cosine
+  tilt, angular rate, waypoint progress, and remaining time. Velocity terms use
+  a 100 unit/s scale so hard handoffs stay near the network's training range.
+  Canonical evaluation, horizons, and holdout starts remain unchanged.
+- Drone Course uses an undiscounted finite-horizon objective
+  (`gamma = 1.0`), and both crash and timeout apply the same -50 task penalty.
+  Its segment-local training
+  auxiliary is the change in a cost potential combining waypoint distance
+  (0.05), error from a 20--80 unit/s braking-envelope velocity target (0.10),
+  and error from the corresponding one-second desired tilt (5.0). A waypoint
+  capture resets the baseline for the next target without charging the target
+  switch; a crash or timeout retains its physical terminal potential instead
+  of forcing it to zero. This auxiliary deliberately changes failed-attempt
+  ordering by terminal segment cost and is not policy invariant. It exists for
+  training credit assignment: a lower-cost failure ranks above a high-cost
+  crash, and finite-lambda GAE receives no artificial positive terminal
+  correction. Attitude and thrust regularizers are accumulated and charged
+  only when the course is completed, ranking successful controllers by
+  efficiency. Traffic Rush and Lunar Lander also use `gamma = 1.0`; other
+  scenarios retain `gamma = 0.995` and their exploration settings.
+  The next scheduled episode, selected training mode/segment, and RNG state are
+  checkpointed exactly. Training starts and demonstrations never enter
   full-course checkpoint selection.
 - The benchmark campaign freezes checkpoint selection before an optional
   100-start holdout at a disjoint seed range. Within one campaign, those starts

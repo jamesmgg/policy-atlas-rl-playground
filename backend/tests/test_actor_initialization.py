@@ -182,7 +182,7 @@ class TestDrivingActorInitialization(unittest.TestCase):
         self.assertAlmostEqual(stats["binary_probability_mean_0"], 0.05, places=6)
         self.assertEqual(stats["binary_deterministic_on_fraction_0"], 0.0)
 
-    def test_v15_checkpoint_protocol_records_exact_initialization_recipe(self) -> None:
+    def test_v17_checkpoint_protocol_records_exact_initialization_recipe(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             trainer = trainer_module.Trainer(Settings(
                 port=8901,
@@ -210,7 +210,7 @@ class TestDrivingActorInitialization(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 16)
+        self.assertEqual(protocol["version"], 17)
         self.assertEqual(protocol["actor_initialization"], EXPECTED_DRIVING_PROTOCOL)
 
 
@@ -249,9 +249,9 @@ class TestLanderExplorationInitialization(unittest.TestCase):
             torch.tensor([-1.2, -1.2]),
         )
 
-    def test_every_other_scenario_keeps_initial_log_std_minus_point_five(self) -> None:
+    def test_other_scenarios_keep_initial_log_std_minus_point_five(self) -> None:
         for spec in list_specs():
-            if spec.id == self.spec.id:
+            if spec.id in (self.spec.id, "drone-hover"):
                 continue
             env = spec.make_env(False)
             initialization = (
@@ -293,7 +293,7 @@ class TestLanderExplorationInitialization(unittest.TestCase):
             torch.tensor([-0.25, -0.75]),
         )
 
-    def test_v15_metadata_records_exact_lander_exploration_recipe(self) -> None:
+    def test_v17_metadata_records_exact_lander_exploration_recipe(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "state.json").write_text(
@@ -324,7 +324,7 @@ class TestLanderExplorationInitialization(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 16)
+        self.assertEqual(protocol["version"], 17)
         self.assertEqual(protocol["actor_initialization"], EXPECTED_LANDER_PROTOCOL)
 
 

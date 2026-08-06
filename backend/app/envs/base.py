@@ -6,6 +6,8 @@ envs.pendulum.PendulumEnv, envs.drone.DroneEnv.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
+import random
 from typing import Callable, Protocol, runtime_checkable
 
 import numpy as np
@@ -36,6 +38,101 @@ class Env(Protocol):
     def ghost_sample(self) -> list[float]:
         """[x, y, rot, drift, speed] — one replay row, same shape for all envs."""
         ...
+
+
+@dataclass(frozen=True)
+class EpisodeTrainingPhase:
+    """One immutable band in a predeclared episode-number curriculum."""
+
+    id: str
+    start_episode: int
+    end_episode: int | None
+    mode_probabilities: tuple[tuple[str, float], ...]
+    description: str
+
+    def __post_init__(self) -> None:
+        if not self.id:
+            raise ValueError("training phase id cannot be empty")
+        if self.start_episode < 1:
+            raise ValueError("training phases use one-based episode numbers")
+        if self.end_episode is not None and self.end_episode < self.start_episode:
+            raise ValueError("training phase end precedes its start")
+        modes = [mode for mode, _ in self.mode_probabilities]
+        if not modes or len(set(modes)) != len(modes):
+            raise ValueError("training phase modes must be nonempty and unique")
+        probabilities = [float(value) for _, value in self.mode_probabilities]
+        if any(not math.isfinite(value) or value <= 0.0
+               for value in probabilities):
+            raise ValueError("training mode probabilities must be finite and positive")
+        if not math.isclose(sum(probabilities), 1.0, abs_tol=1e-12):
+            raise ValueError("training mode probabilities must sum to one")
+
+
+@dataclass(frozen=True)
+class EpisodeTrainingScheduleSpec:
+    """A fixed schedule whose transitions never depend on evaluation results."""
+
+    id: str
+    phases: tuple[EpisodeTrainingPhase, ...]
+    start_state_description: str
+    checkpoint_selection_description: str
+
+    def __post_init__(self) -> None:
+        if not self.phases or self.phases[0].start_episode != 1:
+            raise ValueError("training schedule must begin at episode one")
+        for index, phase in enumerate(self.phases):
+            last = index == len(self.phases) - 1
+            if last:
+                if phase.end_episode is not None:
+                    raise ValueError("final training phase must be open-ended")
+                continue
+            if phase.end_episode is None:
+                raise ValueError("only the final training phase may be open-ended")
+            if self.phases[index + 1].start_episode != phase.end_episode + 1:
+                raise ValueError("training phases must be contiguous")
+
+    def phase_for_episode(self, episode: int) -> EpisodeTrainingPhase:
+        episode = int(episode)
+        if episode < 1:
+            raise ValueError("training episode must be positive")
+        for phase in self.phases:
+            if (episode >= phase.start_episode
+                    and (phase.end_episode is None
+                         or episode <= phase.end_episode)):
+                return phase
+        raise RuntimeError("training schedule does not cover the episode")
+
+    def sample_mode(self, rng: random.Random, episode: int) -> tuple[str, str]:
+        phase = self.phase_for_episode(episode)
+        draw = rng.random()
+        cumulative = 0.0
+        for mode, probability in phase.mode_probabilities:
+            cumulative += probability
+            if draw < cumulative:
+                return phase.id, mode
+        return phase.id, phase.mode_probabilities[-1][0]
+
+    def protocol(self) -> dict:
+        return {
+            "id": self.id,
+            "type": "predeclared_episode_schedule",
+            "advancement": {
+                "signal": "one-based completed-training-episode schedule",
+                "evaluation_conditioned": False,
+                "fixed_before_training": True,
+            },
+            "phases": [
+                {
+                    "id": phase.id,
+                    "episodes": [phase.start_episode, phase.end_episode],
+                    "sampling": dict(phase.mode_probabilities),
+                    "description": phase.description,
+                }
+                for phase in self.phases
+            ],
+            "start_states": self.start_state_description,
+            "checkpoint_selection": self.checkpoint_selection_description,
+        }
 
 
 @dataclass(frozen=True)
