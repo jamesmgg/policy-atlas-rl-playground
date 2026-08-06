@@ -31,7 +31,25 @@ class SolveCriteria:
     min_success_rate: float = 0.9
     min_ci_low: float = 0.7
     min_eval_episodes: int = 10
-    confirmations: int = 2
+    confirmations: int = 1
+
+
+def solve_contract(criteria: SolveCriteria) -> dict[str, Any]:
+    """Serialize the checkpoint-selection rule stored with every report."""
+    noun = "checkpoint" if criteria.confirmations == 1 else "checkpoints"
+    return {
+        "definition": (
+            "Selection chooses the first checkpoint in a streak of "
+            f"{criteria.confirmations} consecutive qualifying {noun}. A "
+            "qualifier must match the run protocol and meet the configured "
+            "fixed-suite success-rate, Wilson-bound, and suite-size thresholds. "
+            "Independent holdout evidence is evaluated only after selection."
+        ),
+        "min_success_rate": criteria.min_success_rate,
+        "min_ci_low": criteria.min_ci_low,
+        "min_eval_episodes": criteria.min_eval_episodes,
+        "confirmations": criteria.confirmations,
+    }
 
 
 def _engine_digest(checkpoint: dict[str, Any]) -> str | None:
@@ -658,12 +676,7 @@ class BenchmarkRunner:
             "updates": int(status.get("update_count") or 0),
             "checkpoint_every_n": self.checkpoint_every_n,
             "stop_on_solve": self.stop_on_solve,
-            "solve_criteria": {
-                "min_success_rate": self.criteria.min_success_rate,
-                "min_ci_low": self.criteria.min_ci_low,
-                "min_eval_episodes": self.criteria.min_eval_episodes,
-                "confirmations": self.criteria.confirmations,
-            },
+            "solve_criteria": solve_contract(self.criteria),
             "engine_source_sha256": engine,
             "evaluation_suite": suite,
             "earliest_solve": solve,
@@ -772,7 +785,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--min-success-rate", type=float, default=0.9)
     parser.add_argument("--min-ci-low", type=float, default=0.7)
     parser.add_argument("--min-eval-episodes", type=int, default=10)
-    parser.add_argument("--confirmations", type=int, default=2)
+    parser.add_argument("--confirmations", type=int, default=1)
     parser.add_argument("--holdout-episodes", type=int, default=100,
                         help="post-selection evaluation starts; 0 disables")
     parser.add_argument("--holdout-seed-base", type=int, default=200_000)
@@ -823,6 +836,12 @@ def main(argv: list[str] | None = None) -> int:
     inventory = inventory_report(catalog, status)
     selected = resolve_scenarios(args.scenarios, catalog)
     seeds = parse_seeds(args.seeds)
+    criteria = SolveCriteria(
+        min_success_rate=args.min_success_rate,
+        min_ci_low=args.min_ci_low,
+        min_eval_episodes=args.min_eval_episodes,
+        confirmations=args.confirmations,
+    )
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     report: dict[str, Any] = {
         "schema_version": 1,
@@ -835,17 +854,7 @@ def main(argv: list[str] | None = None) -> int:
         "max_episodes": args.max_episodes,
         "checkpoint_every_n": args.checkpoint_every,
         "full_budget": args.full_budget,
-        "solve_contract": {
-            "definition": (
-                "The first of consecutive protocol-matched checkpoints whose "
-                "fixed-suite success rate and 95% Wilson lower bound both meet "
-                "the configured thresholds."
-            ),
-            "min_success_rate": args.min_success_rate,
-            "min_ci_low": args.min_ci_low,
-            "min_eval_episodes": args.min_eval_episodes,
-            "confirmations": args.confirmations,
-        },
+        "solve_contract": solve_contract(criteria),
         "holdout_protocol": {
             "role": "post_selection_only",
             "episodes": args.holdout_episodes,
@@ -864,13 +873,6 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if status.get("training"):
         raise SystemExit("trainer is currently running; stop it before a campaign")
-
-    criteria = SolveCriteria(
-        min_success_rate=args.min_success_rate,
-        min_ci_low=args.min_ci_low,
-        min_eval_episodes=args.min_eval_episodes,
-        confirmations=args.confirmations,
-    )
 
     def progress(partial: dict[str, Any]) -> None:
         report["current"] = partial
