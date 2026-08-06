@@ -137,7 +137,8 @@ class TestLanderScientificContract(unittest.TestCase):
             phi_before = env._phi_prev
             _, reward, done, info = env.step(action)
             self.assertTrue(done)
-            shaping = phi_before - env._phi()
+            self.assertEqual(env._phi_prev, 0.0)
+            shaping = phi_before
             return reward - shaping, info
 
         crash = lander.LanderEnv(jitter=False)
@@ -174,14 +175,15 @@ class TestLanderScientificContract(unittest.TestCase):
 
         _, reward, done, info = env.step(
             np.array([-1.0, 0.0], dtype=np.float32))
-        shaping = phi_before - env._phi()
+        shaping = phi_before
 
         self.assertTrue(done)
+        self.assertEqual(env._phi_prev, 0.0)
         self.assertAlmostEqual(reward - shaping, 100.0)
         self.assertTrue(env.episode_summary()["success"])
         self.assertFalse(info["truncated"])
         self.assertFalse(info["task_deadline"])
-        self.assertEqual(self.spec.checkpoint_schema, 10)
+        self.assertEqual(self.spec.checkpoint_schema, 11)
 
 
 if __name__ == "__main__":

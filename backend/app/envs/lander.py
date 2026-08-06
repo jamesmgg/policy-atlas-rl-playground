@@ -30,6 +30,13 @@ PAD_CX = (PAD_X0 + PAD_X1) / 2
 SAFE_VX, SAFE_VY, SAFE_THETA = 8.0, 14.0, 0.25
 FAILURE_REWARD = -100.0
 
+# A slow descent should keep falling instead of braking to zero far above the
+# pad. The target starts safely inside the touchdown bound and rises with the
+# braking distance available, capped at the approach-start speed contract.
+DESCENT_TARGET_TOUCHDOWN_SPEED = 6.0
+DESCENT_TARGET_MAX_SPEED = 18.0
+DESCENT_COMFORT_DECELERATION = 2.0
+
 # The sparse terminal outcome is learned from the pad upward. A fixed-suite
 # performance gate, rather than episode count, controls when a harder altitude
 # becomes available. Previously mastered lower-altitude starts remain in the
@@ -390,9 +397,24 @@ class LanderEnv:
         self._start_kind = kind
 
     def _phi(self) -> float:
+        altitude = max(PAD_Y - self.y, 0.0)
+        descent_error = self.vy - self._descent_speed_target(altitude)
         dist = math.hypot(self.x - PAD_CX, self.y - PAD_Y)
-        v = math.hypot(self.vx, self.vy)
-        return 0.012 * dist + 0.04 * v + 0.4 * abs(self.theta)
+        velocity_error = math.hypot(self.vx, descent_error)
+        return 0.012 * dist + 0.04 * velocity_error + 0.4 * abs(self.theta)
+
+    @staticmethod
+    def _descent_speed_target(altitude: float) -> float:
+        """Return a safe downward-speed target for the remaining pad height."""
+        braking_distance = max(float(altitude), 0.0)
+        target = math.sqrt(
+            DESCENT_TARGET_TOUCHDOWN_SPEED ** 2
+            + 2.0 * DESCENT_COMFORT_DECELERATION * braking_distance)
+        return min(DESCENT_TARGET_MAX_SPEED, target)
+
+    def _shaping_potential(self, *, terminal: bool = False) -> float:
+        """Potential used for policy-invariant undiscounted reward shaping."""
+        return 0.0 if terminal else -self._phi()
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, dict]:
         u_main = float(np.clip((action[0] + 1.0) / 2.0, 0.0, 1.0))
@@ -412,29 +434,34 @@ class LanderEnv:
         self.fuel = max(self.fuel - (u_main + 0.15 * abs(u_side)) * FUEL_RATE * DT, 0.0)
         self.steps += 1
 
-        phi = self._phi()
-        reward = self._phi_prev - phi - 0.03 * u_main
-        self._phi_prev = phi
-
         done = False
+        terminal_reward = 0.0
         if self.y >= terrain_y(self.x):
             done = True
             on_pad = PAD_X0 <= self.x <= PAD_X1
             soft = (abs(self.vx) < SAFE_VX and abs(self.vy) < SAFE_VY
                     and abs(self.theta) < SAFE_THETA)
             if on_pad and soft:
-                reward += 100.0
+                terminal_reward = 100.0
                 self.landed = True
                 self.cause = "landed"
             else:
-                reward += FAILURE_REWARD
+                terminal_reward = FAILURE_REWARD
                 self.cause = "crash"
         elif self.x < 0 or self.x > 1000 or self.y < 0:
-            reward += FAILURE_REWARD
+            terminal_reward = FAILURE_REWARD
             done, self.cause = True, "out_of_bounds"
         elif self.steps >= self.max_steps:
-            reward += FAILURE_REWARD
+            terminal_reward = FAILURE_REWARD
             done, self.cause = True, "timeout"
+
+        # For gamma=1, Phi(s') - Phi(s) telescopes to a start-state constant
+        # only when every terminal state's potential is exactly zero. This
+        # redistributes the sparse outcome for credit assignment without
+        # changing which trajectory is optimal from a given initial state.
+        phi = -self._shaping_potential(terminal=done)
+        reward = self._phi_prev - phi - 0.03 * u_main + terminal_reward
+        self._phi_prev = phi
 
         self.episode_reward += reward
         deadline = done and self.cause == "timeout"

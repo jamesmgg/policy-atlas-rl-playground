@@ -138,6 +138,53 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
             with self.subTest(scenario=spec.id):
                 self.assertEqual(spec.training_discount_factor, 0.995)
 
+    def test_descent_envelope_rewards_falling_when_below_target_speed(self) -> None:
+        """The k3 shaping signal must not ask a slow descent to brake or hover."""
+        def reward_for(raw_main_action: float) -> float:
+            env = lander.LanderEnv(jitter=False)
+            env.x = lander.PAD_CX
+            env.y = lander.PAD_Y - 60.0
+            env.vx = 0.0
+            env.vy = 10.0
+            env.theta = 0.0
+            env.omega = 0.0
+            env.fuel = 0.9
+            env.steps = 150
+            env._phi_prev = env._phi()
+            _, reward, done, _ = env.step(np.array(
+                [raw_main_action, 0.0], dtype=np.float32))
+            self.assertFalse(done)
+            return reward
+
+        coast = reward_for(-1.0)
+        gravity_cancel = reward_for(2.0 * lander.G / lander.A_MAIN - 1.0)
+        full_thrust = reward_for(1.0)
+
+        self.assertGreater(coast, gravity_cancel)
+        self.assertGreater(gravity_cancel, full_thrust)
+
+    def test_descent_envelope_is_safe_monotonic_and_terminal_neutral(self) -> None:
+        env = lander.LanderEnv(jitter=False)
+        targets = [env._descent_speed_target(altitude)
+                   for altitude in (0.0, 5.0, 30.0, 60.0, 500.0)]
+
+        self.assertEqual(targets[0], lander.DESCENT_TARGET_TOUCHDOWN_SPEED)
+        self.assertTrue(all(left <= right
+                            for left, right in zip(targets, targets[1:])))
+        self.assertLessEqual(max(targets), lander.DESCENT_TARGET_MAX_SPEED)
+        self.assertAlmostEqual(
+            targets[1] ** 2,
+            lander.DESCENT_TARGET_TOUCHDOWN_SPEED ** 2
+            + 2.0 * lander.DESCENT_COMFORT_DECELERATION * 5.0,
+        )
+        self.assertLess(
+            lander.DESCENT_TARGET_TOUCHDOWN_SPEED,
+            lander.SAFE_VY,
+            "the envelope must aim inside the touchdown safety bound",
+        )
+        self.assertEqual(env._shaping_potential(terminal=True), 0.0)
+        self.assertLess(env._shaping_potential(terminal=False), 0.0)
+
     def assert_rehearsal_state(self, env, frontier: int) -> None:
         altitude = lander.PAD_Y - env.y
         if frontier == 4:
@@ -487,8 +534,8 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
             meta = trainer.registry.list()[0]
             payload = trainer.registry.load(25)
 
-        self.assertEqual(meta["schema_version"], 10)
-        self.assertEqual(meta["protocol"]["version"], 13)
+        self.assertEqual(meta["schema_version"], 11)
+        self.assertEqual(meta["protocol"]["version"], 14)
         self.assertEqual(meta["protocol"]["gamma"], 1.0)
         self.assertEqual(meta["protocol"]["training_curriculum"],
                          EXPECTED_CURRICULUM_PROTOCOL)
@@ -518,7 +565,7 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
         self.assertEqual(self.spec.training_start_distribution,
                          expected_distribution)
         self.assertEqual(self.curriculum.protocol(), EXPECTED_CURRICULUM_PROTOCOL)
-        self.assertEqual(self.spec.checkpoint_schema, 10)
+        self.assertEqual(self.spec.checkpoint_schema, 11)
         self.assertEqual(self.spec.actor_initialization.continuous_log_std,
                          (-1.2, -1.2))
 

@@ -210,7 +210,7 @@ class TestDrivingActorInitialization(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 13)
+        self.assertEqual(protocol["version"], 14)
         self.assertEqual(protocol["actor_initialization"], EXPECTED_DRIVING_PROTOCOL)
 
 
@@ -293,7 +293,7 @@ class TestLanderExplorationInitialization(unittest.TestCase):
             torch.tensor([-0.25, -0.75]),
         )
 
-    def test_v13_metadata_records_exact_lander_exploration_recipe(self) -> None:
+    def test_v14_metadata_records_exact_lander_exploration_recipe(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "state.json").write_text(
@@ -324,7 +324,7 @@ class TestLanderExplorationInitialization(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 13)
+        self.assertEqual(protocol["version"], 14)
         self.assertEqual(protocol["actor_initialization"], EXPECTED_LANDER_PROTOCOL)
 
 
