@@ -16,6 +16,8 @@ TORQUE = 8.0
 TIP_OVER = 1.3
 CAPTURE_DIST = 25.0
 HORIZON_STEPS = 900
+HANDOFF_HORIZONTAL_SPEED_MIN = 60.0
+HANDOFF_HORIZONTAL_SPEED_MAX = 100.0
 
 WAYPOINTS: list[tuple[float, float]] = [
     (250, 500), (700, 420), (450, 180), (820, 160), (150, 250),
@@ -35,7 +37,9 @@ WAYPOINT_START_STEPS = tuple(
 TRAINING_START_DISTRIBUTION = (
     "Performance-gated reverse waypoint curriculum: start at target 5 "
     "(k4); unlock k3, k2, k1, then canonical k0 after one >=90% fixed "
-    "segment evaluation; active frontier receives 100% of resets"
+    "segment evaluation; active frontier receives 100% of resets; "
+    "noncanonical starts carry seeded inbound horizontal velocity with the "
+    "previous-segment sign and magnitude uniformly sampled from 60 to 100 units/s"
 )
 CURRICULUM_FRONTIER_ORDER = (4, 3, 2, 1, 0)
 CURRICULUM_ACTIVE_FRONTIER_PROBABILITY = 1.0
@@ -90,6 +94,16 @@ class DroneEnv:
             self.x += self.rng.uniform(-30.0, 30.0)
         self.vx = self.vy = 0.0
         self.theta = self.omega = 0.0
+        if self.k > 0:
+            inbound_dx = (
+                _COURSE_POINTS[self.k][0] - _COURSE_POINTS[self.k - 1][0])
+            self.vx = math.copysign(
+                self.rng.uniform(
+                    HANDOFF_HORIZONTAL_SPEED_MIN,
+                    HANDOFF_HORIZONTAL_SPEED_MAX,
+                ),
+                inbound_dx,
+            )
         self.steps = (0 if self.k == 0
                       else WAYPOINT_START_STEPS[self.k - 1])
         self.episode_reward = 0.0
@@ -340,13 +354,16 @@ TRAINING_CURRICULUM = TrainingCurriculumSpec(
     active_frontier_probability=CURRICULUM_ACTIVE_FRONTIER_PROBABILITY,
     success_rate_threshold=CURRICULUM_SUCCESS_RATE_THRESHOLD,
     consecutive_confirmations=CURRICULUM_CONSECUTIVE_CONFIRMATIONS,
-    evaluation_suite_version="drone-segment-eval-v1",
+    evaluation_suite_version="drone-segment-eval-v2",
     evaluation_episodes=10,
     evaluation_seed_base=200_000,
     segment_seed_stride=1_000,
     start_state_description=(
-        "preceding waypoint, zero velocity/attitude/rate, standard seeded "
-        "horizontal jitter, cumulative-distance elapsed clock"
+        "noncanonical segment at preceding waypoint with standard seeded "
+        "horizontal position jitter, inbound horizontal velocity using "
+        "the previous-segment sign and magnitude uniform on [60, 100] "
+        "units/s, zero vertical velocity/attitude/rate, cumulative-distance "
+        "elapsed clock; k0 remains the canonical zero-motion start"
     ),
     make_evaluation_env=make_segment_evaluation_env,
 )

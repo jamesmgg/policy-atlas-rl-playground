@@ -34,15 +34,18 @@ EXPECTED_CURRICULUM_PROTOCOL = {
         "distinct_checkpoint_episodes": True,
     },
     "segment_evaluation": {
-        "suite_version": "drone-segment-eval-v1",
+        "suite_version": "drone-segment-eval-v2",
         "episodes": 10,
         "seed_base": 200_000,
         "segment_seed_stride": 1_000,
         "seed_formula": "seed_base + segment * segment_seed_stride + episode_index",
         "deterministic_policy": True,
         "start_state": (
-            "preceding waypoint, zero velocity/attitude/rate, standard seeded "
-            "horizontal jitter, cumulative-distance elapsed clock"
+            "noncanonical segment at preceding waypoint with standard seeded "
+            "horizontal position jitter, inbound horizontal velocity using "
+            "the previous-segment sign and magnitude uniform on [60, 100] "
+            "units/s, zero vertical velocity/attitude/rate, cumulative-distance "
+            "elapsed clock; k0 remains the canonical zero-motion start"
         ),
     },
     "checkpoint_selection": (
@@ -87,6 +90,11 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             starts.append(training.k)
             self.assertLessEqual(abs(training.x - drone.WAYPOINTS[3][0]), 30.0)
             self.assertEqual(training.y, drone.WAYPOINTS[3][1])
+            self.assertGreaterEqual(training.vx, 60.0)
+            self.assertLessEqual(training.vx, 100.0)
+            self.assertEqual(training.vy, 0.0)
+            self.assertEqual(training.theta, 0.0)
+            self.assertEqual(training.omega, 0.0)
             self.assertEqual(training.steps, drone.WAYPOINT_START_STEPS[3])
 
         self.assertEqual(set(starts), {4})
@@ -105,6 +113,8 @@ class TestDroneReverseCurriculum(unittest.TestCase):
         for _ in range(4_000):
             training.reset()
             starts.append(training.k)
+            self.assertLessEqual(training.vx, -60.0)
+            self.assertGreaterEqual(training.vx, -100.0)
 
         self.assertEqual(set(starts), {1})
 
@@ -164,20 +174,33 @@ class TestDroneReverseCurriculum(unittest.TestCase):
         for _ in range(2_000):
             training.reset()
             starts.append(training.k)
+            self.assertEqual(training.vx, 0.0)
         self.assertEqual(set(starts), {0})
 
-    def test_segment_reset_exposes_the_existing_exact_task_and_clock_state(self) -> None:
+    def test_segment_reset_replays_seeded_inbound_horizontal_momentum(self) -> None:
         for segment in range(len(drone.WAYPOINTS)):
             env = drone.make_segment_evaluation_env(segment)
-            env.rng.seed(self.curriculum.evaluation_seed(segment, 0))
+            seed = self.curriculum.evaluation_seed(segment, 0)
+            env.rng.seed(seed)
             observation = env.reset()
+            replay = drone.make_segment_evaluation_env(segment)
+            replay.rng.seed(seed)
+            replay.reset()
             origin = drone.START if segment == 0 else drone.WAYPOINTS[segment - 1]
             expected_steps = (0 if segment == 0
                               else drone.WAYPOINT_START_STEPS[segment - 1])
 
             self.assertLessEqual(abs(env.x - origin[0]), 30.0)
             self.assertEqual(env.y, origin[1])
-            self.assertEqual(env.vx, 0.0)
+            if segment == 0:
+                self.assertEqual(env.vx, 0.0)
+            else:
+                prior = drone.START if segment == 1 else drone.WAYPOINTS[segment - 2]
+                inbound_dx = origin[0] - prior[0]
+                self.assertGreater(env.vx * inbound_dx, 0.0)
+                self.assertGreaterEqual(abs(env.vx), 60.0)
+                self.assertLessEqual(abs(env.vx), 100.0)
+            self.assertEqual(replay.vx, env.vx)
             self.assertEqual(env.vy, 0.0)
             self.assertEqual(env.theta, 0.0)
             self.assertEqual(env.omega, 0.0)
@@ -187,6 +210,8 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             self.assertEqual(env.cause, "running")
             self.assertAlmostEqual(float(observation[7]),
                                    segment / len(drone.WAYPOINTS), places=6)
+            self.assertAlmostEqual(float(observation[2]),
+                                   env.vx / 60.0, places=6)
             self.assertAlmostEqual(float(observation[-1]),
                                    1.0 - expected_steps / env.max_steps,
                                    places=6)
@@ -218,7 +243,7 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             list(range(204_000, 204_010)),
         )
         self.assertEqual(self.curriculum.evaluation_suite_id(4),
-                         "drone-segment-eval-v1-k4-n10")
+                         "drone-segment-eval-v2-k4-n10")
 
         first_env = self.spec.make_training_env()
         second_env = self.spec.make_training_env()
@@ -229,7 +254,7 @@ class TestDroneReverseCurriculum(unittest.TestCase):
 
         self.assertEqual(first, second)
         self.assertEqual(first["evaluation_suite"],
-                         "drone-segment-eval-v1-k4-n10")
+                         "drone-segment-eval-v2-k4-n10")
         self.assertEqual(first["seeds"], list(range(204_000, 204_010)))
         self.assertEqual(first["episodes"], 10)
         self.assertEqual(first["frontier"], 4)
@@ -245,6 +270,10 @@ class TestDroneReverseCurriculum(unittest.TestCase):
                 observation = env.reset()
                 self.assertEqual(env.k, 0)
                 self.assertEqual(env.y, drone.START[1])
+                self.assertEqual(env.vx, 0.0)
+                self.assertEqual(env.vy, 0.0)
+                self.assertEqual(env.theta, 0.0)
+                self.assertEqual(env.omega, 0.0)
                 self.assertEqual(float(observation[7]), 0.0)
                 self.assertEqual(env.steps, 0)
 
@@ -273,11 +302,11 @@ class TestDroneReverseCurriculum(unittest.TestCase):
         training.rng.seed(718)
         state = trainer_module.capture_rng_state(training)
 
-        def sample_starts() -> list[tuple[int, float, int]]:
+        def sample_starts() -> list[tuple[int, float, float, int]]:
             result = []
             for _ in range(40):
                 training.reset()
-                result.append((training.k, training.x, training.steps))
+                result.append((training.k, training.x, training.vx, training.steps))
             return result
 
         expected = sample_starts()
@@ -321,14 +350,17 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             expected = []
             for _ in range(25):
                 first.env.reset()
-                expected.append((first.env.k, first.env.x, first.env.steps))
+                expected.append((
+                    first.env.k, first.env.x, first.env.vx, first.env.steps))
 
             resumed = trainer_module.Trainer(settings)
             actual_state = resumed.env.training_curriculum_state()
             actual = []
             for _ in range(25):
                 resumed.env.reset()
-                actual.append((resumed.env.k, resumed.env.x, resumed.env.steps))
+                actual.append((
+                    resumed.env.k, resumed.env.x, resumed.env.vx,
+                    resumed.env.steps))
 
         self.assertEqual(resumed.episode, 25)
         self.assertEqual(actual_state, expected_state)
@@ -376,7 +408,7 @@ class TestDroneReverseCurriculum(unittest.TestCase):
                 "episodes": 10,
                 "successes": 9,
                 "success_rate": 0.9,
-                "evaluation_suite": "drone-segment-eval-v1-k4-n10",
+                "evaluation_suite": "drone-segment-eval-v2-k4-n10",
                 "seeds": list(range(204_000, 204_010)),
             }
             trainer._run_eval = lambda: copy.deepcopy(canonical)
@@ -385,8 +417,8 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             meta = trainer.registry.list()[0]
             payload = trainer.registry.load(0)
 
-        self.assertEqual(meta["schema_version"], 7)
-        self.assertEqual(meta["protocol"]["version"], 9)
+        self.assertEqual(meta["schema_version"], 8)
+        self.assertEqual(meta["protocol"]["version"], 10)
         self.assertEqual(meta["protocol"]["training_curriculum"],
                          EXPECTED_CURRICULUM_PROTOCOL)
         diagnostic = meta["training_diagnostics"]["training_curriculum"]
@@ -428,11 +460,14 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             self.spec.training_start_distribution,
             "Performance-gated reverse waypoint curriculum: start at target 5 "
             "(k4); unlock k3, k2, k1, then canonical k0 after one >=90% fixed "
-            "segment evaluation; active frontier receives 100% of resets",
+            "segment evaluation; active frontier receives 100% of resets; "
+            "noncanonical starts carry seeded inbound horizontal velocity with "
+            "the previous-segment sign and magnitude uniformly sampled from "
+            "60 to 100 units/s",
         )
         self.assertEqual(self.spec.training_curriculum.protocol(),
                          EXPECTED_CURRICULUM_PROTOCOL)
-        self.assertEqual(self.spec.checkpoint_schema, 7)
+        self.assertEqual(self.spec.checkpoint_schema, 8)
 
 
 if __name__ == "__main__":

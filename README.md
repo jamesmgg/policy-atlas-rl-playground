@@ -68,6 +68,10 @@ recoverable from the checkpoint archive.
   learns the final waypoint first, then unlocks each earlier course segment
   after one >=90% segment evaluation. Every reset targets the active frontier;
   later mastered segments are still traversed within those longer rollouts.
+  Noncanonical training and segment-evaluation starts replay a seeded 60â€“100
+  units/s horizontal arrival in the preceding segment's direction, so each
+  waypoint policy must learn the momentum reversal encountered by the zigzag
+  course. Canonical evaluation and holdout starts remain unchanged at rest.
   Curriculum state is checkpointed exactly, and its diagnostics never enter
   full-course checkpoint selection.
 - The benchmark campaign freezes checkpoint selection before an optional
