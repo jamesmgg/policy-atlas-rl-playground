@@ -40,7 +40,7 @@ TOUCHDOWN_VX_MAX = 3.0
 TOUCHDOWN_VY_MIN, TOUCHDOWN_VY_MAX = 0.0, 6.0
 TOUCHDOWN_THETA_MAX = 0.08
 TOUCHDOWN_OMEGA_MAX = 0.05
-APPROACH_ALTITUDE_MIN, APPROACH_ALTITUDE_MAX = 30.0, 180.0
+APPROACH_ALTITUDE_MIN, APPROACH_ALTITUDE_MAX = 30.0, 500.0
 APPROACH_X_OFFSET_MAX = 35.0
 APPROACH_VX_MAX = 6.0
 APPROACH_VY_MIN, APPROACH_VY_MAX = 2.0, 18.0
@@ -48,7 +48,7 @@ APPROACH_THETA_MAX = 0.18
 APPROACH_OMEGA_MAX = 0.25
 TRAINING_START_DISTRIBUTION = (
     "50% standard high-altitude starts; 25% touchdown rehearsal 5-18 units "
-    "above the pad; 25% braking approaches 30-180 units above the pad; all "
+    "above the pad; 25% braking approaches 30-500 units above the pad; all "
     "sampled states expose velocity, tilt, time, and fuel"
 )
 
