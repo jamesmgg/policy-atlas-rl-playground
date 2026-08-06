@@ -7,6 +7,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Bernoulli, Normal
 
+from .initialization import (
+    ActorInitialization,
+    BINARY_HEAD_WEIGHT_STD,
+    CONTINUOUS_HEAD_WEIGHT_STD,
+    INITIAL_CONTINUOUS_LOG_STD,
+    default_actor_initialization,
+)
+
 
 def layer_init(layer: nn.Linear, std: float = 2.0 ** 0.5, bias: float = 0.0) -> nn.Linear:
     nn.init.orthogonal_(layer.weight, std)
@@ -16,22 +24,43 @@ def layer_init(layer: nn.Linear, std: float = 2.0 ** 0.5, bias: float = 0.0) -> 
 
 class ActorCritic(nn.Module):
     def __init__(self, obs_dim: int, n_continuous: int, n_binary: int,
-                 hidden: tuple[int, ...] = (256, 256, 128)):
+                 hidden: tuple[int, ...] = (256, 256, 128),
+                 actor_initialization: ActorInitialization | None = None):
         super().__init__()
         self.n_continuous = n_continuous
         self.n_binary = n_binary
+        self.actor_initialization = (
+            actor_initialization
+            if actor_initialization is not None
+            else default_actor_initialization(n_continuous, n_binary)
+        )
+        self.actor_initialization.validate_dimensions(n_continuous, n_binary)
         layers: list[nn.Module] = []
         last = obs_dim
         for h in hidden:
             layers += [layer_init(nn.Linear(last, h)), nn.Tanh()]
             last = h
         self.torso = nn.Sequential(*layers)
-        self.mu = layer_init(nn.Linear(last, n_continuous), std=0.01)
-        self.log_std = nn.Parameter(torch.full((n_continuous,), -0.5))
+        self.mu = layer_init(
+            nn.Linear(last, n_continuous), std=CONTINUOUS_HEAD_WEIGHT_STD)
+        with torch.no_grad():
+            self.mu.bias.copy_(torch.tensor(
+                self.actor_initialization.continuous_latent_bias,
+                dtype=self.mu.bias.dtype,
+            ))
+        self.log_std = nn.Parameter(torch.full(
+            (n_continuous,), INITIAL_CONTINUOUS_LOG_STD))
         # Generic binary head; name kept as `drift_logit` so pre-multi-scenario
         # checkpoints (where it really was the drift button) still load.
-        self.drift_logit = (layer_init(nn.Linear(last, n_binary), std=0.01)
+        self.drift_logit = (layer_init(
+            nn.Linear(last, n_binary), std=BINARY_HEAD_WEIGHT_STD)
                             if n_binary > 0 else None)
+        if self.drift_logit is not None:
+            with torch.no_grad():
+                self.drift_logit.bias.copy_(torch.tensor(
+                    self.actor_initialization.binary_logit_bias,
+                    dtype=self.drift_logit.bias.dtype,
+                ))
         self.value = layer_init(nn.Linear(last, 1), std=1.0)
 
     def get_value(self, obs: torch.Tensor) -> torch.Tensor:

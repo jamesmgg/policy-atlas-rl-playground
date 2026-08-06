@@ -6,8 +6,18 @@ from functools import lru_cache
 from .. import physics, track as tracks
 from ..envs.driving import (Bot, DrivingEnv, DrivingFeatures, FuelConfig,
                             RewardConfig, Zone)
+from ..ppo.initialization import ActorInitialization
 from ..track import Track, build_track
 from .spec import ScenarioSpec
+
+
+DRIVING_ACTOR_INITIALIZATION = ActorInitialization(
+    scope="driving_only",
+    continuous_action_labels=("throttle_brake", "steering"),
+    continuous_action_prior=(0.25, 0.0),
+    binary_action_labels=("drift",),
+    binary_probability_prior=(0.05,),
+)
 
 
 @lru_cache(maxsize=None)
@@ -38,6 +48,7 @@ def _driving_spec(id: str, name: str, group: str, description: str,
                   objective: str = "Complete clean laps as quickly as possible.",
                   success: str = "Complete at least one timed lap without leaving the circuit.",
                   difficulty: str = "Intermediate",
+                  training_rolling_checkpoints: tuple[int, ...] | None = None,
                   checkpoint_schema: int = 7) -> ScenarioSpec:
     reward_terms = [
         f"{reward.progress:g} × signed forward arc progress",
@@ -88,6 +99,29 @@ def _driving_spec(id: str, name: str, group: str, description: str,
             f"traffic {index + 1} already passed",
         ))
     observation_dimensions.append("remaining horizon fraction")
+    rolling_checkpoint_label = (
+        "1..N-1"
+        if training_rolling_checkpoints is None
+        else "..".join((
+            str(training_rolling_checkpoints[0]),
+            str(training_rolling_checkpoints[-1]),
+        ))
+    )
+    curriculum_state = []
+    if features.fuel:
+        curriculum_state.append("65% throttle-equivalent fuel")
+    if features.bots:
+        curriculum_state.append("time-advanced traffic and pass masks")
+    if features.metric == "style":
+        curriculum_state.append("assumed proportional style prefix")
+    curriculum_state.append("no reset reward")
+    training_start_distribution = (
+        "75% canonical start; 25% uniform checkpoints "
+        f"{rolling_checkpoint_label} as rolling states at 70-90% of the "
+        "curvature/grip backward-braking envelope; clock integrates an 80% "
+        "envelope with a 1-second reserve; "
+        + "; ".join(curriculum_state)
+    )
     return ScenarioSpec(
         id=id, name=name, group=group, kind="driving", description=description,
         metric_label=metric_label, metric_mode=metric_mode,
@@ -98,14 +132,9 @@ def _driving_spec(id: str, name: str, group: str, description: str,
         training_factory=lambda: DrivingEnv(
             _track(track_name), params=params, reward_cfg=reward,
             features=features, jitter=True, random_start=True,
-            start_line_probability=0.75),
-        training_start_distribution=(
-            "75% canonical start; 25% uniform checkpoints 1..N-1 as "
-            "rolling states at 70-90% of the curvature/grip backward-braking "
-            "envelope; clock integrates an 80% envelope with a 1-second "
-            "reserve; 65% throttle-equivalent fuel; time-advanced traffic "
-            "and pass masks; assumed proportional style prefix; no reset reward"
-        ),
+            start_line_probability=0.75,
+            rolling_checkpoint_indices=training_rolling_checkpoints),
+        training_start_distribution=training_start_distribution,
         objective=objective,
         success=success,
         observations=("speed and lateral slip", "track offset and heading error",
@@ -118,6 +147,7 @@ def _driving_spec(id: str, name: str, group: str, description: str,
         difficulty=difficulty,
         horizon_steps=DrivingEnv.max_steps,
         horizon_seconds=DrivingEnv.max_steps * DrivingEnv.dt,
+        actor_initialization=DRIVING_ACTOR_INITIALIZATION,
         checkpoint_schema=checkpoint_schema,
     )
 
@@ -200,5 +230,6 @@ DRIVING_SPECS: list[ScenarioSpec] = [
         metric_label="overtakes", metric_mode="max",
         objective="Pass traffic without contact while maintaining forward progress.",
         success="Overtake all three traffic cars in one episode.",
-        difficulty="Advanced", checkpoint_schema=8),
+        difficulty="Advanced", training_rolling_checkpoints=(1, 2, 3),
+        checkpoint_schema=8),
 ]

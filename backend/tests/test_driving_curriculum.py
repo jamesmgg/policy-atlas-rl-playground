@@ -85,6 +85,50 @@ class DrivingCurriculumTests(unittest.TestCase):
                 self.assertTrue(np.array_equal(observation, env._obs()))
 
     @unittest.skipUnless(HAS_ROLLING_CURRICULUM, "curriculum API not implemented")
+    def test_traffic_fixed_evaluation_remains_canonical(self) -> None:
+        spec = self.specs["traffic-rush"]
+        self.assertEqual(spec.checkpoint_schema, 8)
+
+        env = spec.make_env(False)
+        env.rng.seed(41)
+        observation = env.reset()
+
+        self.assertFalse(env.random_start)
+        self.assertEqual(env.idx, 0)
+        self.assertEqual(env.car.v_long, 0.0)
+        self.assertEqual(env.progress, 0.0)
+        self.assertEqual(env.steps, 0)
+        self.assertEqual(env._bot_passed, [False, False, False])
+        self.assertTrue(np.array_equal(observation, env._obs()))
+
+    @unittest.skipUnless(HAS_ROLLING_CURRICULUM, "curriculum API not implemented")
+    def test_traffic_training_uses_only_audited_rolling_checkpoints(self) -> None:
+        env = self.specs["traffic-rush"].make_training_env()
+        self.assertEqual(env.start_line_probability, 0.75)
+        env.start_line_probability = 0.0
+        env.rng.seed(42)
+
+        sampled = set()
+        for _ in range(240):
+            env.reset()
+            sampled.add(env.track.checkpoints.index(env.idx))
+
+        self.assertEqual(sampled, {1, 2, 3})
+
+    @unittest.skipUnless(HAS_ROLLING_CURRICULUM, "curriculum API not implemented")
+    def test_generic_driving_training_still_uses_every_rolling_checkpoint(self) -> None:
+        env = self.specs["rally-ridge"].make_training_env()
+        env.start_line_probability = 0.0
+        env.rng.seed(42)
+
+        sampled = set()
+        for _ in range(480):
+            env.reset()
+            sampled.add(env.track.checkpoints.index(env.idx))
+
+        self.assertEqual(sampled, set(range(1, len(env.track.checkpoints))))
+
+    @unittest.skipUnless(HAS_ROLLING_CURRICULUM, "curriculum API not implemented")
     def test_rolling_start_reconstructs_an_observed_remaining_lap_state(self) -> None:
         env, observation = self.rolling_start("rally-ridge")
         spec = self.specs["rally-ridge"]
@@ -258,18 +302,29 @@ class DrivingCurriculumTests(unittest.TestCase):
             )
 
     @unittest.skipUnless(HAS_ROLLING_CURRICULUM, "curriculum API not implemented")
-    def test_scenario_metadata_discloses_the_exact_curriculum(self) -> None:
+    def test_generic_scenario_metadata_discloses_the_exact_curriculum(self) -> None:
         spec = self.specs["rally-ridge"]
         disclosure = spec.training_start_distribution
         self.assertEqual(spec.info()["training_start_distribution"], disclosure)
-        self.assertIn("75% canonical start", disclosure)
-        self.assertIn("25% uniform checkpoints 1..N-1", disclosure)
-        self.assertIn("70-90%", disclosure)
-        self.assertIn("curvature/grip backward-braking envelope", disclosure)
-        self.assertIn("65% throttle-equivalent fuel", disclosure)
-        self.assertIn("time-advanced traffic", disclosure)
-        self.assertIn("assumed proportional style prefix", disclosure)
-        self.assertIn("no reset reward", disclosure)
+        self.assertEqual(
+            disclosure,
+            "75% canonical start; 25% uniform checkpoints 1..N-1 as "
+            "rolling states at 70-90% of the curvature/grip backward-braking "
+            "envelope; clock integrates an 80% envelope with a 1-second "
+            "reserve; no reset reward",
+        )
+
+    def test_traffic_protocol_discloses_the_exact_curriculum(self) -> None:
+        spec = self.specs["traffic-rush"]
+        disclosure = spec.training_start_distribution
+        self.assertEqual(spec.info()["training_start_distribution"], disclosure)
+        self.assertEqual(
+            disclosure,
+            "75% canonical start; 25% uniform checkpoints 1..3 as rolling "
+            "states at 70-90% of the curvature/grip backward-braking "
+            "envelope; clock integrates an 80% envelope with a 1-second "
+            "reserve; time-advanced traffic and pass masks; no reset reward",
+        )
 
 
 if __name__ == "__main__":

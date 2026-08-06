@@ -26,6 +26,7 @@ from .checkpoints import CheckpointRegistry
 from .ppo import agent as ppo_defaults
 from .ppo.agent import PPOAgent
 from .ppo.buffer import RolloutBuffer
+from .ppo.initialization import default_actor_initialization
 from .scenarios import get_spec
 from .scenarios.registry import DEFAULT_SCENARIO
 from .settings import Settings
@@ -137,6 +138,15 @@ def training_reward(reward: float, next_value: float, done: bool,
         scaled_reward, next_value, done, info, gamma=GAMMA)
 
 
+def actor_initialization_protocol(spec, env) -> dict:
+    """Describe the fresh-policy recipe without widening the agent interface."""
+    initialization = getattr(spec, "actor_initialization", None)
+    if initialization is None:
+        initialization = default_actor_initialization(
+            env.n_continuous, env.n_binary)
+    return initialization.protocol(env.n_continuous, env.n_binary)
+
+
 def learning_payload(observation: np.ndarray, action: np.ndarray,
                      reward: float) -> dict:
     """Compact one transition for the explanatory UI without flooding the WS."""
@@ -217,7 +227,8 @@ class Trainer:
             self.env.rng.seed(self.seed)
             self.env.reset()
         self.agent = PPOAgent(self.env.obs_dim, self.env.n_continuous,
-                              self.env.n_binary, self.device)
+                              self.env.n_binary, self.device,
+                              actor_initialization=self.spec.actor_initialization)
         self.registry = CheckpointRegistry(
             self.settings.checkpoint_dir, self.spec.id, self.spec.checkpoint_schema)
         self.episode = 0
@@ -310,7 +321,8 @@ class Trainer:
             if hasattr(env, "rng"):
                 env.rng.seed(self.seed)
             self.agent = PPOAgent(env.obs_dim, env.n_continuous, env.n_binary,
-                                  self.device)
+                                  self.device,
+                                  actor_initialization=self.spec.actor_initialization)
             self.episode = 0
             self.total_steps = 0
             self.update_count = 0
@@ -546,7 +558,7 @@ class Trainer:
             self, "latest_update_metrics", None)
         eval_result["protocol"] = {
             "algorithm": "PPO",
-            "version": 3,
+            "version": 4,
             "rollout_steps": ROLLOUT_STEPS,
             "episode_aligned_rollouts": True,
             "gamma": GAMMA,
@@ -564,6 +576,8 @@ class Trainer:
                     "scenario default starts",
                 )
             ),
+            "actor_initialization": actor_initialization_protocol(
+                self.spec, self.env),
             "update_epochs": ppo_defaults.UPDATE_EPOCHS,
             "minibatch_size": ppo_defaults.MINIBATCH_SIZE,
             "target_kl": ppo_defaults.TARGET_KL,

@@ -120,6 +120,7 @@ class DrivingEnv:
     jitter: bool = True
     random_start: bool = False
     start_line_probability: float = 0.0
+    rolling_checkpoint_indices: tuple[int, ...] | None = None
     rng: random.Random = field(default_factory=random.Random)
 
     n_continuous = 2
@@ -157,7 +158,14 @@ class DrivingEnv:
             not self.random_start
             or self.rng.random() < self.start_line_probability
         )
-        checkpoint_candidates = list(range(1, len(track.checkpoints)))
+        checkpoint_candidates = (
+            list(range(1, len(track.checkpoints)))
+            if self.rolling_checkpoint_indices is None
+            else [
+                index for index in self.rolling_checkpoint_indices
+                if 0 < index < len(track.checkpoints)
+            ]
+        )
         checkpoint_index = (
             0 if start_line or not checkpoint_candidates
             else self.rng.choice(checkpoint_candidates)

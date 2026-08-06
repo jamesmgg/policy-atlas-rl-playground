@@ -152,6 +152,62 @@ class TestLanderApproachCurriculum(unittest.TestCase):
         self.assertAlmostEqual(approach_result[1], standard_result[1])
         self.assertEqual(approach_result[2:], standard_result[2:])
 
+    def test_every_unsuccessful_terminal_cause_has_the_same_failure_reward(self) -> None:
+        failure_reward = getattr(lander, "FAILURE_REWARD", None)
+        self.assertEqual(failure_reward, -100.0)
+
+        def terminal_component(env: lander.LanderEnv) -> tuple[float, dict]:
+            action = np.array([-1.0, 0.0], dtype=np.float32)
+            env._phi_prev = env._phi()
+            phi_before = env._phi_prev
+            _, reward, done, info = env.step(action)
+            self.assertTrue(done)
+            shaping = phi_before - env._phi()
+            return reward - shaping, info
+
+        crash = lander.LanderEnv(jitter=False)
+        crash.x, crash.y = lander.PAD_CX, lander.PAD_Y
+        crash.vx, crash.vy = 0.0, lander.SAFE_VY + 1.0
+        crash_component, crash_info = terminal_component(crash)
+
+        out_of_bounds = lander.LanderEnv(jitter=False)
+        out_of_bounds.x = -1.0
+        bounds_component, bounds_info = terminal_component(out_of_bounds)
+
+        timeout = lander.LanderEnv(jitter=False)
+        timeout.steps = timeout.max_steps - 1
+        timeout_component, timeout_info = terminal_component(timeout)
+
+        self.assertAlmostEqual(crash_component, failure_reward)
+        self.assertAlmostEqual(bounds_component, failure_reward)
+        self.assertAlmostEqual(timeout_component, failure_reward)
+        self.assertEqual(crash.cause, "crash")
+        self.assertEqual(out_of_bounds.cause, "out_of_bounds")
+        self.assertEqual(timeout.cause, "timeout")
+        self.assertFalse(crash_info["task_deadline"])
+        self.assertFalse(bounds_info["task_deadline"])
+        self.assertTrue(timeout_info["truncated"])
+        self.assertTrue(timeout_info["task_deadline"])
+        self.assertFalse(timeout.episode_summary()["success"])
+
+    def test_soft_touchdown_reward_and_schema_remain_explicit(self) -> None:
+        env = lander.LanderEnv(jitter=False)
+        env.x, env.y = lander.PAD_CX, lander.PAD_Y
+        env.vx = env.vy = env.theta = env.omega = 0.0
+        env._phi_prev = env._phi()
+        phi_before = env._phi_prev
+
+        _, reward, done, info = env.step(
+            np.array([-1.0, 0.0], dtype=np.float32))
+        shaping = phi_before - env._phi()
+
+        self.assertTrue(done)
+        self.assertAlmostEqual(reward - shaping, 100.0)
+        self.assertTrue(env.episode_summary()["success"])
+        self.assertFalse(info["truncated"])
+        self.assertFalse(info["task_deadline"])
+        self.assertEqual(self.spec.checkpoint_schema, 3)
+
 
 if __name__ == "__main__":
     unittest.main()

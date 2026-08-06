@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from ..envs.base import Env
+from ..ppo.initialization import ActorInitialization
 
 
 @dataclass(frozen=True)
@@ -29,6 +30,7 @@ class ScenarioSpec:
     difficulty: str = "Intermediate"
     horizon_steps: int = 1
     horizon_seconds: float | None = 60.0
+    actor_initialization: ActorInitialization | None = None
     # Increment when observations, actions, or metric semantics change
     # incompatibly. Old checkpoints remain on disk but are hidden rather than
     # loaded or compared under a different scientific contract.

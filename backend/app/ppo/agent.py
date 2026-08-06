@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 
 from .buffer import RolloutBuffer
+from .initialization import ActorInitialization
 from .network import ActorCritic
 
 LR = 3e-4
@@ -70,12 +71,18 @@ def scale_aware_value_loss(
 
 class PPOAgent:
     def __init__(self, obs_dim: int, n_continuous: int, n_binary: int,
-                 device: torch.device):
+                 device: torch.device,
+                 actor_initialization: ActorInitialization | None = None):
         self.device = device
         self.obs_dim = obs_dim
         self.n_continuous = n_continuous
         self.n_binary = n_binary
-        self.network = ActorCritic(obs_dim, n_continuous, n_binary).to(device)
+        self.network = ActorCritic(
+            obs_dim,
+            n_continuous,
+            n_binary,
+            actor_initialization=actor_initialization,
+        ).to(device)
         self.optimizer = torch.optim.Adam(self.network.parameters(), lr=LR, eps=1e-5)
 
     @property
@@ -95,6 +102,39 @@ class PPOAgent:
             f"action_std_{index}": float(value)
             for index, value in enumerate(std.cpu().tolist())
         })
+        return stats
+
+    @torch.no_grad()
+    def policy_action_diagnostics(
+        self,
+        observations: np.ndarray,
+    ) -> dict[str, float]:
+        """Summarize policy tendencies on the states in one rollout."""
+        obs = torch.as_tensor(
+            observations, dtype=torch.float32, device=self.device)
+        if obs.ndim == 1:
+            obs = obs.unsqueeze(0)
+        h = self.network.torso(obs)
+        continuous = torch.tanh(self.network.mu(h))
+        stats = {
+            f"continuous_action_mean_{index}": float(value)
+            for index, value in enumerate(
+                continuous.mean(dim=0).detach().cpu().tolist())
+        }
+        if self.network.drift_logit is not None:
+            logits = self.network.drift_logit(h)
+            probabilities = torch.sigmoid(logits).mean(dim=0)
+            deterministic_on = (logits > 0).float().mean(dim=0)
+            stats.update({
+                f"binary_probability_mean_{index}": float(value)
+                for index, value in enumerate(
+                    probabilities.detach().cpu().tolist())
+            })
+            stats.update({
+                f"binary_deterministic_on_fraction_{index}": float(value)
+                for index, value in enumerate(
+                    deterministic_on.detach().cpu().tolist())
+            })
         return stats
 
     @torch.no_grad()
@@ -171,6 +211,7 @@ class PPOAgent:
             "value_clip_frac": float(np.mean(value_clip_fracs)),
             **calibration,
             **self.exploration_stats(),
+            **self.policy_action_diagnostics(buffer.obs[:buffer.ptr]),
         }
 
     def state_dict(self) -> dict:
