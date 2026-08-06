@@ -85,8 +85,9 @@ operation and leaves an existing output untouched. `--scenarios` can limit a
 rerun while preserving holdouts for other runs.
 
 Each successful rewrite archives the superseded holdout evidence in
-`holdout_reverification_history`, records `reverified_at` and the
-`policy-atlas-holdout-reverify-v1` tool protocol, then recomputes the campaign
+`holdout_reverification_history`, upgrades the report to schema 2 and the
+`policy-atlas-benchmark-v2` protocol, records `reverified_at` and the
+`policy-atlas-holdout-reverify-v2` tool protocol, then recomputes the campaign
 verification and state. Selection, checkpoint traces, and other report history
 are copied unchanged.
 

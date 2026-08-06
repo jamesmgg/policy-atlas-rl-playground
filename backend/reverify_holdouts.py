@@ -12,6 +12,8 @@ from typing import Any, Callable, Sequence
 
 from app.trainer import source_digest
 from benchmark_all import (
+    REPORT_PROTOCOL,
+    REPORT_SCHEMA_VERSION,
     SolveCriteria,
     campaign_verdict,
     evaluate_selected_checkpoint,
@@ -19,7 +21,7 @@ from benchmark_all import (
 )
 
 
-TOOL_PROTOCOL = "policy-atlas-holdout-reverify-v1"
+TOOL_PROTOCOL = "policy-atlas-holdout-reverify-v2"
 HoldoutEvaluator = Callable[..., dict[str, Any]]
 
 
@@ -171,6 +173,8 @@ def reverify_report(
     )
     revised["verification"] = verdict
     revised["state"] = "verified" if verdict["all_verified"] else "incomplete"
+    revised["schema_version"] = REPORT_SCHEMA_VERSION
+    revised["report_protocol"] = REPORT_PROTOCOL
     revised["updated_at"] = reverified_at
     revised["reverified_at"] = reverified_at
     revised["holdout_reverification_protocol"] = {

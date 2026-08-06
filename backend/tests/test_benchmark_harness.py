@@ -122,6 +122,13 @@ class SolveDetectionTests(unittest.TestCase):
 
 
 class ReportShapeTests(unittest.TestCase):
+    def test_hardened_reports_use_a_distinct_schema_and_protocol(self) -> None:
+        self.assertEqual(benchmark_module.REPORT_SCHEMA_VERSION, 2)
+        self.assertEqual(
+            benchmark_module.REPORT_PROTOCOL,
+            "policy-atlas-benchmark-v2",
+        )
+
     def test_checkpoint_result_keeps_reproducibility_and_outcome_fields(self) -> None:
         result = checkpoint_result(checkpoint(100, rate=1.0, ci_low=0.72))
 

@@ -188,9 +188,14 @@ class ReportReverificationTests(unittest.TestCase):
                          original["runs"][0]["holdout"])
         self.assertEqual(revised["reverified_at"],
                          "2026-08-06T10:00:00+00:00")
+        self.assertEqual(revised["schema_version"], 2)
+        self.assertEqual(
+            revised["report_protocol"],
+            "policy-atlas-benchmark-v2",
+        )
         self.assertEqual(
             revised["holdout_reverification_protocol"]["tool_protocol"],
-            "policy-atlas-holdout-reverify-v1",
+            "policy-atlas-holdout-reverify-v2",
         )
 
     def test_final_verdict_uses_stored_contract_and_expected_run_count(self) -> None:

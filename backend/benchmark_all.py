@@ -24,6 +24,10 @@ from urllib.request import Request, urlopen
 import uuid
 
 
+REPORT_SCHEMA_VERSION = 2
+REPORT_PROTOCOL = "policy-atlas-benchmark-v2"
+
+
 @dataclass(frozen=True)
 class SolveCriteria:
     """Evidence required before a policy is labelled solved."""
@@ -983,7 +987,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     report: dict[str, Any] = {
-        "schema_version": 1,
+        "schema_version": REPORT_SCHEMA_VERSION,
+        "report_protocol": REPORT_PROTOCOL,
         "state": "inventory" if not args.execute else "running",
         "created_at": now,
         "updated_at": now,
