@@ -210,7 +210,7 @@ class TestDrivingActorInitialization(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 17)
+        self.assertEqual(protocol["version"], 18)
         self.assertEqual(protocol["actor_initialization"], EXPECTED_DRIVING_PROTOCOL)
 
 
@@ -249,9 +249,9 @@ class TestLanderExplorationInitialization(unittest.TestCase):
             torch.tensor([-1.2, -1.2]),
         )
 
-    def test_other_scenarios_keep_initial_log_std_minus_point_five(self) -> None:
+    def test_scenarios_without_a_specialized_prior_keep_log_std_minus_point_five(self) -> None:
         for spec in list_specs():
-            if spec.id in (self.spec.id, "drone-hover"):
+            if spec.id in {self.spec.id, "drone-hover", "traffic-rush"}:
                 continue
             env = spec.make_env(False)
             initialization = (
@@ -324,7 +324,7 @@ class TestLanderExplorationInitialization(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 17)
+        self.assertEqual(protocol["version"], 18)
         self.assertEqual(protocol["actor_initialization"], EXPECTED_LANDER_PROTOCOL)
 
 

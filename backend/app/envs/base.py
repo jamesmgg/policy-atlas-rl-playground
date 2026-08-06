@@ -63,7 +63,8 @@ class EpisodeTrainingPhase:
         probabilities = [float(value) for _, value in self.mode_probabilities]
         if any(not math.isfinite(value) or value <= 0.0
                for value in probabilities):
-            raise ValueError("training mode probabilities must be finite and positive")
+            raise ValueError(
+                "training mode probabilities must be finite and positive")
         if not math.isclose(sum(probabilities), 1.0, abs_tol=1e-12):
             raise ValueError("training mode probabilities must sum to one")
 
@@ -87,7 +88,8 @@ class EpisodeTrainingScheduleSpec:
                     raise ValueError("final training phase must be open-ended")
                 continue
             if phase.end_episode is None:
-                raise ValueError("only the final training phase may be open-ended")
+                raise ValueError(
+                    "only the final training phase may be open-ended")
             if self.phases[index + 1].start_episode != phase.end_episode + 1:
                 raise ValueError("training phases must be contiguous")
 
@@ -177,7 +179,8 @@ class TrainingControlSpec:
         try:
             return self.stage_ids.index(stage)
         except ValueError as exc:
-            raise ValueError(f"unknown training control stage {stage!r}") from exc
+            raise ValueError(
+                f"unknown training control stage {stage!r}") from exc
 
     def evaluation_seed(self, stage: str, episode_index: int) -> int:
         position = self.stage_position(stage)

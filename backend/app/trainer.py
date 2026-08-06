@@ -750,8 +750,12 @@ class Trainer:
         course_reward_potential_protocol = getattr(
             self.env, "course_reward_potential_protocol", None)
         eval_result["protocol"] = {
-            "algorithm": "PPO",
-            "version": 17,
+            "algorithm": (
+                "demonstration-assisted PPO"
+                if getattr(self.spec, "actor_warm_start", None) is not None
+                else "PPO"
+            ),
+            "version": 18,
             "rollout_steps": ROLLOUT_STEPS,
             "episode_aligned_rollouts": True,
             "gamma": scenario_discount_factor(self.spec),

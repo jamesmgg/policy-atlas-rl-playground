@@ -122,7 +122,7 @@ class WetHorizonAblationTests(unittest.TestCase):
                     expected_evaluation_suite="current-suite",
                 )
 
-    def test_protocol_v17_records_the_exact_wet_horizon(self) -> None:
+    def test_protocol_v18_records_the_exact_wet_horizon(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "state.json").write_text(
@@ -153,7 +153,7 @@ class WetHorizonAblationTests(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 17)
+        self.assertEqual(protocol["version"], 18)
         self.assertEqual(protocol["task_horizon_steps"], 2250)
         self.assertEqual(protocol["task_horizon_seconds"], 90.0)
 

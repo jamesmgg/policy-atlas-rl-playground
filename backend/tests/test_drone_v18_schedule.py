@@ -283,6 +283,13 @@ class DroneV18ScheduleTests(unittest.TestCase):
         self.assertEqual(protocol["expert"]["id"], "drone-physics-pd-v1")
         self.assertEqual(protocol["dataset"]["seed_base"], 600_000)
         self.assertEqual(protocol["dataset"]["episodes"], 80)
+        self.assertEqual(
+            protocol["dataset"]["targets"],
+            "bounded expert rotor actions",
+        )
+        self.assertNotIn("state_stride", protocol["dataset"])
+        self.assertEqual(protocol["optimizer"]["epochs"], 60)
+        self.assertNotIn("epochs_per_initial_fit", protocol["optimizer"])
         demo_seeds = set(range(600_000, 600_080))
         selection = set(range(100_000, 100_010))
         holdout = set(range(200_000, 200_100))
@@ -301,6 +308,7 @@ class DroneV18ScheduleTests(unittest.TestCase):
         # catches a clearly failed clone without overfitting to a proxy loss.
         self.assertLess(diagnostics["final_mse"], 2.5e-4)
         self.assertRegex(diagnostics["dataset_sha256"], r"^[0-9a-f]{64}$")
+        self.assertNotIn("dagger_rounds", diagnostics)
 
         fixed = evaluate_policy(agent, range(100_000, 100_100))
         fresh = evaluate_policy(agent, range(960_000, 960_020))
@@ -330,7 +338,7 @@ class DroneV18ScheduleTests(unittest.TestCase):
             meta = trainer.registry.list()[0]
 
             self.assertEqual(meta["schema_version"], 17)
-            self.assertEqual(meta["protocol"]["version"], 17)
+            self.assertEqual(meta["protocol"]["version"], 18)
             self.assertEqual(meta["protocol"]["training_schedule"],
                              self.schedule.protocol())
             warm = meta["protocol"]["actor_warm_start"]
@@ -358,12 +366,15 @@ class DroneV18ScheduleTests(unittest.TestCase):
             self.assertEqual(len(archives), 1)
             self.assertEqual(archives[0]["schema_version"], 16)
 
-    def test_non_drone_contracts_do_not_gain_demo_or_schedule(self) -> None:
+    def test_only_assisted_scenarios_gain_demo_and_episode_schedules(self) -> None:
         for spec in list_specs():
-            if spec.id == "drone-hover":
+            if spec.id in {"drone-hover", "traffic-rush"}:
                 continue
             self.assertIsNone(getattr(spec, "training_schedule", None), spec.id)
             self.assertIsNone(getattr(spec, "actor_warm_start", None), spec.id)
+        traffic = get_spec("traffic-rush")
+        self.assertIsNotNone(traffic.training_schedule)
+        self.assertIsNotNone(traffic.actor_warm_start)
 
 
 if __name__ == "__main__":

@@ -537,7 +537,7 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
             payload = trainer.registry.load(25)
 
         self.assertEqual(meta["schema_version"], 11)
-        self.assertEqual(meta["protocol"]["version"], 17)
+        self.assertEqual(meta["protocol"]["version"], 18)
         self.assertEqual(meta["protocol"]["gamma"], 1.0)
         self.assertEqual(meta["protocol"]["training_curriculum"],
                          EXPECTED_CURRICULUM_PROTOCOL)
