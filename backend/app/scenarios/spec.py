@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
-from ..envs.base import Env
+from ..envs.base import Env, TrainingCurriculumSpec
 from ..ppo.initialization import ActorInitialization
 
 
@@ -31,6 +31,7 @@ class ScenarioSpec:
     horizon_steps: int = 1
     horizon_seconds: float | None = 60.0
     actor_initialization: ActorInitialization | None = None
+    training_curriculum: TrainingCurriculumSpec | None = None
     # Increment when observations, actions, or metric semantics change
     # incompatibly. Old checkpoints remain on disk but are hidden rather than
     # loaded or compared under a different scientific contract.
