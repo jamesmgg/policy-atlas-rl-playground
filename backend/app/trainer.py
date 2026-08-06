@@ -558,7 +558,7 @@ class Trainer:
             self, "latest_update_metrics", None)
         eval_result["protocol"] = {
             "algorithm": "PPO",
-            "version": 4,
+            "version": 5,
             "rollout_steps": ROLLOUT_STEPS,
             "episode_aligned_rollouts": True,
             "gamma": GAMMA,

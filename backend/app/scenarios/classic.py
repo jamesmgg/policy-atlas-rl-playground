@@ -2,7 +2,20 @@
 from __future__ import annotations
 
 from ..envs import cartpole, drone, lander, mountain_car, pendulum
+from ..ppo.initialization import ActorInitialization
 from .spec import ScenarioSpec
+
+
+LANDER_ACTOR_INITIALIZATION = ActorInitialization(
+    scope="lunar_lander_only",
+    continuous_action_labels=(
+        "main_engine_throttle",
+        "side_thruster_command",
+    ),
+    continuous_action_prior=(0.0, 0.0),
+    continuous_log_std=(-1.2, -1.2),
+)
+
 
 CLASSIC_SPECS: list[ScenarioSpec] = [
     ScenarioSpec(
@@ -28,6 +41,7 @@ CLASSIC_SPECS: list[ScenarioSpec] = [
         termination_conditions=("terrain contact", "leaving the arena", "24-second horizon"),
         difficulty="Advanced", horizon_steps=lander.LanderEnv.max_steps,
         horizon_seconds=lander.LanderEnv.max_steps * lander.LanderEnv.dt,
+        actor_initialization=LANDER_ACTOR_INITIALIZATION,
         checkpoint_schema=3),
     ScenarioSpec(
         id="pendulum-swingup", name="Pendulum Swing-Up", group="Classic",

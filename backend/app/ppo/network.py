@@ -11,7 +11,6 @@ from .initialization import (
     ActorInitialization,
     BINARY_HEAD_WEIGHT_STD,
     CONTINUOUS_HEAD_WEIGHT_STD,
-    INITIAL_CONTINUOUS_LOG_STD,
     default_actor_initialization,
 )
 
@@ -48,8 +47,10 @@ class ActorCritic(nn.Module):
                 self.actor_initialization.continuous_latent_bias,
                 dtype=self.mu.bias.dtype,
             ))
-        self.log_std = nn.Parameter(torch.full(
-            (n_continuous,), INITIAL_CONTINUOUS_LOG_STD))
+        self.log_std = nn.Parameter(torch.tensor(
+            self.actor_initialization.continuous_log_std,
+            dtype=self.mu.weight.dtype,
+        ))
         # Generic binary head; name kept as `drift_logit` so pre-multi-scenario
         # checkpoints (where it really was the drift button) still load.
         self.drift_logit = (layer_init(
