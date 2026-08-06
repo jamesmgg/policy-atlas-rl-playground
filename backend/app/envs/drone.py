@@ -53,6 +53,22 @@ TERMINAL_FAILURE_PENALTY = 50.0
 ANGULAR_RATE_REGULARIZER = 0.002
 THRUST_REGULARIZER = 0.005
 
+# Potential-shaping targets are derived from a bounded braking envelope. At
+# 20 units/s^2, slowing from the 80-unit/s cruise target to the 20-unit/s
+# waypoint target takes 150 units, well inside every curriculum segment. The
+# desired-tilt coefficient is the one-second velocity-error coefficient under
+# hover gravity (0.10 * G * 1.0), so the first counter-thrust transition gets
+# credit for creating the attitude that will reverse hard inbound momentum.
+WAYPOINT_TARGET_SPEED = 20.0
+WAYPOINT_CRUISE_SPEED = 80.0
+WAYPOINT_COMFORT_DECELERATION = 20.0
+VELOCITY_RESPONSE_SECONDS = 1.0
+DESIRED_TILT_LIMIT = 0.6
+DISTANCE_POTENTIAL_WEIGHT = 0.05
+VELOCITY_ERROR_POTENTIAL_WEIGHT = 0.10
+DESIRED_TILT_POTENTIAL_WEIGHT = (
+    VELOCITY_ERROR_POTENTIAL_WEIGHT * G * VELOCITY_RESPONSE_SECONDS)
+
 
 def scene() -> dict:
     return {
@@ -127,7 +143,7 @@ class DroneEnv:
         self.episode_reward = 0.0
         self._completion_regularizer = 0.0
         self.cause = "running"
-        self._d_prev = self._dist()
+        self._shaping_potential_prev = self._shaping_potential()
         return self._obs()
 
     def _sample_start_segment(self) -> int:
@@ -279,6 +295,53 @@ class DroneEnv:
         wx, wy = self._target()
         return math.hypot(self.x - wx, self.y - wy)
 
+    @staticmethod
+    def _braking_speed_target(distance_to_capture: float) -> float:
+        """Desired speed with enough distance to brake at the comfort rate."""
+        distance = max(float(distance_to_capture), 0.0)
+        target = math.sqrt(
+            WAYPOINT_TARGET_SPEED ** 2
+            + 2.0 * WAYPOINT_COMFORT_DECELERATION * distance)
+        return min(WAYPOINT_CRUISE_SPEED, target)
+
+    def _desired_velocity_target(self) -> tuple[float, float]:
+        """Velocity vector toward the active waypoint's braking envelope."""
+        wx, wy = self._target()
+        dx, dy = wx - self.x, wy - self.y
+        distance = math.hypot(dx, dy)
+        if distance <= 1e-9:
+            return 0.0, 0.0
+        speed = self._braking_speed_target(
+            max(distance - CAPTURE_DIST, 0.0))
+        return speed * dx / distance, speed * dy / distance
+
+    def _desired_tilt_target(self, desired_vx: float | None = None) -> float:
+        """Tilt that closes horizontal velocity error over one response time."""
+        if desired_vx is None:
+            desired_vx, _ = self._desired_velocity_target()
+        desired_acceleration = (
+            (desired_vx - self.vx) / VELOCITY_RESPONSE_SECONDS)
+        acceleration_limit = G * math.sin(DESIRED_TILT_LIMIT)
+        desired_acceleration = float(np.clip(
+            desired_acceleration, -acceleration_limit, acceleration_limit))
+        return math.asin(desired_acceleration / G)
+
+    def _shaping_potential(self, *, terminal: bool = False) -> float:
+        """Policy-invariant waypoint potential for the undiscounted objective."""
+        if terminal:
+            return 0.0
+        desired_vx, desired_vy = self._desired_velocity_target()
+        velocity_error = math.hypot(
+            self.vx - desired_vx, self.vy - desired_vy)
+        desired_tilt = self._desired_tilt_target(desired_vx)
+        cost = (
+            DISTANCE_POTENTIAL_WEIGHT * self._dist()
+            + VELOCITY_ERROR_POTENTIAL_WEIGHT * velocity_error
+            + DESIRED_TILT_POTENTIAL_WEIGHT
+            * abs(self.theta - desired_tilt)
+        )
+        return -cost
+
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, dict]:
         t_l = float(np.clip((action[0] + 1.0) / 2.0, 0.0, 1.0))
         t_r = float(np.clip((action[1] + 1.0) / 2.0, 0.0, 1.0))
@@ -293,35 +356,40 @@ class DroneEnv:
         self.steps += 1
 
         d = self._dist()
-        reward = 0.05 * (self._d_prev - d)
         self._completion_regularizer += (
             ANGULAR_RATE_REGULARIZER * abs(self.omega)
             + THRUST_REGULARIZER * (t_l ** 2 + t_r ** 2)
         )
 
         done = False
+        task_reward = 0.0
         if d < CAPTURE_DIST:
-            reward += 20.0
+            task_reward += 20.0
             self.k += 1
             if self.k >= len(WAYPOINTS):
                 # Energy and attitude are secondary efficiency tie-breakers,
                 # not a reason to terminate a failed attempt early. Charging
                 # the path regularizer only on success keeps failed returns
-                # equal to metric-aligned potential progress plus terminal
-                # cost while preserving the original successful-course score.
-                reward += 50.0 - self._completion_regularizer
+                # at the terminal outcome plus a start-state shaping constant,
+                # while preserving the original successful-course score.
+                task_reward += 50.0 - self._completion_regularizer
                 done, self.cause = True, "complete"
-            else:
-                d = self._dist()
         if not done and (abs(self.theta) > TIP_OVER
                          or self.x < 0 or self.x > 1000
                          or self.y < 0 or self.y > 700):
-            reward -= TERMINAL_FAILURE_PENALTY
+            task_reward -= TERMINAL_FAILURE_PENALTY
             done, self.cause = True, "crash"
         elif not done and self.steps >= self.max_steps:
-            reward -= TERMINAL_FAILURE_PENALTY
+            task_reward -= TERMINAL_FAILURE_PENALTY
             done, self.cause = True, "timeout"
-        self._d_prev = d
+
+        # With gamma=1, Phi(s') - Phi(s) telescopes to a start-state constant
+        # only if every terminal state has Phi=0. This redistributes credit
+        # without changing terminal-outcome ordering from any given start.
+        next_potential = self._shaping_potential(terminal=done)
+        reward = (next_potential - self._shaping_potential_prev
+                  + task_reward)
+        self._shaping_potential_prev = next_potential
 
         self.episode_reward += reward
         deadline = done and self.cause == "timeout"

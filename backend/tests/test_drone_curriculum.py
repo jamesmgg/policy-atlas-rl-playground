@@ -266,7 +266,8 @@ class TestDroneReverseCurriculum(unittest.TestCase):
 
         dynamic_state = (
             "x", "y", "vx", "vy", "theta", "omega", "k", "steps",
-            "episode_reward", "cause", "_d_prev",
+            "episode_reward", "cause", "_shaping_potential_prev",
+            "_completion_regularizer",
         )
         for name in dynamic_state:
             setattr(canonical, name, getattr(curriculum, name))
@@ -287,22 +288,24 @@ class TestDroneReverseCurriculum(unittest.TestCase):
         def constant_action_return(action: np.ndarray) -> dict:
             env = self.spec.make_env(False)
             env.reset()
+            self.assertTrue(callable(getattr(env, "_shaping_potential", None)))
+            start_potential = env._shaping_potential()
             raw_return = 0.0
             discounted_return = 0.0
-            terminal_reward = None
             for step in range(env.max_steps):
                 _, reward, done, _ = env.step(action)
                 raw_return += reward
                 discounted_return += (self.spec.gamma ** step) * reward
                 if done:
-                    terminal_reward = reward
                     break
             self.assertTrue(done)
             return {
                 "cause": env.cause,
                 "raw_return": raw_return,
                 "discounted_return": discounted_return,
-                "terminal_reward": terminal_reward,
+                "expected_failure_return": (
+                    -start_potential - drone.TERMINAL_FAILURE_PENALTY),
+                "terminal_potential": env._shaping_potential_prev,
             }
 
         hover_throttle = drone.G / (2.0 * drone.T_MAX)
@@ -313,19 +316,20 @@ class TestDroneReverseCurriculum(unittest.TestCase):
 
         self.assertEqual(timeout["cause"], "timeout")
         self.assertEqual(crash["cause"], "crash")
-        # The terminal transition also carries the final potential delta, so
-        # floating-point hover drift may place it infinitesimally above -50.
-        self.assertLessEqual(
-            timeout["terminal_reward"],
-            -drone.TERMINAL_FAILURE_PENALTY + 1e-6,
-        )
+        self.assertEqual(timeout["terminal_potential"], 0.0)
+        self.assertEqual(crash["terminal_potential"], 0.0)
+        self.assertAlmostEqual(
+            timeout["raw_return"], timeout["expected_failure_return"],
+            places=9)
+        self.assertAlmostEqual(
+            crash["raw_return"], crash["expected_failure_return"],
+            places=9)
         self.assertAlmostEqual(timeout["discounted_return"],
                                timeout["raw_return"], places=9)
         self.assertAlmostEqual(crash["discounted_return"],
                                crash["raw_return"], places=9)
-        magnitudes = [abs(timeout["discounted_return"]),
-                      abs(crash["discounted_return"])]
-        self.assertLess(max(magnitudes) / min(magnitudes), 2.0)
+        self.assertAlmostEqual(timeout["raw_return"], crash["raw_return"],
+                               places=9)
 
     def test_failure_return_does_not_reward_an_earlier_identical_crash(self) -> None:
         """A longer same-state failure must not pay extra path regularizers."""
@@ -336,7 +340,8 @@ class TestDroneReverseCurriculum(unittest.TestCase):
 
         def crash_after_hover(hover_steps: int) -> tuple[float, float]:
             env = self.spec.make_env(False)
-            initial_distance = env._d_prev
+            self.assertTrue(callable(getattr(env, "_shaping_potential", None)))
+            start_potential = env._shaping_potential()
             raw_return = 0.0
             for _ in range(hover_steps):
                 _, reward, done, _ = env.step(hover_action)
@@ -349,11 +354,9 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             raw_return += reward
             self.assertTrue(done)
             self.assertEqual(env.cause, "crash")
-            potential_and_terminal = (
-                0.05 * (initial_distance - env._d_prev)
-                - drone.TERMINAL_FAILURE_PENALTY
-            )
-            return raw_return, potential_and_terminal
+            self.assertEqual(env._shaping_potential_prev, 0.0)
+            return raw_return, (
+                -start_potential - drone.TERMINAL_FAILURE_PENALTY)
 
         early, early_expected = crash_after_hover(0)
         delayed, delayed_expected = crash_after_hover(100)
@@ -365,13 +368,16 @@ class TestDroneReverseCurriculum(unittest.TestCase):
     def test_efficiency_regularizers_are_charged_on_completion(self) -> None:
         """Successful policies retain the attitude/energy tie-breaker."""
         env = drone.DroneEnv(jitter=False, forced_start_segment=4)
+        self.assertTrue(callable(getattr(env, "_shaping_potential", None)))
         env.vx = 0.0
-        first_distance = env._d_prev
+        env._shaping_potential_prev = env._shaping_potential()
+        first_potential = env._shaping_potential_prev
         effort_action = np.array([1.0, -1.0], dtype=np.float64)
         _, first_reward, done, _ = env.step(effort_action)
         self.assertFalse(done)
-        first_progress = 0.05 * (first_distance - env._d_prev)
-        self.assertAlmostEqual(first_reward, first_progress, places=9)
+        next_potential = env._shaping_potential_prev
+        self.assertAlmostEqual(
+            first_reward, next_potential - first_potential, places=9)
         accumulated_regularizer = (
             0.002 * abs(env.omega)
             + 0.005
@@ -379,19 +385,71 @@ class TestDroneReverseCurriculum(unittest.TestCase):
 
         env.x, env.y = drone.WAYPOINTS[-1]
         env.vx = env.vy = env.theta = env.omega = 0.0
-        env._d_prev = env._dist()
+        env._shaping_potential_prev = env._shaping_potential()
+        completion_start_potential = env._shaping_potential_prev
         _, completion_reward, done, _ = env.step(
             np.full(2, -1.0, dtype=np.float64))
 
         self.assertTrue(done)
         self.assertEqual(env.cause, "complete")
-        completion_progress = -0.05 * env._d_prev
+        self.assertEqual(env._shaping_potential_prev, 0.0)
         self.assertAlmostEqual(
-            first_reward + completion_reward,
-            first_progress + completion_progress + 70.0
-            - accumulated_regularizer,
+            completion_reward,
+            -completion_start_potential + 70.0 - accumulated_regularizer,
             places=9,
         )
+
+    def test_braking_envelope_is_physical_and_terminal_neutral(self) -> None:
+        env = drone.DroneEnv(jitter=False, forced_start_segment=4)
+        self.assertTrue(callable(getattr(env, "_braking_speed_target", None)))
+        self.assertTrue(callable(getattr(env, "_desired_velocity_target", None)))
+        self.assertTrue(callable(getattr(env, "_desired_tilt_target", None)))
+        self.assertTrue(callable(getattr(env, "_shaping_potential", None)))
+
+        speeds = [env._braking_speed_target(distance)
+                  for distance in (0.0, 25.0, 150.0, 700.0)]
+        self.assertEqual(speeds[0], drone.WAYPOINT_TARGET_SPEED)
+        self.assertTrue(all(left <= right
+                            for left, right in zip(speeds, speeds[1:])))
+        self.assertLessEqual(max(speeds), drone.WAYPOINT_CRUISE_SPEED)
+        self.assertAlmostEqual(
+            speeds[1] ** 2,
+            drone.WAYPOINT_TARGET_SPEED ** 2
+            + 2.0 * drone.WAYPOINT_COMFORT_DECELERATION * 25.0,
+        )
+
+        self.assertLess(env._shaping_potential(), 0.0)
+        self.assertEqual(env._shaping_potential(terminal=True), 0.0)
+
+        env.vx = 80.0
+        desired_vx, _ = env._desired_velocity_target()
+        self.assertLess(desired_vx, 0.0)
+        self.assertLess(env._desired_tilt_target(desired_vx), 0.0)
+
+    def test_braking_potential_immediately_prefers_counter_thrust(self) -> None:
+        """Hard +vx handoffs need a first-transition left-turn signal."""
+        probe = drone.DroneEnv(jitter=False, forced_start_segment=4)
+        self.assertTrue(callable(getattr(probe, "_shaping_potential", None)))
+
+        def reward_for(action: np.ndarray) -> float:
+            env = drone.DroneEnv(jitter=False, forced_start_segment=4)
+            env.vx = 80.0
+            env.vy = env.theta = env.omega = 0.0
+            env._shaping_potential_prev = env._shaping_potential()
+            _, reward, done, _ = env.step(action)
+            self.assertFalse(done)
+            return reward
+
+        correct_counter_thrust = reward_for(np.array(
+            [1.0, -1.0], dtype=np.float64))
+        hover_throttle = drone.G / (2.0 * drone.T_MAX)
+        neutral_hover = reward_for(np.full(
+            2, 2.0 * hover_throttle - 1.0, dtype=np.float64))
+        wrong_way_thrust = reward_for(np.array(
+            [-1.0, 1.0], dtype=np.float64))
+
+        self.assertGreater(correct_counter_thrust, neutral_hover)
+        self.assertGreater(neutral_hover, wrong_way_thrust)
 
     def test_fixed_segment_suite_seeds_are_exact_and_repeatable(self) -> None:
         self.assertEqual(
@@ -596,8 +654,8 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             meta = trainer.registry.list()[0]
             payload = trainer.registry.load(0)
 
-        self.assertEqual(meta["schema_version"], 13)
-        self.assertEqual(meta["protocol"]["version"], 13)
+        self.assertEqual(meta["schema_version"], 14)
+        self.assertEqual(meta["protocol"]["version"], 14)
         self.assertEqual(meta["protocol"]["gamma"], 1.0)
         self.assertEqual(meta["protocol"]["training_curriculum"],
                          EXPECTED_CURRICULUM_PROTOCOL)
@@ -654,14 +712,16 @@ class TestDroneReverseCurriculum(unittest.TestCase):
         self.assertEqual(
             self.spec.reward_terms,
             (
-                "+0.05 × decrease in waypoint distance",
+                "terminal-zero potential: −(0.05 distance + 0.10 desired-velocity "
+                "error + 5.0 desired-tilt error)",
+                "20–80 unit/s target speed from a 20 unit/s² braking envelope",
                 "+20 per waypoint and +50 course completion",
                 "angular-rate and squared-thrust regularizers charged only "
                 "on successful course completion",
                 "−50 crash or timeout",
             ),
         )
-        self.assertEqual(self.spec.checkpoint_schema, 13)
+        self.assertEqual(self.spec.checkpoint_schema, 14)
 
 
 if __name__ == "__main__":

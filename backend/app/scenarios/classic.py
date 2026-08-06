@@ -80,14 +80,20 @@ CLASSIC_SPECS: list[ScenarioSpec] = [
                                 "sin tilt", "cos tilt", "angular rate / 4", "waypoint fraction",
                                 "remaining horizon fraction"),
         actions=("left-rotor thrust", "right-rotor thrust"),
-        reward_terms=("+0.05 × decrease in waypoint distance", "+20 per waypoint and +50 course completion",
-                      "angular-rate and squared-thrust regularizers charged only on successful course completion",
-                      "−50 crash or timeout"),
+        reward_terms=(
+            "terminal-zero potential: −(0.05 distance + 0.10 desired-velocity "
+            "error + 5.0 desired-tilt error)",
+            "20–80 unit/s target speed from a 20 unit/s² braking envelope",
+            "+20 per waypoint and +50 course completion",
+            "angular-rate and squared-thrust regularizers charged only on "
+            "successful course completion",
+            "−50 crash or timeout",
+        ),
         termination_conditions=("all waypoints captured", "tip or arena exit", "36-second horizon"),
         difficulty="Advanced", horizon_steps=drone.DroneEnv.max_steps,
         horizon_seconds=drone.DroneEnv.max_steps * drone.DroneEnv.dt,
         gamma=1.0,
-        checkpoint_schema=13),
+        checkpoint_schema=14),
     ScenarioSpec(
         id="cartpole-balance", name="Continuous Cart-Pole", group="Foundations",
         kind="generic",

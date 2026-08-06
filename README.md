@@ -77,11 +77,16 @@ recoverable from the checkpoint archive.
   evaluation and holdout starts remain unchanged at rest.
   Drone uses an undiscounted finite-horizon objective (`gamma = 1.0`), and both
   crash and timeout apply the same terminal failure cost so hovering until the
-  deadline is not an artificially safe strategy. Its distance reward is a
-  telescoping potential; attitude and thrust regularizers are accumulated and
-  charged only when the course is completed. They therefore rank successful
-  controllers by efficiency without making an early crash cheaper than a
-  longer failed attempt. Other scenarios retain `gamma = 0.995`.
+  deadline is not an artificially safe strategy. Its terminal-zero shaping
+  potential combines waypoint distance (0.05), error from a 20--80 unit/s
+  braking-envelope velocity target (0.10), and error from the corresponding
+  one-second desired tilt (5.0). At `gamma = 1.0` it telescopes to a fixed
+  start-state constant, preserving terminal-outcome ordering while immediately
+  rewarding the counter-thrust needed to reverse inbound momentum. Attitude
+  and thrust regularizers are accumulated and charged only when the course is
+  completed, ranking successful controllers by efficiency without making an
+  early crash cheaper than a longer failed attempt. Other scenarios retain
+  `gamma = 0.995`.
   Segment gates use suite v3 at seeds 400,000 and above, disjoint from both
   checkpoint selection (100,000+) and the default holdout (200,000+).
   Curriculum state is checkpointed exactly, and its diagnostics never enter
