@@ -50,6 +50,8 @@ CURRICULUM_ACTIVE_FRONTIER_PROBABILITY = 0.5
 CURRICULUM_SUCCESS_RATE_THRESHOLD = 0.9
 CURRICULUM_CONSECUTIVE_CONFIRMATIONS = 1
 TERMINAL_FAILURE_PENALTY = 50.0
+ANGULAR_RATE_REGULARIZER = 0.002
+THRUST_REGULARIZER = 0.005
 
 
 def scene() -> dict:
@@ -123,6 +125,7 @@ class DroneEnv:
         self.steps = (0 if self.k == 0
                       else WAYPOINT_START_STEPS[self.k - 1])
         self.episode_reward = 0.0
+        self._completion_regularizer = 0.0
         self.cause = "running"
         self._d_prev = self._dist()
         return self._obs()
@@ -290,15 +293,23 @@ class DroneEnv:
         self.steps += 1
 
         d = self._dist()
-        reward = (0.05 * (self._d_prev - d) - 0.002 * abs(self.omega)
-                  - 0.005 * (t_l ** 2 + t_r ** 2))
+        reward = 0.05 * (self._d_prev - d)
+        self._completion_regularizer += (
+            ANGULAR_RATE_REGULARIZER * abs(self.omega)
+            + THRUST_REGULARIZER * (t_l ** 2 + t_r ** 2)
+        )
 
         done = False
         if d < CAPTURE_DIST:
             reward += 20.0
             self.k += 1
             if self.k >= len(WAYPOINTS):
-                reward += 50.0
+                # Energy and attitude are secondary efficiency tie-breakers,
+                # not a reason to terminate a failed attempt early. Charging
+                # the path regularizer only on success keeps failed returns
+                # equal to metric-aligned potential progress plus terminal
+                # cost while preserving the original successful-course score.
+                reward += 50.0 - self._completion_regularizer
                 done, self.cause = True, "complete"
             else:
                 d = self._dist()
