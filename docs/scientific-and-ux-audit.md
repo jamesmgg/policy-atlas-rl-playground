@@ -46,14 +46,18 @@ by selection and holdout.
 
 The machine-readable reports live in [`docs/results`](results/). Selection uses
 seeds 100000–100009. Early campaigns generally used holdout seeds
-200000–200099; the final Drone and Traffic branch validations use fresh ranges
-970000–970099 and 980000–980099. Selection and holdout are separate within each
-campaign, but several older ranges were reused while iterating, so the reports
-are validation rather than one locked project-wide test. Reports record the
-engine source digest, checkpoint digest, evaluation suite, Wilson interval,
-assistance contract, and whether evidence influenced selection. All current
-campaigns use optimizer/training seed 42; the 100 holdout seeds vary environment
-starts, not independent training replications.
+200000–200099. The isolated Drone and Traffic branch validations used fresh
+ranges 970000–970099 and 980000–980099; their exact merged-engine reruns use
+1100000–1100099 and 1200000–1200099 in
+[`final-drone-v18-2000.json`](results/final-drone-v18-2000.json) and
+[`final-traffic-v17-2000.json`](results/final-traffic-v17-2000.json).
+Selection and holdout are separate within each campaign, but several older
+ranges were reused while iterating, so the reports are validation rather than
+one locked project-wide test. Reports record the engine source digest,
+checkpoint digest, evaluation suite, Wilson interval, assistance contract, and
+whether evidence influenced selection. All current campaigns use
+optimizer/training seed 42; the 100 holdout seeds vary environment starts, not
+independent training replications.
 
 ## AI engineer viewpoint
 
