@@ -34,14 +34,14 @@ WAYPOINT_START_STEPS = tuple(
 )
 TRAINING_START_DISTRIBUTION = (
     "Performance-gated reverse waypoint curriculum: start at target 5 "
-    "(k4); unlock k3, k2, k1, then canonical k0 after two consecutive "
-    ">=90% fixed segment evaluations; active frontier receives 50% "
+    "(k4); unlock k3, k2, k1, then canonical k0 after one >=90% fixed "
+    "segment evaluation; active frontier receives 50% "
     "of resets and mastered later segments uniformly share the remainder"
 )
 CURRICULUM_FRONTIER_ORDER = (4, 3, 2, 1, 0)
 CURRICULUM_ACTIVE_FRONTIER_PROBABILITY = 0.5
 CURRICULUM_SUCCESS_RATE_THRESHOLD = 0.9
-CURRICULUM_CONSECUTIVE_CONFIRMATIONS = 2
+CURRICULUM_CONSECUTIVE_CONFIRMATIONS = 1
 
 
 def scene() -> dict:

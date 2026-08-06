@@ -85,7 +85,7 @@ CLASSIC_SPECS: list[ScenarioSpec] = [
         termination_conditions=("all waypoints captured", "tip or arena exit", "36-second horizon"),
         difficulty="Advanced", horizon_steps=drone.DroneEnv.max_steps,
         horizon_seconds=drone.DroneEnv.max_steps * drone.DroneEnv.dt,
-        checkpoint_schema=5),
+        checkpoint_schema=6),
     ScenarioSpec(
         id="cartpole-balance", name="Continuous Cart-Pole", group="Foundations",
         kind="generic",

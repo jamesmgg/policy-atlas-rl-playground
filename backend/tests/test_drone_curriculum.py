@@ -30,7 +30,7 @@ EXPECTED_CURRICULUM_PROTOCOL = {
     "gate": {
         "success_rate_threshold": 0.9,
         "comparison": ">=",
-        "consecutive_confirmations": 2,
+        "consecutive_confirmations": 1,
         "distinct_checkpoint_episodes": True,
     },
     "segment_evaluation": {
@@ -53,11 +53,9 @@ EXPECTED_CURRICULUM_PROTOCOL = {
 
 
 def pass_frontier(env) -> dict:
-    """Supply the two prescribed confirmations and return the transition."""
+    """Supply the prescribed confirmation and return the transition."""
     spec = get_spec("drone-hover").training_curriculum
     assert spec is not None
-    first = env.record_training_curriculum_evaluation(0.9, spec)
-    assert not first["unlocked"]
     return env.record_training_curriculum_evaluation(0.9, spec)
 
 
@@ -116,19 +114,14 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             self.assertLessEqual(starts.count(mastered), 800)
         self.assertNotIn(0, starts)
 
-    def test_gate_requires_two_consecutive_threshold_passes(self) -> None:
+    def test_gate_unlocks_after_one_threshold_pass(self) -> None:
         training = self.spec.make_training_env()
-
-        first = training.record_training_curriculum_evaluation(0.9, self.curriculum)
-        self.assertEqual(first["frontier_after"], 4)
-        self.assertEqual(first["confirmation_streak_after"], 1)
-        self.assertFalse(first["unlocked"])
 
         failed = training.record_training_curriculum_evaluation(0.89, self.curriculum)
         self.assertEqual(failed["frontier_after"], 4)
         self.assertEqual(failed["confirmation_streak_after"], 0)
+        self.assertFalse(failed["unlocked"])
 
-        training.record_training_curriculum_evaluation(1.0, self.curriculum)
         unlocked = training.record_training_curriculum_evaluation(
             0.9, self.curriculum)
         self.assertEqual(unlocked["frontier_before"], 4)
@@ -144,25 +137,28 @@ class TestDroneReverseCurriculum(unittest.TestCase):
         duplicate = training.record_training_curriculum_evaluation(
             0.9, self.curriculum, evaluation_episode=25)
 
-        self.assertEqual(first["confirmation_streak_after"], 1)
+        self.assertTrue(first["unlocked"])
+        self.assertEqual(first["frontier_after"], 3)
+        self.assertEqual(first["confirmation_streak_after"], 0)
         self.assertTrue(duplicate["ignored_duplicate"])
-        self.assertEqual(duplicate["confirmation_streak_after"], 1)
+        self.assertEqual(duplicate["frontier_after"], 3)
+        self.assertEqual(duplicate["confirmation_streak_after"], 0)
         self.assertEqual(training.training_curriculum_state()["evaluations"], 1)
         self.assertEqual(training.training_curriculum_state()[
             "last_evaluation_episode"], 25)
 
-        unlocked = training.record_training_curriculum_evaluation(
+        next_unlock = training.record_training_curriculum_evaluation(
             0.9, self.curriculum, evaluation_episode=50)
-        self.assertTrue(unlocked["unlocked"])
-        self.assertEqual(unlocked["frontier_after"], 3)
+        self.assertTrue(next_unlock["unlocked"])
+        self.assertEqual(next_unlock["frontier_after"], 2)
 
     def test_final_frontier_is_unlocked_and_sampling_stays_stable(self) -> None:
         training = self.spec.make_training_env()
         for expected_frontier in (3, 2, 1, 0):
             self.assertEqual(pass_frontier(training)["frontier_after"],
                              expected_frontier)
-        first = training.record_training_curriculum_evaluation(0.9, self.curriculum)
-        completed = training.record_training_curriculum_evaluation(1.0, self.curriculum)
+        first = training.record_training_curriculum_evaluation(0.89, self.curriculum)
+        completed = training.record_training_curriculum_evaluation(0.9, self.curriculum)
 
         self.assertFalse(first["complete_after"])
         self.assertTrue(completed["complete_after"])
@@ -397,23 +393,23 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             meta = trainer.registry.list()[0]
             payload = trainer.registry.load(0)
 
-        self.assertEqual(meta["schema_version"], 5)
-        self.assertEqual(meta["protocol"]["version"], 7)
+        self.assertEqual(meta["schema_version"], 6)
+        self.assertEqual(meta["protocol"]["version"], 8)
         self.assertEqual(meta["protocol"]["training_curriculum"],
                          EXPECTED_CURRICULUM_PROTOCOL)
         diagnostic = meta["training_diagnostics"]["training_curriculum"]
         self.assertEqual(diagnostic["frontier_before"], 4)
-        self.assertEqual(diagnostic["frontier_after"], 4)
-        self.assertEqual(diagnostic["confirmation_streak_after"], 1)
-        self.assertFalse(diagnostic["unlocked"])
-        self.assertEqual(diagnostic["state_after"]["frontier"], 4)
-        self.assertEqual(diagnostic["state_after"]["pass_streak"], 1)
+        self.assertEqual(diagnostic["frontier_after"], 3)
+        self.assertEqual(diagnostic["confirmation_streak_after"], 0)
+        self.assertTrue(diagnostic["unlocked"])
+        self.assertEqual(diagnostic["state_after"]["frontier"], 3)
+        self.assertEqual(diagnostic["state_after"]["pass_streak"], 0)
         self.assertEqual(diagnostic["state_after"]["evaluations"], 1)
         self.assertEqual(diagnostic["state_after"]["last_evaluation_episode"], 0)
         self.assertEqual(meta["success_rate"], canonical["success_rate"])
         self.assertEqual(meta["eval_metric"], canonical["metric"])
         self.assertEqual(
-            payload["rng_state"]["training_curriculum"]["pass_streak"], 1)
+            payload["rng_state"]["training_curriculum"]["frontier"], 3)
 
     def test_non_drone_scenarios_keep_their_training_contracts_and_schemas(self) -> None:
         expected_schemas = {
@@ -439,13 +435,13 @@ class TestDroneReverseCurriculum(unittest.TestCase):
         self.assertEqual(
             self.spec.training_start_distribution,
             "Performance-gated reverse waypoint curriculum: start at target 5 "
-            "(k4); unlock k3, k2, k1, then canonical k0 after two consecutive "
-            ">=90% fixed segment evaluations; active frontier receives 50% "
+            "(k4); unlock k3, k2, k1, then canonical k0 after one >=90% fixed "
+            "segment evaluation; active frontier receives 50% "
             "of resets and mastered later segments uniformly share the remainder",
         )
         self.assertEqual(self.spec.training_curriculum.protocol(),
                          EXPECTED_CURRICULUM_PROTOCOL)
-        self.assertEqual(self.spec.checkpoint_schema, 5)
+        self.assertEqual(self.spec.checkpoint_schema, 6)
 
 
 if __name__ == "__main__":
