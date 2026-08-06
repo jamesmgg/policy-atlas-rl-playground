@@ -473,11 +473,15 @@ class DroneEnv:
             "unlocked": unlocked,
         }
 
-    def _target(self) -> tuple[float, float]:
-        return WAYPOINTS[min(self.k, len(WAYPOINTS) - 1)]
+    def _target(self, waypoint_index: int | None = None) -> tuple[float, float]:
+        index = (min(self.k, len(WAYPOINTS) - 1)
+                 if waypoint_index is None else int(waypoint_index))
+        if not 0 <= index < len(WAYPOINTS):
+            raise ValueError("Drone waypoint index must be in [0, 4]")
+        return WAYPOINTS[index]
 
-    def _dist(self) -> float:
-        wx, wy = self._target()
+    def _dist(self, waypoint_index: int | None = None) -> float:
+        wx, wy = self._target(waypoint_index)
         return math.hypot(self.x - wx, self.y - wy)
 
     @staticmethod
@@ -489,9 +493,10 @@ class DroneEnv:
             + 2.0 * WAYPOINT_COMFORT_DECELERATION * distance)
         return min(WAYPOINT_CRUISE_SPEED, target)
 
-    def _desired_velocity_target(self) -> tuple[float, float]:
+    def _desired_velocity_target(
+            self, waypoint_index: int | None = None) -> tuple[float, float]:
         """Velocity vector toward the active waypoint's braking envelope."""
-        wx, wy = self._target()
+        wx, wy = self._target(waypoint_index)
         dx, dy = wx - self.x, wy - self.y
         distance = math.hypot(dx, dy)
         if distance <= 1e-9:
@@ -511,16 +516,20 @@ class DroneEnv:
             desired_acceleration, -acceleration_limit, acceleration_limit))
         return math.asin(desired_acceleration / G)
 
-    def _shaping_potential(self, *, terminal: bool = False) -> float:
-        """Policy-invariant waypoint potential for the undiscounted objective."""
-        if terminal:
-            return 0.0
-        desired_vx, desired_vy = self._desired_velocity_target()
+    def _shaping_potential(self, waypoint_index: int | None = None) -> float:
+        """Return the objective-aligned cost potential for one course segment.
+
+        This is deliberately a training credit-assignment auxiliary, not a
+        policy-invariant terminal-zero potential. Failed attempts retain their
+        final segment cost so GAE does not see a positive terminal correction
+        for crashing from an expensive state.
+        """
+        desired_vx, desired_vy = self._desired_velocity_target(waypoint_index)
         velocity_error = math.hypot(
             self.vx - desired_vx, self.vy - desired_vy)
         desired_tilt = self._desired_tilt_target(desired_vx)
         cost = (
-            DISTANCE_POTENTIAL_WEIGHT * self._dist()
+            DISTANCE_POTENTIAL_WEIGHT * self._dist(waypoint_index)
             + VELOCITY_ERROR_POTENTIAL_WEIGHT * velocity_error
             + DESIRED_TILT_POTENTIAL_WEIGHT
             * abs(self.theta - desired_tilt)
@@ -528,6 +537,7 @@ class DroneEnv:
         return -cost
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, dict]:
+        active_waypoint_index = min(self.k, len(WAYPOINTS) - 1)
         t_l = float(np.clip((action[0] + 1.0) / 2.0, 0.0, 1.0))
         t_r = float(np.clip((action[1] + 1.0) / 2.0, 0.0, 1.0))
 
@@ -540,15 +550,18 @@ class DroneEnv:
         self.y += self.vy * DT
         self.steps += 1
 
-        d = self._dist()
+        d = self._dist(active_waypoint_index)
+        segment_end_potential = self._shaping_potential(active_waypoint_index)
         self._completion_regularizer += (
             ANGULAR_RATE_REGULARIZER * abs(self.omega)
             + THRUST_REGULARIZER * (t_l ** 2 + t_r ** 2)
         )
 
         done = False
+        captured_waypoint = False
         task_reward = 0.0
         if d < CAPTURE_DIST:
+            captured_waypoint = True
             task_reward += 20.0
             self.k += 1
             if self.k >= len(WAYPOINTS):
@@ -568,13 +581,19 @@ class DroneEnv:
             task_reward -= TERMINAL_FAILURE_PENALTY
             done, self.cause = True, "timeout"
 
-        # With gamma=1, Phi(s') - Phi(s) telescopes to a start-state constant
-        # only if every terminal state has Phi=0. This redistributes credit
-        # without changing terminal-outcome ordering from any given start.
-        next_potential = self._shaping_potential(terminal=done)
-        reward = (next_potential - self._shaping_potential_prev
+        # Give local progress credit only within the segment that owned this
+        # transition. A waypoint capture starts a fresh baseline for the next
+        # target without charging its discontinuous target-switch jump. At a
+        # crash, timeout, or completion, retain the physical end potential;
+        # forcing it to zero would give high-cost terminal states a spurious
+        # positive correction under finite-lambda GAE.
+        reward = (segment_end_potential - self._shaping_potential_prev
                   + task_reward)
-        self._shaping_potential_prev = next_potential
+        self._shaping_potential_prev = (
+            self._shaping_potential()
+            if captured_waypoint and not done
+            else segment_end_potential
+        )
 
         self.episode_reward += reward
         deadline = done and self.cause == "timeout"

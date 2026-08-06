@@ -77,19 +77,24 @@ recoverable from the checkpoint archive.
   after all three bands are proficient. Later outer frontiers use hard inbound
   starts. Canonical evaluation and holdout starts remain unchanged at rest.
   Fresh Drone policies also begin at the physically neutral -2/7 action on
-  both rotors (total thrust equals gravity), with exploration variance unchanged.
+  both rotors (total thrust equals gravity). Drone-only exploration starts at
+  latent log standard deviation -1.2 per rotor, narrowing the initial torque
+  spread around that delicate hover point without changing global PPO settings.
   Drone uses an undiscounted finite-horizon objective (`gamma = 1.0`), and both
-  crash and timeout apply the same terminal failure cost so hovering until the
-  deadline is not an artificially safe strategy. Its terminal-zero shaping
-  potential combines waypoint distance (0.05), error from a 20--80 unit/s
-  braking-envelope velocity target (0.10), and error from the corresponding
-  one-second desired tilt (5.0). At `gamma = 1.0` it telescopes to a fixed
-  start-state constant, preserving terminal-outcome ordering while immediately
-  rewarding the counter-thrust needed to reverse inbound momentum. Attitude
-  and thrust regularizers are accumulated and charged only when the course is
-  completed, ranking successful controllers by efficiency without making an
-  early crash cheaper than a longer failed attempt. Other scenarios retain
-  `gamma = 0.995`.
+  crash and timeout apply the same -50 task penalty. Its segment-local training
+  auxiliary is the change in a cost potential combining waypoint distance
+  (0.05), error from a 20--80 unit/s braking-envelope velocity target (0.10),
+  and error from the corresponding one-second desired tilt (5.0). A waypoint
+  capture resets the baseline for the next target without charging the target
+  switch; a crash or timeout retains its physical terminal potential instead
+  of forcing it to zero. This auxiliary deliberately changes failed-attempt
+  ordering by terminal segment cost and is not policy invariant. It exists for
+  training credit assignment: a lower-cost failure ranks above a high-cost
+  crash, and finite-lambda GAE receives no artificial positive terminal
+  correction. Attitude and thrust regularizers are accumulated and charged
+  only when the course is completed, ranking successful controllers by
+  efficiency. Other scenarios retain `gamma = 0.995` and their exploration
+  settings.
   Segment gates use suite v3 at seeds 400,000 and above; momentum controls use
   versioned suites at 500,000 and above. Both are disjoint from checkpoint
   selection (100,000+) and the default holdout (200,000+).

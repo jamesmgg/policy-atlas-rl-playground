@@ -20,6 +20,7 @@ DRONE_ACTOR_INITIALIZATION = ActorInitialization(
     scope="drone_hover_only",
     continuous_action_labels=("left_rotor_thrust", "right_rotor_thrust"),
     continuous_action_prior=(drone.HOVER_ACTION, drone.HOVER_ACTION),
+    continuous_log_std=(-1.2, -1.2),
 )
 
 
@@ -87,9 +88,11 @@ CLASSIC_SPECS: list[ScenarioSpec] = [
                                 "remaining horizon fraction"),
         actions=("left-rotor thrust", "right-rotor thrust"),
         reward_terms=(
-            "terminal-zero potential: −(0.05 distance + 0.10 desired-velocity "
-            "error + 5.0 desired-tilt error)",
+            "segment-local progress auxiliary: change in −(0.05 distance "
+            "+ 0.10 desired-velocity error + 5.0 desired-tilt error)",
             "20–80 unit/s target speed from a 20 unit/s² braking envelope",
+            "waypoint captures reset the auxiliary baseline without a "
+            "cross-target jump; terminal segment cost is retained on failure",
             "+20 per waypoint and +50 course completion",
             "angular-rate and squared-thrust regularizers charged only on "
             "successful course completion",
@@ -100,7 +103,7 @@ CLASSIC_SPECS: list[ScenarioSpec] = [
         horizon_seconds=drone.DroneEnv.max_steps * drone.DroneEnv.dt,
         gamma=1.0,
         actor_initialization=DRONE_ACTOR_INITIALIZATION,
-        checkpoint_schema=15),
+        checkpoint_schema=16),
     ScenarioSpec(
         id="cartpole-balance", name="Continuous Cart-Pole", group="Foundations",
         kind="generic",

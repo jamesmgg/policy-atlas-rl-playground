@@ -718,7 +718,7 @@ class Trainer:
         eval_result["training_diagnostics"] = training_diagnostics or None
         eval_result["protocol"] = {
             "algorithm": "PPO",
-            "version": 15,
+            "version": 16,
             "rollout_steps": ROLLOUT_STEPS,
             "episode_aligned_rollouts": True,
             "gamma": self.spec.gamma,
