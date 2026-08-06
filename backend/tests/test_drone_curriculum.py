@@ -80,25 +80,39 @@ class TestDroneReverseCurriculum(unittest.TestCase):
         self.curriculum = self.spec.training_curriculum
         self.assertIsNotNone(self.curriculum)
 
-    def test_locked_frontier_starts_only_at_last_segment(self) -> None:
+    def test_locked_frontier_uses_overlap_momentum_only_at_last_segment(self) -> None:
         training = self.spec.make_training_env()
         self.assertTrue(training.waypoint_start_curriculum)
         training.rng.seed(42)
 
         starts = []
-        for _ in range(200):
+        inbound = 0
+        opposite = 0
+        low_speed = 0
+        for _ in range(4_000):
             training.reset()
             starts.append(training.k)
             self.assertLessEqual(abs(training.x - drone.WAYPOINTS[3][0]), 30.0)
             self.assertEqual(training.y, drone.WAYPOINTS[3][1])
-            self.assertGreaterEqual(training.vx, 60.0)
-            self.assertLessEqual(training.vx, 100.0)
+            self.assertLessEqual(abs(training.vx), 100.0)
+            inbound += training.vx > 0.0
+            opposite += training.vx < 0.0
+            low_speed += abs(training.vx) < 60.0
             self.assertEqual(training.vy, 0.0)
             self.assertEqual(training.theta, 0.0)
             self.assertEqual(training.omega, 0.0)
             self.assertEqual(training.steps, drone.WAYPOINT_START_STEPS[3])
 
         self.assertEqual(set(starts), {4})
+        # 50% hard inbound U[60, 100] + 50% symmetric U[-100, 100]
+        # yields approximately 75% inbound, 25% opposite-direction, and 30%
+        # below the hard suite's minimum speed.
+        self.assertGreaterEqual(inbound, 2_850)
+        self.assertLessEqual(inbound, 3_150)
+        self.assertGreaterEqual(opposite, 850)
+        self.assertLessEqual(opposite, 1_150)
+        self.assertGreaterEqual(low_speed, 1_050)
+        self.assertLessEqual(low_speed, 1_350)
         self.assertEqual(training.training_curriculum_state()["frontier"], 4)
 
     def test_unlocked_sampling_rehearses_active_and_mastered_frontiers(self) -> None:
@@ -111,15 +125,20 @@ class TestDroneReverseCurriculum(unittest.TestCase):
         # Frontier 1 is active; 2, 3 and 4 are mastered later segments.
         training.rng.seed(2026)
         starts = []
+        inbound = 0
+        opposite = 0
+        low_speed = 0
         for _ in range(4_000):
             training.reset()
             starts.append(training.k)
             origin = drone.WAYPOINTS[training.k - 1]
             prior = drone.START if training.k == 1 else drone.WAYPOINTS[
                 training.k - 2]
-            self.assertGreater(training.vx * (origin[0] - prior[0]), 0.0)
-            self.assertGreaterEqual(abs(training.vx), 60.0)
             self.assertLessEqual(abs(training.vx), 100.0)
+            relative_velocity = training.vx * (origin[0] - prior[0])
+            inbound += relative_velocity > 0.0
+            opposite += relative_velocity < 0.0
+            low_speed += abs(training.vx) < 60.0
 
         counts = Counter(starts)
         self.assertEqual(set(starts), {1, 2, 3, 4})
@@ -128,6 +147,12 @@ class TestDroneReverseCurriculum(unittest.TestCase):
         for mastered in (2, 3, 4):
             self.assertGreaterEqual(counts[mastered], 500)
             self.assertLessEqual(counts[mastered], 850)
+        self.assertGreaterEqual(inbound, 2_850)
+        self.assertLessEqual(inbound, 3_150)
+        self.assertGreaterEqual(opposite, 850)
+        self.assertLessEqual(opposite, 1_150)
+        self.assertGreaterEqual(low_speed, 1_050)
+        self.assertLessEqual(low_speed, 1_350)
 
     def test_gate_unlocks_after_one_threshold_pass(self) -> None:
         training = self.spec.make_training_env()
@@ -188,7 +213,6 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             if training.k == 0:
                 self.assertEqual(training.vx, 0.0)
             else:
-                self.assertGreaterEqual(abs(training.vx), 60.0)
                 self.assertLessEqual(abs(training.vx), 100.0)
         counts = Counter(starts)
         self.assertEqual(set(starts), {0, 1, 2, 3, 4})
@@ -501,7 +525,7 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             meta = trainer.registry.list()[0]
             payload = trainer.registry.load(0)
 
-        self.assertEqual(meta["schema_version"], 11)
+        self.assertEqual(meta["schema_version"], 12)
         self.assertEqual(meta["protocol"]["version"], 13)
         self.assertEqual(meta["protocol"]["gamma"], 1.0)
         self.assertEqual(meta["protocol"]["training_curriculum"],
@@ -549,13 +573,14 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             "(k4); unlock k3, k2, k1, then canonical k0 after one >=90% fixed "
             "segment evaluation; active frontier receives 50% of resets and "
             "mastered later segments uniformly share the remainder; "
-            "noncanonical starts carry seeded inbound horizontal velocity with "
-            "the previous-segment sign and magnitude uniformly sampled from "
-            "60 to 100 units/s",
+            "noncanonical training starts mix 50% hard inbound horizontal "
+            "velocity with the previous-segment sign and magnitude uniform on "
+            "[60, 100] units/s and 50% overlap velocity uniform on [-100, 100] "
+            "units/s; fixed segment gates retain only the hard inbound starts",
         )
         self.assertEqual(self.spec.training_curriculum.protocol(),
                          EXPECTED_CURRICULUM_PROTOCOL)
-        self.assertEqual(self.spec.checkpoint_schema, 11)
+        self.assertEqual(self.spec.checkpoint_schema, 12)
 
 
 if __name__ == "__main__":

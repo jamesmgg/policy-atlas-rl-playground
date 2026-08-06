@@ -69,10 +69,12 @@ recoverable from the checkpoint archive.
   after one >=90% segment evaluation. Before the first unlock, every reset
   targets the active frontier; afterward, half target the active frontier while
   half uniformly rehearse mastered later segments to prevent forgetting.
-  Noncanonical training and segment-evaluation starts replay a seeded 60â€“100
-  units/s horizontal arrival in the preceding segment's direction, so each
-  waypoint policy must learn the momentum reversal encountered by the zigzag
-  course. Canonical evaluation and holdout starts remain unchanged at rest.
+  Noncanonical training starts use a disclosed 50/50 overlap distribution:
+  half replay the hard seeded 60â€“100 units/s horizontal arrival in the
+  preceding segment's direction, while half draw uniformly from -100 to 100
+  units/s. This supplies a continuous learning bridge without weakening the
+  fixed segment gates, which retain only the hard inbound starts. Canonical
+  evaluation and holdout starts remain unchanged at rest.
   Drone uses an undiscounted finite-horizon objective (`gamma = 1.0`), and both
   crash and timeout apply the same terminal failure cost so hovering until the
   deadline is not an artificially safe strategy. Other scenarios retain

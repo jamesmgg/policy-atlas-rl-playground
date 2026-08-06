@@ -86,7 +86,7 @@ CLASSIC_SPECS: list[ScenarioSpec] = [
         difficulty="Advanced", horizon_steps=drone.DroneEnv.max_steps,
         horizon_seconds=drone.DroneEnv.max_steps * drone.DroneEnv.dt,
         gamma=1.0,
-        checkpoint_schema=11),
+        checkpoint_schema=12),
     ScenarioSpec(
         id="cartpole-balance", name="Continuous Cart-Pole", group="Foundations",
         kind="generic",

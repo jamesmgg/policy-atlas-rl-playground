@@ -18,6 +18,7 @@ CAPTURE_DIST = 25.0
 HORIZON_STEPS = 900
 HANDOFF_HORIZONTAL_SPEED_MIN = 60.0
 HANDOFF_HORIZONTAL_SPEED_MAX = 100.0
+CURRICULUM_HARD_HANDOFF_PROBABILITY = 0.5
 
 WAYPOINTS: list[tuple[float, float]] = [
     (250, 500), (700, 420), (450, 180), (820, 160), (150, 250),
@@ -39,8 +40,10 @@ TRAINING_START_DISTRIBUTION = (
     "(k4); unlock k3, k2, k1, then canonical k0 after one >=90% fixed "
     "segment evaluation; active frontier receives 50% of resets and "
     "mastered later segments uniformly share the remainder; "
-    "noncanonical starts carry seeded inbound horizontal velocity with the "
-    "previous-segment sign and magnitude uniformly sampled from 60 to 100 units/s"
+    "noncanonical training starts mix 50% hard inbound horizontal velocity "
+    "with the previous-segment sign and magnitude uniform on [60, 100] units/s "
+    "and 50% overlap velocity uniform on [-100, 100] units/s; fixed segment "
+    "gates retain only the hard inbound starts"
 )
 CURRICULUM_FRONTIER_ORDER = (4, 3, 2, 1, 0)
 CURRICULUM_ACTIVE_FRONTIER_PROBABILITY = 0.5
@@ -99,13 +102,24 @@ class DroneEnv:
         if self.k > 0:
             inbound_dx = (
                 _COURSE_POINTS[self.k][0] - _COURSE_POINTS[self.k - 1][0])
-            self.vx = math.copysign(
-                self.rng.uniform(
-                    HANDOFF_HORIZONTAL_SPEED_MIN,
-                    HANDOFF_HORIZONTAL_SPEED_MAX,
-                ),
-                inbound_dx,
+            overlap_start = (
+                self.waypoint_start_curriculum
+                and self.forced_start_segment is None
+                and self.rng.random() >= CURRICULUM_HARD_HANDOFF_PROBABILITY
             )
+            if overlap_start:
+                self.vx = self.rng.uniform(
+                    -HANDOFF_HORIZONTAL_SPEED_MAX,
+                    HANDOFF_HORIZONTAL_SPEED_MAX,
+                )
+            else:
+                self.vx = math.copysign(
+                    self.rng.uniform(
+                        HANDOFF_HORIZONTAL_SPEED_MIN,
+                        HANDOFF_HORIZONTAL_SPEED_MAX,
+                    ),
+                    inbound_dx,
+                )
         self.steps = (0 if self.k == 0
                       else WAYPOINT_START_STEPS[self.k - 1])
         self.episode_reward = 0.0
