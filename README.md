@@ -68,10 +68,23 @@ recoverable from the checkpoint archive.
   traffic from a curvature/grip braking envelope; selection and replay keep
   their unchanged fixed start-line distributions.
 - Traffic Rush assigns the same -40 terminal cost to collision, contact,
-  wrong-way, and stall failures, so waiting safely cannot dominate attempting
-  the overtake objective. Its reverse curriculum rehearses checkpoints 11, 9,
-  3, and then the canonical start; reconstructed pass masks describe inherited
-  state and are never counted as newly learned overtakes.
+  wrong-way, stall, and timeout failures, plus a disclosed remaining-clock cost.
+  Its course-progress auxiliary retains the physical terminal potential: the
+  earlier terminal-zero form canceled failed-path progress and produced a large
+  late negative correction under finite-lambda GAE. A fixed episode schedule
+  first mixes physical checkpoint-11 near-pass rehearsals at 12 m/s with nested
+  18/24/30 m/s bot-speed practice, then retires the easy rehearsal. The reverse
+  curriculum continues through checkpoints 11, 9, 3, and the canonical start;
+  reconstructed pass masks are inherited state, never newly learned overtakes.
+- Traffic Rush is also explicitly demonstration-assisted PPO. Thirty successful
+  canonical pure-pursuit trajectories initialize the actor, followed by two
+  fixed DAgger rounds of 40 learned-policy rollouts whose visited states are
+  labeled by the training-only expert. The resulting 89,422-sample dataset,
+  weighted throttle/steering/binary losses, seed ranges, and SHA-256 digest are
+  checkpointed. The expert is absent at inference. Three disclosed guidance
+  observations--target lane, pursuit heading error, and target speed--expand
+  Traffic to 41 observations, while latent action log standard deviation -2.0
+  preserves bounded exploration during PPO fine-tuning.
 - Wet Apex assigns the same nominal -40 terminal cost to collision, wrong-way,
   and stall failures. This aligns the raw terminal costs, but equal costs alone
   do not prove that delayed inactivity is neutral under discounting; the
