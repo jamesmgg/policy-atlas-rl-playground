@@ -62,14 +62,14 @@ recoverable from the checkpoint archive.
   mixture. Rolling states reconstruct speed, clock, task progress, fuel, and
   traffic from a curvature/grip braking envelope; selection and replay keep
   their unchanged fixed start-line distributions.
-- Lunar Lander uses touchdown and braking-approach rehearsals through episode
-  500, then consolidates on 75% canonical descents and 25% braking approaches;
-  Drone Course uses a fixed-suite, performance-gated reverse curriculum that
-  learns the final waypoint first, then unlocks each earlier course segment
-  after one >=90% segment evaluation. Its active frontier receives half of
-  resets once later segments are mastered.
-  Curriculum state is checkpointed exactly, and its diagnostics never enter
-  full-course checkpoint selection.
+- Lunar Lander uses a fixed-suite, performance-gated reverse-altitude
+  curriculum: touchdown rehearsals first, then 30-100, 100-250, and 250-500
+  unit approach bands before the canonical descent. Drone Course likewise
+  learns the final waypoint first, then unlocks each earlier course segment.
+  Each frontier advances after one >=90% deterministic evaluation; once a
+  frontier has been mastered, half of resets stay on the active frontier and
+  the other half retain mastered easier work. Curriculum state is checkpointed
+  exactly, and its diagnostics never enter full-course checkpoint selection.
 - The benchmark campaign freezes checkpoint selection before an optional
   100-start holdout at a disjoint seed range. Holdout outcomes cannot affect
   early stopping or checkpoint choice.
