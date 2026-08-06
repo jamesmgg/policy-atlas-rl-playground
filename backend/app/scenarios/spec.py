@@ -30,11 +30,13 @@ class ScenarioSpec:
     difficulty: str = "Intermediate"
     horizon_steps: int = 1
     horizon_seconds: float | None = 60.0
+    gamma: float = 0.995
     actor_initialization: ActorInitialization | None = None
     training_curriculum: TrainingCurriculumSpec | None = None
-    # Increment when observations, actions, or metric semantics change
-    # incompatibly. Old checkpoints remain on disk but are hidden rather than
-    # loaded or compared under a different scientific contract.
+    # Increment when observations, actions, rewards, optimization, or metric
+    # semantics change incompatibly. Old checkpoints remain on disk but are
+    # hidden rather than loaded or compared under a different scientific
+    # contract.
     checkpoint_schema: int = 1
 
     def make_training_env(self) -> Env:
@@ -57,4 +59,5 @@ class ScenarioSpec:
             "difficulty": self.difficulty,
             "horizon_steps": self.horizon_steps,
             "horizon_seconds": self.horizon_seconds,
+            "gamma": self.gamma,
         }

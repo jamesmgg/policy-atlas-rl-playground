@@ -255,6 +255,49 @@ class TestDroneReverseCurriculum(unittest.TestCase):
         self.assertAlmostEqual(curriculum_result[1], canonical_result[1])
         self.assertEqual(curriculum_result[2:], canonical_result[2:])
 
+    def test_undiscounted_timeout_and_crash_have_comparable_failure_costs(self) -> None:
+        """Hovering until the deadline must not dominate attempting the course."""
+        self.assertEqual(self.spec.gamma, 1.0)
+        self.assertEqual(self.spec.info()["gamma"], 1.0)
+
+        def constant_action_return(action: np.ndarray) -> dict:
+            env = self.spec.make_env(False)
+            env.reset()
+            raw_return = 0.0
+            discounted_return = 0.0
+            terminal_reward = None
+            for step in range(env.max_steps):
+                _, reward, done, _ = env.step(action)
+                raw_return += reward
+                discounted_return += (self.spec.gamma ** step) * reward
+                if done:
+                    terminal_reward = reward
+                    break
+            self.assertTrue(done)
+            return {
+                "cause": env.cause,
+                "raw_return": raw_return,
+                "discounted_return": discounted_return,
+                "terminal_reward": terminal_reward,
+            }
+
+        hover_throttle = drone.G / (2.0 * drone.T_MAX)
+        hover_action = np.full(2, 2.0 * hover_throttle - 1.0,
+                               dtype=np.float32)
+        timeout = constant_action_return(hover_action)
+        crash = constant_action_return(np.full(2, -1.0, dtype=np.float32))
+
+        self.assertEqual(timeout["cause"], "timeout")
+        self.assertEqual(crash["cause"], "crash")
+        self.assertLessEqual(timeout["terminal_reward"], -50.0)
+        self.assertAlmostEqual(timeout["discounted_return"],
+                               timeout["raw_return"], places=9)
+        self.assertAlmostEqual(crash["discounted_return"],
+                               crash["raw_return"], places=9)
+        magnitudes = [abs(timeout["discounted_return"]),
+                      abs(crash["discounted_return"])]
+        self.assertLess(max(magnitudes) / min(magnitudes), 2.0)
+
     def test_fixed_segment_suite_seeds_are_exact_and_repeatable(self) -> None:
         self.assertEqual(
             [self.curriculum.evaluation_seed(4, i) for i in range(10)],
@@ -435,8 +478,9 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             meta = trainer.registry.list()[0]
             payload = trainer.registry.load(0)
 
-        self.assertEqual(meta["schema_version"], 9)
-        self.assertEqual(meta["protocol"]["version"], 11)
+        self.assertEqual(meta["schema_version"], 10)
+        self.assertEqual(meta["protocol"]["version"], 12)
+        self.assertEqual(meta["protocol"]["gamma"], 1.0)
         self.assertEqual(meta["protocol"]["training_curriculum"],
                          EXPECTED_CURRICULUM_PROTOCOL)
         diagnostic = meta["training_diagnostics"]["training_curriculum"]
@@ -467,6 +511,8 @@ class TestDroneReverseCurriculum(unittest.TestCase):
 
         self.assertEqual({key: spec.checkpoint_schema
                           for key, spec in non_drone.items()}, expected_schemas)
+        self.assertTrue(all(spec.gamma == 0.995
+                            for spec in non_drone.values()))
         self.assertTrue(all(spec.training_curriculum is None
                             for spec in non_drone.values()))
         self.assertFalse(any(hasattr(spec.make_training_env(),
@@ -486,7 +532,7 @@ class TestDroneReverseCurriculum(unittest.TestCase):
         )
         self.assertEqual(self.spec.training_curriculum.protocol(),
                          EXPECTED_CURRICULUM_PROTOCOL)
-        self.assertEqual(self.spec.checkpoint_schema, 9)
+        self.assertEqual(self.spec.checkpoint_schema, 10)
 
 
 if __name__ == "__main__":

@@ -46,6 +46,7 @@ CURRICULUM_FRONTIER_ORDER = (4, 3, 2, 1, 0)
 CURRICULUM_ACTIVE_FRONTIER_PROBABILITY = 0.5
 CURRICULUM_SUCCESS_RATE_THRESHOLD = 0.9
 CURRICULUM_CONSECUTIVE_CONFIRMATIONS = 1
+TERMINAL_FAILURE_PENALTY = 50.0
 
 
 def scene() -> dict:
@@ -290,9 +291,10 @@ class DroneEnv:
         if not done and (abs(self.theta) > TIP_OVER
                          or self.x < 0 or self.x > 1000
                          or self.y < 0 or self.y > 700):
-            reward -= 50.0
+            reward -= TERMINAL_FAILURE_PENALTY
             done, self.cause = True, "crash"
         elif not done and self.steps >= self.max_steps:
+            reward -= TERMINAL_FAILURE_PENALTY
             done, self.cause = True, "timeout"
         self._d_prev = d
 

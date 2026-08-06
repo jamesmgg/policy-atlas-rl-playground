@@ -209,6 +209,7 @@ export interface ScenarioInfo {
   difficulty: string;
   horizon_steps: number;
   horizon_seconds: number | null;
+  gamma: number;
   progress: ScenarioProgress | null;
 }
 

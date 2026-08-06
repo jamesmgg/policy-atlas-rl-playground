@@ -73,6 +73,10 @@ recoverable from the checkpoint archive.
   units/s horizontal arrival in the preceding segment's direction, so each
   waypoint policy must learn the momentum reversal encountered by the zigzag
   course. Canonical evaluation and holdout starts remain unchanged at rest.
+  Drone uses an undiscounted finite-horizon objective (`gamma = 1.0`), and both
+  crash and timeout apply the same terminal failure cost so hovering until the
+  deadline is not an artificially safe strategy. Other scenarios retain
+  `gamma = 0.995`.
   Curriculum state is checkpointed exactly, and its diagnostics never enter
   full-course checkpoint selection.
 - The benchmark campaign freezes checkpoint selection before an optional
