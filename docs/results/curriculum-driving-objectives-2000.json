@@ -1,0 +1,202 @@
+{
+  "base_url": "http://host.docker.internal:8914",
+  "checkpoint_every_n": 25,
+  "created_at": "2026-08-05T23:33:43+00:00",
+  "current": {
+    "earliest_solve": null,
+    "episode": 2000,
+    "scenario_id": "drift-trial",
+    "seed": 42,
+    "total_steps": 877057,
+    "training": false,
+    "updates": 358
+  },
+  "full_budget": false,
+  "holdout_protocol": {
+    "checkpoint_root": "/checkpoints",
+    "episodes": 100,
+    "influences_selection": false,
+    "role": "post_selection_only",
+    "seed_base": 200000
+  },
+  "inventory_before": {
+    "active_run": {
+      "episode": 0,
+      "seed": 42,
+      "total_steps": 0,
+      "training": false,
+      "updates": 0
+    },
+    "active_scenario": "apex-gp",
+    "engine_source_sha256": "b232ecb368eb94aebc713cf3978a51637c0a8a5de317152d2c4bbc3fe0f04aa4",
+    "evaluation_episodes": 10,
+    "evaluation_suite": "policy-atlas-eval-v1-n10",
+    "scenario_count": 16,
+    "scenarios": [
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "apex-gp",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Apex GP"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "velocita",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Velocit\u00e0"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "grandville",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Grandville Streets"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "thunder-oval",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Thunder Oval"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "apex-gp-wet",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Apex GP \u2014 Wet"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "glacier",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Glacier Lake"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "rally-ridge",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Rally Ridge"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "kart-sprint",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Kart Sprint"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "drift-trial",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Drift Trial"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "eco-gp",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Eco GP"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "traffic-rush",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Traffic Rush"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "lunar-lander",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Lunar Lander"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "pendulum-swingup",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Pendulum Swing-Up"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "drone-hover",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Drone Course"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "cartpole-balance",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Continuous Cart-Pole"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "mountain-car",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Mountain Car"
+      }
+    ]
+  },
+  "max_episodes": 2000,
+  "runs": [],
+  "schema_version": 1,
+  "seeds": [
+    42
+  ],
+  "selected_scenarios": [
+    "drift-trial",
+    "eco-gp",
+    "traffic-rush"
+  ],
+  "solve_contract": {
+    "confirmations": 2,
+    "definition": "The first of consecutive protocol-matched checkpoints whose fixed-suite success rate and 95% Wilson lower bound both meet the configured thresholds.",
+    "min_ci_low": 0.7,
+    "min_eval_episodes": 10,
+    "min_success_rate": 0.9
+  },
+  "state": "interrupted",
+  "updated_at": "2026-08-06T00:40:32+00:00"
+}
