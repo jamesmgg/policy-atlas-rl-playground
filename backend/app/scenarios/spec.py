@@ -3,7 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
-from ..envs.base import Env, TrainingCurriculumSpec
+from ..envs.base import (
+    Env,
+    EpisodeTrainingScheduleSpec,
+    TrainingCurriculumSpec,
+)
+from ..ppo.demonstrations import BehaviorCloningWarmStart
 from ..ppo.initialization import ActorInitialization
 
 
@@ -33,6 +38,8 @@ class ScenarioSpec:
     gamma: float = 0.995
     actor_initialization: ActorInitialization | None = None
     training_curriculum: TrainingCurriculumSpec | None = None
+    training_schedule: EpisodeTrainingScheduleSpec | None = None
+    actor_warm_start: BehaviorCloningWarmStart | None = None
     # Increment when observations, actions, rewards, optimization, or metric
     # semantics change incompatibly. Old checkpoints remain on disk but are
     # hidden rather than loaded or compared under a different scientific
@@ -56,6 +63,12 @@ class ScenarioSpec:
             "reward_terms": list(self.reward_terms),
             "termination_conditions": list(self.termination_conditions),
             "training_start_distribution": self.training_start_distribution,
+            "training_schedule": (
+                self.training_schedule.protocol()
+                if self.training_schedule is not None else None),
+            "actor_warm_start": (
+                self.actor_warm_start.protocol()
+                if self.actor_warm_start is not None else None),
             "difficulty": self.difficulty,
             "horizon_steps": self.horizon_steps,
             "horizon_seconds": self.horizon_seconds,
