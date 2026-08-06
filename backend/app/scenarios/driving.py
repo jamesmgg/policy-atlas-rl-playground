@@ -59,6 +59,7 @@ def _driving_spec(id: str, name: str, group: str, description: str,
                   training_rolling_checkpoints: tuple[int, ...] | None = None,
                   horizon_steps: int = DrivingEnv.max_steps,
                   actor_initialization: ActorInitialization = DRIVING_ACTOR_INITIALIZATION,
+                  training_discount_factor: float = 0.995,
                   checkpoint_schema: int = 7) -> ScenarioSpec:
     reward_terms = [
         f"{reward.progress:g} × signed forward arc progress",
@@ -79,6 +80,9 @@ def _driving_spec(id: str, name: str, group: str, description: str,
         reward_terms.append(f"+{reward.overtake:g} per clean overtake")
     if features.fuel:
         reward_terms.append("quadratic throttle drains the fixed fuel budget")
+    if reward.timeout:
+        reward_terms.append(
+            f"{reward.timeout:g} task-deadline timeout penalty")
     horizon_seconds = horizon_steps * DrivingEnv.dt
     termination = [
         "leaving the circuit", "wrong-way regression",
@@ -181,6 +185,7 @@ def _driving_spec(id: str, name: str, group: str, description: str,
         horizon_steps=horizon_steps,
         horizon_seconds=horizon_seconds,
         actor_initialization=actor_initialization,
+        training_discount_factor=training_discount_factor,
         checkpoint_schema=checkpoint_schema,
     )
 
@@ -262,6 +267,7 @@ DRIVING_SPECS: list[ScenarioSpec] = [
             contact=-40.0,
             stall=-40.0,
             wrong_way=-40.0,
+            timeout=-40.0,
         ),
         features=DrivingFeatures(
             bots=(Bot(0.25, 18.0, -0.4), Bot(0.50, 24.0, 0.0),
@@ -271,5 +277,6 @@ DRIVING_SPECS: list[ScenarioSpec] = [
         objective="Pass traffic without contact while maintaining forward progress.",
         success="Overtake all three traffic cars in one episode.",
         difficulty="Advanced", training_rolling_checkpoints=(3, 9, 11),
-        horizon_steps=2250, checkpoint_schema=12),
+        horizon_steps=2250, training_discount_factor=1.0,
+        checkpoint_schema=13),
 ]

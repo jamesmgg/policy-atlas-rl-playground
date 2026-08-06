@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import copy
+import inspect
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
+import numpy as np
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -13,6 +18,7 @@ from app.checkpoints import (CheckpointRegistry,  # noqa: E402
                              IncompatibleCheckpointError)
 from app.envs.driving import RewardConfig  # noqa: E402
 from app.ppo.agent import PPOAgent  # noqa: E402
+from app.ppo.buffer import RolloutBuffer  # noqa: E402
 from app.scenarios import get_spec, list_specs  # noqa: E402
 from app.settings import Settings  # noqa: E402
 import app.trainer as trainer_module  # noqa: E402
@@ -82,6 +88,7 @@ class TrafficStageCurriculumAblationTests(unittest.TestCase):
                 contact=-40.0,
                 stall=-40.0,
                 wrong_way=-40.0,
+                timeout=-40.0,
             ),
         )
         self.assertEqual(
@@ -102,7 +109,173 @@ class TrafficStageCurriculumAblationTests(unittest.TestCase):
                         (3, 9, 11),
                     )
 
-    def test_schema_twelve_refuses_a_schema_eleven_traffic_checkpoint(self) -> None:
+    def test_timeout_carries_the_same_failure_cost_as_unsafe_termination(self) -> None:
+        """Waiting out the clock must not dominate an immediate failed attempt."""
+        env = self.traffic.make_env(False)
+        gamma = getattr(
+            self.traffic, "training_discount_factor", trainer_module.GAMMA)
+        timeout_cost = getattr(env.reward_cfg, "timeout", 0.0)
+        unsafe_costs = (
+            env.reward_cfg.collision,
+            env.reward_cfg.contact,
+            env.reward_cfg.stall,
+            env.reward_cfg.wrong_way,
+        )
+
+        self.assertEqual(gamma, 1.0)
+        self.assertEqual(timeout_cost, -40.0)
+        self.assertTrue(all(cost == timeout_cost for cost in unsafe_costs))
+        self.assertIn(
+            "-40 task-deadline timeout penalty",
+            self.traffic.reward_terms,
+        )
+
+        immediate_failure = unsafe_costs[0]
+        delayed_timeout = gamma ** (env.max_steps - 1) * timeout_cost
+        self.assertAlmostEqual(delayed_timeout, immediate_failure)
+
+        legacy_delayed = (
+            trainer_module.GAMMA ** (env.max_steps - 1) * immediate_failure
+        )
+        self.assertGreater(
+            legacy_delayed,
+            immediate_failure,
+            "the discounted v11 objective makes a delayed equal-cost failure safer",
+        )
+
+    def test_runtime_timeout_applies_the_declared_terminal_cost(self) -> None:
+        penalized = self.traffic.make_env(False)
+        baseline = copy.deepcopy(penalized)
+        object.__setattr__(penalized.reward_cfg, "timeout", -40.0)
+        object.__setattr__(baseline.reward_cfg, "timeout", 0.0)
+        for env in (penalized, baseline):
+            env.steps = env.max_steps - 1
+            env._stall_steps = 0
+
+        _, penalized_reward, penalized_done, penalized_info = penalized.step(
+            np.zeros(3, dtype=np.float32))
+        _, baseline_reward, baseline_done, _ = baseline.step(
+            np.zeros(3, dtype=np.float32))
+
+        self.assertTrue(penalized_done and baseline_done)
+        self.assertEqual(penalized.cause, "timeout")
+        self.assertTrue(penalized_info["task_deadline"])
+        self.assertAlmostEqual(penalized_reward - baseline_reward, -40.0)
+
+    def test_scenario_discount_is_wired_through_reward_bootstrap_and_gae(self) -> None:
+        self.assertIn(
+            "gamma", inspect.signature(trainer_module.training_reward).parameters)
+        self.assertAlmostEqual(
+            trainer_module.training_reward(
+                250.0,
+                next_value=3.0,
+                done=True,
+                info={"truncated": True, "task_deadline": False},
+                gamma=1.0,
+            ),
+            5.5,
+        )
+
+        reward_gammas: list[float | None] = []
+        gae_gammas: list[float] = []
+
+        class OneStepDeadlineEnv:
+            obs_dim = 1
+            n_continuous = 1
+            n_binary = 0
+            max_steps = 1
+            dt = 0.1
+
+            def reset(self):
+                self.episode_reward = 0.0
+                return np.array([0.0], dtype=np.float32)
+
+            def step(self, action):
+                del action
+                self.episode_reward = -40.0
+                return np.array([0.0], dtype=np.float32), -40.0, True, {
+                    "truncated": True,
+                    "task_deadline": True,
+                }
+
+            def episode_summary(self):
+                return {"reward": -40.0, "steps": 1, "cause": "timeout",
+                        "metric": 0.0, "success": False}
+
+            def frame_payload(self):
+                return {}
+
+        class RecordingAgent:
+            act_dim = 1
+
+            def select_action(self, observation, deterministic=False):
+                del observation, deterministic
+                return np.array([0.0], dtype=np.float32), 0.0, 0.0
+
+            def get_value(self, observation):
+                del observation
+                return 7.0
+
+            def update(self, buffer):
+                del buffer
+                return {"policy_loss": 0.0, "value_loss": 0.0,
+                        "entropy": 0.0, "approx_kl": 0.0,
+                        "clip_frac": 0.0}
+
+        class RecordingBuffer(RolloutBuffer):
+            def compute_gae(self, last_value, last_done, gamma=0.995,
+                            gae_lambda=0.95):
+                gae_gammas.append(gamma)
+                return super().compute_gae(
+                    last_value, last_done, gamma=gamma,
+                    gae_lambda=gae_lambda)
+
+        def record_training_reward(reward, next_value, done, info, gamma=None):
+            del next_value, done, info
+            reward_gammas.append(gamma)
+            return reward * trainer_module.TRAINING_REWARD_SCALE
+
+        trainer = object.__new__(trainer_module.Trainer)
+        trainer.env = OneStepDeadlineEnv()
+        trainer.agent = RecordingAgent()
+        trainer.spec = SimpleNamespace(
+            id="traffic-rush", metric_mode="max", kind="driving",
+            metric_label="overtakes", training_discount_factor=1.0,
+        )
+        trainer.episode = trainer.total_steps = trainer.update_count = 0
+        trainer.sps = 0.0
+        trainer.history = []
+        trainer.best_reward = trainer.best_metric = None
+        trainer.ghost = trainer._learning = None
+        trainer.seed = 42
+        trainer.settings = SimpleNamespace(eval_episodes=1)
+        trainer.device = torch.device("cpu")
+        trainer.max_episodes = 1
+        trainer.checkpoint_every_n = 100
+        trainer._stop = trainer_module.threading.Event()
+        trainer._thread = None
+        trainer.emit = lambda message: None
+        trainer._save_checkpoint = lambda: None
+
+        with patch.object(
+                trainer_module, "training_reward",
+                side_effect=record_training_reward), patch.object(
+                    trainer_module, "RolloutBuffer", RecordingBuffer):
+            trainer._run()
+
+        self.assertEqual(reward_gammas, [1.0])
+        self.assertEqual(gae_gammas, [1.0])
+
+    def test_undiscounted_training_objective_is_isolated_to_traffic(self) -> None:
+        self.assertEqual(
+            self.traffic.info().get("training_discount_factor"), 1.0)
+        for spec in list_specs():
+            if spec.id == self.traffic.id:
+                continue
+            with self.subTest(scenario=spec.id):
+                self.assertEqual(spec.training_discount_factor, 0.995)
+
+    def test_schema_thirteen_refuses_a_schema_twelve_traffic_checkpoint(self) -> None:
         env = self.traffic.make_env(False)
         agent = PPOAgent(
             env.obs_dim, env.n_continuous, env.n_binary, torch.device("cpu"))
@@ -111,17 +284,17 @@ class TrafficStageCurriculumAblationTests(unittest.TestCase):
             current = CheckpointRegistry(
                 root, self.traffic.id,
                 schema_version=self.traffic.checkpoint_schema)
-            old = CheckpointRegistry(root, self.traffic.id, schema_version=11)
+            old = CheckpointRegistry(root, self.traffic.id, schema_version=12)
             old.save(25, agent, [{"reward": 1.0}], {
                 "reward": 1.0, "metric": 2.0, "trajectory": [],
             })
 
-            self.assertEqual(self.traffic.checkpoint_schema, 12)
+            self.assertEqual(self.traffic.checkpoint_schema, 13)
             self.assertEqual(current.list(), [])
             with self.assertRaises(IncompatibleCheckpointError):
                 current.load_into(25, agent)
 
-    def test_protocol_v12_discloses_the_safer_stage_curriculum(self) -> None:
+    def test_protocol_v13_discloses_the_undiscounted_traffic_objective(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "state.json").write_text(
@@ -152,7 +325,8 @@ class TrafficStageCurriculumAblationTests(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 12)
+        self.assertEqual(protocol["version"], 13)
+        self.assertEqual(protocol["gamma"], 1.0)
         self.assertEqual(protocol["task_horizon_steps"], 2250)
         self.assertEqual(protocol["task_horizon_seconds"], 90.0)
         self.assertEqual(

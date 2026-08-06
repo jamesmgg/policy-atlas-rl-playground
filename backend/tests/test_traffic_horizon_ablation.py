@@ -82,6 +82,7 @@ class TrafficHorizonAblationTests(unittest.TestCase):
                 contact=-40.0,
                 stall=-40.0,
                 wrong_way=-40.0,
+                timeout=-40.0,
             ),
         )
         self.assertEqual(
@@ -102,7 +103,7 @@ class TrafficHorizonAblationTests(unittest.TestCase):
             "Overtake all three traffic cars in one episode.",
         )
 
-    def test_schema_twelve_refuses_a_schema_eight_traffic_checkpoint(self) -> None:
+    def test_schema_thirteen_refuses_a_schema_eight_traffic_checkpoint(self) -> None:
         env = self.traffic.make_env(False)
         agent = PPOAgent(
             env.obs_dim, env.n_continuous, env.n_binary, torch.device("cpu"))
@@ -116,12 +117,12 @@ class TrafficHorizonAblationTests(unittest.TestCase):
                 "reward": 1.0, "metric": 1.0, "trajectory": [],
             })
 
-            self.assertEqual(self.traffic.checkpoint_schema, 12)
+            self.assertEqual(self.traffic.checkpoint_schema, 13)
             self.assertEqual(current.list(), [])
             with self.assertRaises(IncompatibleCheckpointError):
                 current.load_into(25, agent)
 
-    def test_protocol_v12_records_the_exact_task_horizon(self) -> None:
+    def test_protocol_v13_records_the_exact_task_horizon(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "state.json").write_text(
@@ -152,7 +153,7 @@ class TrafficHorizonAblationTests(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 12)
+        self.assertEqual(protocol["version"], 13)
         self.assertEqual(protocol["task_horizon_steps"], 2250)
         self.assertEqual(protocol["task_horizon_seconds"], 90.0)
 

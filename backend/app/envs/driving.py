@@ -80,6 +80,7 @@ class RewardConfig:
     overtake: float = 0.0
     contact: float = 0.0
     fuel_empty: float = 0.0
+    timeout: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -428,6 +429,7 @@ class DrivingEnv:
         elif self._objective_reached():
             done, self.cause = True, "complete"
         elif self.steps >= self.max_steps:
+            reward += cfg.timeout
             done, self.cause = True, "timeout"
 
         self.episode_reward += reward
