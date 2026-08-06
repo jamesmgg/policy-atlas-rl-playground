@@ -66,6 +66,9 @@ recoverable from the checkpoint archive.
   curriculum: touchdown rehearsals first, then overlapping 30-100, 50-200,
   and 100-500 unit approach bands before the canonical descent. Drone Course
   likewise learns the final waypoint first, then unlocks each earlier course segment.
+  Lander optimizes undiscounted finite-horizon return (`gamma = 1.0`), so a
+  terminal failure has the same cost whether it happens immediately or near
+  the deadline; every other scenario retains `gamma = 0.995`.
   Lander's touchdown frontier advances after one >=90% deterministic 20-start
   evaluation; harder Lander frontiers use >=75%, while Drone frontiers retain
   their >=90% gate. Once a Lander frontier has been

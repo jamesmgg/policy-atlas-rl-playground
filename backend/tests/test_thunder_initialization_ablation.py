@@ -81,7 +81,7 @@ class ThunderInitializationAblationTests(unittest.TestCase):
         torch.testing.assert_close(restored.network.mu.bias, torch.tensor([-0.4, 0.3]))
         torch.testing.assert_close(restored.network.drift_logit.bias, torch.tensor([1.5]))
 
-    def test_protocol_v12_records_the_exact_thunder_prior(self) -> None:
+    def test_protocol_v13_records_the_exact_thunder_prior(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "state.json").write_text('{"active_scenario":"thunder-oval"}')
@@ -99,7 +99,7 @@ class ThunderInitializationAblationTests(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 12)
+        self.assertEqual(protocol["version"], 13)
         self.assertEqual(protocol["actor_initialization"]["scope"],
                          "thunder_oval_only")
         self.assertEqual(protocol["actor_initialization"][

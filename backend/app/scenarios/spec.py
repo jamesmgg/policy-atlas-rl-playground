@@ -32,6 +32,10 @@ class ScenarioSpec:
     horizon_seconds: float | None = 60.0
     actor_initialization: ActorInitialization | None = None
     training_curriculum: TrainingCurriculumSpec | None = None
+    # Scenario-specific return discount. Most continuing-style tasks use the
+    # PPO default; finite-horizon tasks may explicitly optimize undiscounted
+    # episode return when delaying failure must not reduce its terminal cost.
+    training_discount_factor: float = 0.995
     # Increment when observations, actions, or metric semantics change
     # incompatibly. Old checkpoints remain on disk but are hidden rather than
     # loaded or compared under a different scientific contract.
@@ -54,6 +58,7 @@ class ScenarioSpec:
             "reward_terms": list(self.reward_terms),
             "termination_conditions": list(self.termination_conditions),
             "training_start_distribution": self.training_start_distribution,
+            "training_discount_factor": self.training_discount_factor,
             "difficulty": self.difficulty,
             "horizon_steps": self.horizon_steps,
             "horizon_seconds": self.horizon_seconds,

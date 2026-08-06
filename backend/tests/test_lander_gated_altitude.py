@@ -14,7 +14,8 @@ sys.path.insert(0, str(Path(__file__).parents[1]))
 
 from app import trainer as trainer_module
 from app.envs import lander
-from app.scenarios import get_spec
+from app.ppo.buffer import RolloutBuffer
+from app.scenarios import get_spec, list_specs
 from app.settings import Settings
 
 
@@ -49,7 +50,7 @@ EXPECTED_CURRICULUM_PROTOCOL = {
         "distinct_checkpoint_episodes": True,
     },
     "segment_evaluation": {
-        "suite_version": "lander-altitude-eval-v1",
+        "suite_version": "lander-altitude-eval-v2",
         "episodes": 20,
         "seed_base": 300_000,
         "segment_seed_stride": 1_000,
@@ -75,6 +76,24 @@ class ConstantAgent:
         return self.action.copy(), 0.0, 0.0
 
 
+def terminal_penalty_return(gamma: float, transition_count: int) -> float:
+    """Return at the first state when only the final transition is penalized."""
+    buffer = RolloutBuffer(capacity=transition_count, obs_dim=1, act_dim=1)
+    for index in range(transition_count):
+        terminal = index == transition_count - 1
+        buffer.add(
+            [0.0], [0.0], 0.0, -1.0 if terminal else 0.0,
+            terminal, 0.0,
+        )
+    buffer.compute_gae(
+        last_value=0.0,
+        last_done=True,
+        gamma=gamma,
+        gae_lambda=1.0,
+    )
+    return float(buffer.returns[0])
+
+
 class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
     def setUp(self) -> None:
         self.spec = get_spec("lunar-lander")
@@ -88,6 +107,36 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
             self.curriculum,
             evaluation_episode=episode,
         )
+
+    def test_lander_failure_cost_is_not_reduced_by_delaying_termination(self) -> None:
+        self.assertEqual(
+            getattr(self.spec, "training_discount_factor", None),
+            1.0,
+            "Lander must optimize its declared finite-horizon return",
+        )
+        immediate = terminal_penalty_return(
+            self.spec.training_discount_factor, 1)
+        horizon_delayed = terminal_penalty_return(
+            self.spec.training_discount_factor, self.spec.horizon_steps)
+        self.assertAlmostEqual(immediate, -1.0, places=6)
+        self.assertAlmostEqual(horizon_delayed, immediate, places=6)
+
+        legacy_immediate = terminal_penalty_return(trainer_module.GAMMA, 1)
+        legacy_delayed = terminal_penalty_return(
+            trainer_module.GAMMA, self.spec.horizon_steps)
+        self.assertGreater(
+            legacy_delayed,
+            legacy_immediate,
+            "the discounted baseline incorrectly prefers a delayed failure",
+        )
+
+    def test_undiscounted_training_objective_is_isolated_to_lander(self) -> None:
+        self.assertEqual(self.spec.info().get("training_discount_factor"), 1.0)
+        for spec in list_specs():
+            if spec.id == self.spec.id:
+                continue
+            with self.subTest(scenario=spec.id):
+                self.assertEqual(spec.training_discount_factor, 0.995)
 
     def assert_rehearsal_state(self, env, frontier: int) -> None:
         altitude = lander.PAD_Y - env.y
@@ -377,7 +426,7 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
             list(range(304_000, 304_020)),
         )
         self.assertEqual(self.curriculum.evaluation_suite_id(4),
-                         "lander-altitude-eval-v1-k4-n20")
+                         "lander-altitude-eval-v2-k4-n20")
         first_env = self.spec.make_training_env()
         second_env = self.spec.make_training_env()
         first = trainer_module.evaluate_training_curriculum(
@@ -429,7 +478,7 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
             frontier = {
                 "frontier": 4, "episodes": 20, "successes": 18,
                 "success_rate": 0.9,
-                "evaluation_suite": "lander-altitude-eval-v1-k4-n20",
+                "evaluation_suite": "lander-altitude-eval-v2-k4-n20",
                 "seeds": list(range(304_000, 304_020)),
             }
             trainer._run_eval = lambda: copy.deepcopy(canonical)
@@ -438,8 +487,9 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
             meta = trainer.registry.list()[0]
             payload = trainer.registry.load(25)
 
-        self.assertEqual(meta["schema_version"], 9)
-        self.assertEqual(meta["protocol"]["version"], 12)
+        self.assertEqual(meta["schema_version"], 10)
+        self.assertEqual(meta["protocol"]["version"], 13)
+        self.assertEqual(meta["protocol"]["gamma"], 1.0)
         self.assertEqual(meta["protocol"]["training_curriculum"],
                          EXPECTED_CURRICULUM_PROTOCOL)
         diagnostic = meta["training_diagnostics"]["training_curriculum"]
@@ -468,7 +518,7 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
         self.assertEqual(self.spec.training_start_distribution,
                          expected_distribution)
         self.assertEqual(self.curriculum.protocol(), EXPECTED_CURRICULUM_PROTOCOL)
-        self.assertEqual(self.spec.checkpoint_schema, 9)
+        self.assertEqual(self.spec.checkpoint_schema, 10)
         self.assertEqual(self.spec.actor_initialization.continuous_log_std,
                          (-1.2, -1.2))
 

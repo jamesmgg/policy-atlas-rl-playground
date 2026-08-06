@@ -181,7 +181,7 @@ class TestLanderScientificContract(unittest.TestCase):
         self.assertTrue(env.episode_summary()["success"])
         self.assertFalse(info["truncated"])
         self.assertFalse(info["task_deadline"])
-        self.assertEqual(self.spec.checkpoint_schema, 9)
+        self.assertEqual(self.spec.checkpoint_schema, 10)
 
 
 if __name__ == "__main__":

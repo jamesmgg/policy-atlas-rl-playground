@@ -43,7 +43,8 @@ CLASSIC_SPECS: list[ScenarioSpec] = [
         difficulty="Advanced", horizon_steps=lander.LanderEnv.max_steps,
         horizon_seconds=lander.LanderEnv.max_steps * lander.LanderEnv.dt,
         actor_initialization=LANDER_ACTOR_INITIALIZATION,
-        checkpoint_schema=9),
+        training_discount_factor=1.0,
+        checkpoint_schema=10),
     ScenarioSpec(
         id="pendulum-swingup", name="Pendulum Swing-Up", group="Classic",
         kind="generic",
