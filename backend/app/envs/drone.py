@@ -7,18 +7,23 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from .base import TrainingCurriculumSpec
+from .base import TrainingControlSpec, TrainingCurriculumSpec
 
 DT = 0.04
 G = 50.0
 T_MAX = 70.0       # per rotor; hover needs ~0.36 each
+HOVER_ACTION = 2.0 * (G / (2.0 * T_MAX)) - 1.0
 TORQUE = 8.0
 TIP_OVER = 1.3
 CAPTURE_DIST = 25.0
 HORIZON_STEPS = 900
 HANDOFF_HORIZONTAL_SPEED_MIN = 60.0
 HANDOFF_HORIZONTAL_SPEED_MAX = 100.0
-CURRICULUM_HARD_HANDOFF_PROBABILITY = 0.5
+MOMENTUM_STAGE_IDS = ("foundation", "bridge", "hard")
+MOMENTUM_STAGE_SPEED_RANGES = ((-20.0, 20.0), (20.0, 60.0), (60.0, 100.0))
+MOMENTUM_ACTIVE_STAGE_PROBABILITY = 0.75
+MOMENTUM_SUCCESS_RATE_THRESHOLD = 0.8
+MOMENTUM_CONSECUTIVE_CONFIRMATIONS = 1
 
 WAYPOINTS: list[tuple[float, float]] = [
     (250, 500), (700, 420), (450, 180), (820, 160), (150, 250),
@@ -40,10 +45,13 @@ TRAINING_START_DISTRIBUTION = (
     "(k4); unlock k3, k2, k1, then canonical k0 after one >=90% fixed "
     "segment evaluation; active frontier receives 50% of resets and "
     "mastered later segments uniformly share the remainder; "
-    "noncanonical training starts mix 50% hard inbound horizontal velocity "
-    "with the previous-segment sign and magnitude uniform on [60, 100] units/s "
-    "and 50% overlap velocity uniform on [-100, 100] units/s; fixed segment "
-    "gates retain only the hard inbound starts"
+    "while k4 is locked, momentum advances after one >=80% fixed "
+    "training-control evaluation from signed [-20, 20], through inbound "
+    "[20, 60], to inbound [60, 100] units/s; the active momentum stage "
+    "receives 75% of k4 resets and mastered earlier stages uniformly share "
+    "the remainder; the unchanged hard v3 segment gate runs only after "
+    "momentum control is complete; later outer frontiers retain hard inbound "
+    "[60, 100] starts"
 )
 CURRICULUM_FRONTIER_ORDER = (4, 3, 2, 1, 0)
 CURRICULUM_ACTIVE_FRONTIER_PROBABILITY = 0.5
@@ -86,6 +94,7 @@ class DroneEnv:
     jitter: bool = True
     waypoint_start_curriculum: bool = False
     forced_start_segment: int | None = None
+    forced_momentum_stage: str | None = None
     rng: random.Random = field(default_factory=random.Random)
     _curriculum_position: int = field(default=0, init=False, repr=False)
     _curriculum_pass_streak: int = field(default=0, init=False, repr=False)
@@ -94,6 +103,14 @@ class DroneEnv:
     _curriculum_last_success_rate: float | None = field(
         default=None, init=False, repr=False)
     _curriculum_last_evaluation_episode: int | None = field(
+        default=None, init=False, repr=False)
+    _momentum_position: int = field(default=0, init=False, repr=False)
+    _momentum_pass_streak: int = field(default=0, init=False, repr=False)
+    _momentum_complete: bool = field(default=False, init=False, repr=False)
+    _momentum_evaluations: int = field(default=0, init=False, repr=False)
+    _momentum_last_success_rate: float | None = field(
+        default=None, init=False, repr=False)
+    _momentum_last_evaluation_episode: int | None = field(
         default=None, init=False, repr=False)
 
     obs_dim = 9
@@ -106,6 +123,12 @@ class DroneEnv:
         if (self.forced_start_segment is not None
                 and self.forced_start_segment not in CURRICULUM_FRONTIER_ORDER):
             raise ValueError("forced Drone segment must be in [0, 4]")
+        if (self.forced_momentum_stage is not None
+                and self.forced_momentum_stage not in MOMENTUM_STAGE_IDS):
+            raise ValueError("unknown forced Drone momentum stage")
+        if (self.forced_momentum_stage is not None
+                and self.forced_start_segment != 4):
+            raise ValueError("forced momentum stages are defined only for k4")
         self.reset()
 
     def reset(self) -> np.ndarray:
@@ -120,15 +143,15 @@ class DroneEnv:
         if self.k > 0:
             inbound_dx = (
                 _COURSE_POINTS[self.k][0] - _COURSE_POINTS[self.k - 1][0])
-            overlap_start = (
-                self.waypoint_start_curriculum
-                and self.forced_start_segment is None
-                and self.rng.random() >= CURRICULUM_HARD_HANDOFF_PROBABILITY
-            )
-            if overlap_start:
-                self.vx = self.rng.uniform(
-                    -HANDOFF_HORIZONTAL_SPEED_MAX,
-                    HANDOFF_HORIZONTAL_SPEED_MAX,
+            momentum_stage = self._momentum_stage_for_reset()
+            if momentum_stage == "foundation":
+                self.vx = self.rng.uniform(*MOMENTUM_STAGE_SPEED_RANGES[0])
+            elif momentum_stage in ("bridge", "hard"):
+                stage_position = MOMENTUM_STAGE_IDS.index(momentum_stage)
+                speed_min, speed_max = MOMENTUM_STAGE_SPEED_RANGES[stage_position]
+                self.vx = math.copysign(
+                    self.rng.uniform(speed_min, speed_max),
+                    inbound_dx,
                 )
             else:
                 self.vx = math.copysign(
@@ -146,6 +169,22 @@ class DroneEnv:
         self._shaping_potential_prev = self._shaping_potential()
         return self._obs()
 
+    def _momentum_stage_for_reset(self) -> str | None:
+        """Choose a k4 stage only while its nested training control is active."""
+        if self.forced_momentum_stage is not None:
+            return self.forced_momentum_stage
+        if (not self.waypoint_start_curriculum
+                or self.forced_start_segment is not None
+                or self._curriculum_position != 0
+                or self.k != 4):
+            return None
+        active = MOMENTUM_STAGE_IDS[self._momentum_position]
+        mastered = MOMENTUM_STAGE_IDS[:self._momentum_position]
+        if (not mastered
+                or self.rng.random() < MOMENTUM_ACTIVE_STAGE_PROBABILITY):
+            return active
+        return self.rng.choice(mastered)
+
     def _sample_start_segment(self) -> int:
         if self.forced_start_segment is not None:
             return self.forced_start_segment
@@ -162,7 +201,7 @@ class DroneEnv:
         """Return the complete JSON-safe state needed for exact continuation."""
         frontier = CURRICULUM_FRONTIER_ORDER[self._curriculum_position]
         return {
-            "version": 1,
+            "version": 2,
             "frontier_position": self._curriculum_position,
             "frontier": frontier,
             "mastered": list(
@@ -172,7 +211,64 @@ class DroneEnv:
             "evaluations": self._curriculum_evaluations,
             "last_success_rate": self._curriculum_last_success_rate,
             "last_evaluation_episode": self._curriculum_last_evaluation_episode,
+            "momentum": self.training_control_state(),
         }
+
+    def training_control_state(self) -> dict:
+        """Return the exact nested k4 momentum-control state."""
+        stage = MOMENTUM_STAGE_IDS[self._momentum_position]
+        return {
+            "version": 1,
+            "control_id": "drone-k4-momentum-v1",
+            "stage_position": self._momentum_position,
+            "stage": stage,
+            "mastered": list(MOMENTUM_STAGE_IDS[:self._momentum_position]),
+            "pass_streak": self._momentum_pass_streak,
+            "complete": self._momentum_complete,
+            "evaluations": self._momentum_evaluations,
+            "last_success_rate": self._momentum_last_success_rate,
+            "last_evaluation_episode": self._momentum_last_evaluation_episode,
+        }
+
+    def restore_training_control_state(self, state: dict) -> None:
+        """Restore and validate the nested k4 momentum-control state."""
+        position = int(state["stage_position"])
+        pass_streak = int(state["pass_streak"])
+        evaluations = int(state["evaluations"])
+        complete = bool(state["complete"])
+        last_success_rate = state.get("last_success_rate")
+        last_evaluation_episode = state.get("last_evaluation_episode")
+        if int(state.get("version", -1)) != 1:
+            raise ValueError("unsupported Drone momentum state version")
+        if state.get("control_id") != "drone-k4-momentum-v1":
+            raise ValueError("Drone momentum control id does not match")
+        if not 0 <= position < len(MOMENTUM_STAGE_IDS):
+            raise ValueError("invalid Drone momentum stage position")
+        if state.get("stage") != MOMENTUM_STAGE_IDS[position]:
+            raise ValueError("Drone momentum stage does not match position")
+        if list(state.get("mastered", [])) != list(
+                MOMENTUM_STAGE_IDS[:position]):
+            raise ValueError("Drone momentum mastered stages are inconsistent")
+        if not 0 <= pass_streak <= MOMENTUM_CONSECUTIVE_CONFIRMATIONS:
+            raise ValueError("invalid Drone momentum confirmation streak")
+        if evaluations < 0:
+            raise ValueError("invalid Drone momentum evaluation count")
+        if complete and position != len(MOMENTUM_STAGE_IDS) - 1:
+            raise ValueError("only the hard momentum stage can be complete")
+        if last_success_rate is not None:
+            last_success_rate = float(last_success_rate)
+            if not 0.0 <= last_success_rate <= 1.0:
+                raise ValueError("invalid Drone momentum success rate")
+        if last_evaluation_episode is not None:
+            last_evaluation_episode = int(last_evaluation_episode)
+            if last_evaluation_episode < 0:
+                raise ValueError("invalid Drone momentum evaluation episode")
+        self._momentum_position = position
+        self._momentum_pass_streak = pass_streak
+        self._momentum_complete = complete
+        self._momentum_evaluations = evaluations
+        self._momentum_last_success_rate = last_success_rate
+        self._momentum_last_evaluation_episode = last_evaluation_episode
 
     def restore_training_curriculum_state(self, state: dict) -> None:
         """Restore a validated state saved in the checkpoint RNG payload."""
@@ -182,7 +278,7 @@ class DroneEnv:
         complete = bool(state["complete"])
         last_success_rate = state.get("last_success_rate")
         last_evaluation_episode = state.get("last_evaluation_episode")
-        if int(state.get("version", -1)) != 1:
+        if int(state.get("version", -1)) != 2:
             raise ValueError("unsupported Drone curriculum state version")
         if not 0 <= position < len(CURRICULUM_FRONTIER_ORDER):
             raise ValueError("invalid Drone curriculum frontier position")
@@ -205,6 +301,12 @@ class DroneEnv:
             last_evaluation_episode = int(last_evaluation_episode)
             if last_evaluation_episode < 0:
                 raise ValueError("invalid Drone curriculum evaluation episode")
+        momentum = state.get("momentum")
+        if not isinstance(momentum, dict):
+            raise ValueError("Drone curriculum state lacks momentum control")
+        if position > 0 and not bool(momentum.get("complete")):
+            raise ValueError("an unlocked Drone frontier requires hard proficiency")
+        self.restore_training_control_state(momentum)
         self._curriculum_position = position
         self._curriculum_pass_streak = pass_streak
         self._curriculum_complete = complete
@@ -219,6 +321,84 @@ class DroneEnv:
         self._curriculum_evaluations = 0
         self._curriculum_last_success_rate = None
         self._curriculum_last_evaluation_episode = None
+        self._momentum_position = 0
+        self._momentum_pass_streak = 0
+        self._momentum_complete = False
+        self._momentum_evaluations = 0
+        self._momentum_last_success_rate = None
+        self._momentum_last_evaluation_episode = None
+
+    def record_training_control_evaluation(
+            self, success_rate: float,
+            control: TrainingControlSpec, *,
+            evaluation_episode: int | None = None) -> dict:
+        """Apply one fixed-suite result to the active momentum stage."""
+        if tuple(control.stage_ids) != MOMENTUM_STAGE_IDS:
+            raise ValueError("momentum stage order does not match Drone")
+        if not 0.0 <= success_rate <= 1.0:
+            raise ValueError("momentum success rate must be in [0, 1]")
+        if evaluation_episode is None:
+            evaluation_episode = (
+                0 if self._momentum_last_evaluation_episode is None
+                else self._momentum_last_evaluation_episode + 1)
+        evaluation_episode = int(evaluation_episode)
+        if evaluation_episode < 0:
+            raise ValueError("momentum evaluation episode must be non-negative")
+        before = self.training_control_state()
+        passed = success_rate >= control.success_rate_threshold
+        if self._momentum_last_evaluation_episode == evaluation_episode:
+            return {
+                "success_rate": float(success_rate),
+                "passed": passed,
+                "evaluation_episode": evaluation_episode,
+                "ignored_duplicate": True,
+                "stage_before": before["stage"],
+                "stage_after": before["stage"],
+                "mastered_before": before["mastered"],
+                "mastered_after": before["mastered"],
+                "confirmation_streak_before": before["pass_streak"],
+                "confirmation_streak_after": before["pass_streak"],
+                "complete_before": before["complete"],
+                "complete_after": before["complete"],
+                "unlocked": False,
+                "completed": False,
+            }
+        if (self._momentum_last_evaluation_episode is not None
+                and evaluation_episode < self._momentum_last_evaluation_episode):
+            raise ValueError("momentum evaluation episodes must be monotonic")
+        self._momentum_evaluations += 1
+        self._momentum_last_success_rate = float(success_rate)
+        self._momentum_last_evaluation_episode = evaluation_episode
+        unlocked = False
+        completed = False
+        if not self._momentum_complete:
+            self._momentum_pass_streak = (
+                self._momentum_pass_streak + 1 if passed else 0)
+            if self._momentum_pass_streak >= control.consecutive_confirmations:
+                if self._momentum_position < len(MOMENTUM_STAGE_IDS) - 1:
+                    self._momentum_position += 1
+                    self._momentum_pass_streak = 0
+                    unlocked = True
+                else:
+                    self._momentum_complete = True
+                    completed = True
+        after = self.training_control_state()
+        return {
+            "success_rate": float(success_rate),
+            "passed": passed,
+            "evaluation_episode": evaluation_episode,
+            "ignored_duplicate": False,
+            "stage_before": before["stage"],
+            "stage_after": after["stage"],
+            "mastered_before": before["mastered"],
+            "mastered_after": after["mastered"],
+            "confirmation_streak_before": before["pass_streak"],
+            "confirmation_streak_after": after["pass_streak"],
+            "complete_before": before["complete"],
+            "complete_after": after["complete"],
+            "unlocked": unlocked,
+            "completed": completed,
+        }
 
     def record_training_curriculum_evaluation(
             self, success_rate: float,
@@ -238,11 +418,14 @@ class DroneEnv:
             raise ValueError("curriculum evaluation episode must be non-negative")
         before = self.training_curriculum_state()
         passed = success_rate >= curriculum.success_rate_threshold
+        prerequisite_met = (
+            before["frontier"] != 4 or before["momentum"]["complete"])
         unlocked = False
         if self._curriculum_last_evaluation_episode == evaluation_episode:
             return {
                 "success_rate": float(success_rate),
                 "passed": passed,
+                "prerequisite_met": prerequisite_met,
                 "evaluation_episode": evaluation_episode,
                 "ignored_duplicate": True,
                 "frontier_before": before["frontier"],
@@ -263,7 +446,8 @@ class DroneEnv:
         self._curriculum_last_evaluation_episode = evaluation_episode
         if not self._curriculum_complete:
             self._curriculum_pass_streak = (
-                self._curriculum_pass_streak + 1 if passed else 0)
+                self._curriculum_pass_streak + 1
+                if passed and prerequisite_met else 0)
             if self._curriculum_pass_streak >= curriculum.consecutive_confirmations:
                 if self._curriculum_position < len(CURRICULUM_FRONTIER_ORDER) - 1:
                     self._curriculum_position += 1
@@ -275,6 +459,7 @@ class DroneEnv:
         return {
             "success_rate": float(success_rate),
             "passed": passed,
+            "prerequisite_met": prerequisite_met,
             "evaluation_episode": evaluation_episode,
             "ignored_duplicate": False,
             "frontier_before": before["frontier"],
@@ -444,6 +629,52 @@ def make_segment_evaluation_env(segment: int) -> DroneEnv:
     return DroneEnv(jitter=True, forced_start_segment=segment)
 
 
+def make_momentum_evaluation_env(stage: str) -> DroneEnv:
+    """Build one deterministic-control k4 env for a disclosed momentum stage."""
+    if stage not in MOMENTUM_STAGE_IDS:
+        raise ValueError("unknown Drone momentum stage")
+    return DroneEnv(
+        jitter=True,
+        forced_start_segment=4,
+        forced_momentum_stage=stage,
+    )
+
+
+MOMENTUM_CONTROL = TrainingControlSpec(
+    id="drone-k4-momentum-v1",
+    scope_description="outer frontier k4 before it may unlock",
+    stage_ids=MOMENTUM_STAGE_IDS,
+    stage_start_descriptions=(
+        "k4 at waypoint 4 with standard seeded horizontal position jitter, "
+        "signed horizontal velocity uniform on [-20, 20] units/s, zero "
+        "vertical velocity/attitude/rate, cumulative-distance elapsed clock",
+        "k4 at waypoint 4 with standard seeded horizontal position jitter, "
+        "inbound horizontal velocity using the previous-segment sign and "
+        "magnitude uniform on [20, 60] units/s, zero vertical velocity/attitude/"
+        "rate, cumulative-distance elapsed clock",
+        "k4 at waypoint 4 with standard seeded horizontal position jitter, "
+        "inbound horizontal velocity using the previous-segment sign and "
+        "magnitude uniform on [60, 100] units/s, zero vertical velocity/attitude/"
+        "rate, cumulative-distance elapsed clock",
+    ),
+    active_stage_probability=MOMENTUM_ACTIVE_STAGE_PROBABILITY,
+    success_rate_threshold=MOMENTUM_SUCCESS_RATE_THRESHOLD,
+    consecutive_confirmations=MOMENTUM_CONSECUTIVE_CONFIRMATIONS,
+    evaluation_suite_version="drone-momentum-control-v1",
+    evaluation_episodes=10,
+    evaluation_seed_base=500_000,
+    stage_seed_stride=1_000,
+    evaluation_start_state_description=(
+        "the active stage's disclosed k4 start state"),
+    outer_gate_dependency_description=(
+        "the k4 segment gate remains locked until momentum control is complete"),
+    checkpoint_selection_description=(
+        "momentum control is training-only; fixed full-course evaluation remains "
+        "the checkpoint-selection signal"),
+    make_evaluation_env=make_momentum_evaluation_env,
+)
+
+
 TRAINING_CURRICULUM = TrainingCurriculumSpec(
     id="drone-reverse-waypoint-v1",
     frontier_order=CURRICULUM_FRONTIER_ORDER,
@@ -462,4 +693,5 @@ TRAINING_CURRICULUM = TrainingCurriculumSpec(
         "elapsed clock; k0 remains the canonical zero-motion start"
     ),
     make_evaluation_env=make_segment_evaluation_env,
+    training_control=MOMENTUM_CONTROL,
 )

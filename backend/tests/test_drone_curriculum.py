@@ -16,8 +16,73 @@ sys.path.insert(0, str(Path(__file__).parents[1]))
 
 from app import trainer as trainer_module
 from app.envs import drone
+from app.ppo.agent import PPOAgent
 from app.scenarios import get_spec, list_specs
 from app.settings import Settings
+
+
+EXPECTED_MOMENTUM_PROTOCOL = {
+    "id": "drone-k4-momentum-v1",
+    "scope": "outer frontier k4 before it may unlock",
+    "stages": [
+        {
+            "id": "foundation",
+            "start_state": (
+                "k4 at waypoint 4 with standard seeded horizontal position "
+                "jitter, signed horizontal velocity uniform on [-20, 20] "
+                "units/s, zero vertical velocity/attitude/rate, "
+                "cumulative-distance elapsed clock"
+            ),
+        },
+        {
+            "id": "bridge",
+            "start_state": (
+                "k4 at waypoint 4 with standard seeded horizontal position "
+                "jitter, inbound horizontal velocity using the previous-segment "
+                "sign and magnitude uniform on [20, 60] units/s, zero vertical "
+                "velocity/attitude/rate, cumulative-distance elapsed clock"
+            ),
+        },
+        {
+            "id": "hard",
+            "start_state": (
+                "k4 at waypoint 4 with standard seeded horizontal position "
+                "jitter, inbound horizontal velocity using the previous-segment "
+                "sign and magnitude uniform on [60, 100] units/s, zero vertical "
+                "velocity/attitude/rate, cumulative-distance elapsed clock"
+            ),
+        },
+    ],
+    "start_sampling": {
+        "active_stage_probability": 0.75,
+        "mastered_earlier_stages": "uniform remainder",
+        "empty_mastered_fallback": "100% active stage",
+    },
+    "gate": {
+        "success_rate_threshold": 0.8,
+        "comparison": ">=",
+        "consecutive_confirmations": 1,
+        "distinct_checkpoint_episodes": True,
+    },
+    "control_evaluation": {
+        "suite_version": "drone-momentum-control-v1",
+        "episodes": 10,
+        "seed_base": 500_000,
+        "stage_seed_stride": 1_000,
+        "seed_formula": (
+            "seed_base + stage_position * stage_seed_stride + episode_index"
+        ),
+        "deterministic_policy": True,
+        "start_state": "the active stage's disclosed k4 start state",
+    },
+    "outer_gate_dependency": (
+        "the k4 segment gate remains locked until momentum control is complete"
+    ),
+    "checkpoint_selection": (
+        "momentum control is training-only; fixed full-course evaluation remains "
+        "the checkpoint-selection signal"
+    ),
+}
 
 
 EXPECTED_CURRICULUM_PROTOCOL = {
@@ -53,6 +118,7 @@ EXPECTED_CURRICULUM_PROTOCOL = {
         "segment evaluation is training-only diagnostic; fixed full-course "
         "evaluation remains the checkpoint-selection signal"
     ),
+    "training_control": EXPECTED_MOMENTUM_PROTOCOL,
 }
 
 
@@ -61,6 +127,16 @@ def pass_frontier(env) -> dict:
     spec = get_spec("drone-hover").training_curriculum
     assert spec is not None
     return env.record_training_curriculum_evaluation(0.9, spec)
+
+
+def complete_momentum(env) -> None:
+    """Pass each deterministic training-control stage exactly once."""
+    spec = get_spec("drone-hover").training_curriculum
+    assert spec is not None
+    control = getattr(spec, "training_control", None)
+    assert control is not None
+    while not env.training_control_state()["complete"]:
+        env.record_training_control_evaluation(0.8, control)
 
 
 class ConstantAgent:
@@ -80,43 +156,65 @@ class TestDroneReverseCurriculum(unittest.TestCase):
         self.curriculum = self.spec.training_curriculum
         self.assertIsNotNone(self.curriculum)
 
-    def test_locked_frontier_uses_overlap_momentum_only_at_last_segment(self) -> None:
+    def test_locked_frontier_begins_with_small_signed_momentum(self) -> None:
         training = self.spec.make_training_env()
         self.assertTrue(training.waypoint_start_curriculum)
         training.rng.seed(42)
 
         starts = []
-        inbound = 0
-        opposite = 0
-        low_speed = 0
+        positive = 0
+        negative = 0
         for _ in range(4_000):
             training.reset()
             starts.append(training.k)
             self.assertLessEqual(abs(training.x - drone.WAYPOINTS[3][0]), 30.0)
             self.assertEqual(training.y, drone.WAYPOINTS[3][1])
-            self.assertLessEqual(abs(training.vx), 100.0)
-            inbound += training.vx > 0.0
-            opposite += training.vx < 0.0
-            low_speed += abs(training.vx) < 60.0
+            self.assertLessEqual(abs(training.vx), 20.0)
+            positive += training.vx > 0.0
+            negative += training.vx < 0.0
             self.assertEqual(training.vy, 0.0)
             self.assertEqual(training.theta, 0.0)
             self.assertEqual(training.omega, 0.0)
             self.assertEqual(training.steps, drone.WAYPOINT_START_STEPS[3])
 
         self.assertEqual(set(starts), {4})
-        # 50% hard inbound U[60, 100] + 50% symmetric U[-100, 100]
-        # yields approximately 75% inbound, 25% opposite-direction, and 30%
-        # below the hard suite's minimum speed.
-        self.assertGreaterEqual(inbound, 2_850)
-        self.assertLessEqual(inbound, 3_150)
-        self.assertGreaterEqual(opposite, 850)
-        self.assertLessEqual(opposite, 1_150)
-        self.assertGreaterEqual(low_speed, 1_050)
-        self.assertLessEqual(low_speed, 1_350)
-        self.assertEqual(training.training_curriculum_state()["frontier"], 4)
+        self.assertGreaterEqual(positive, 1_850)
+        self.assertLessEqual(positive, 2_150)
+        self.assertGreaterEqual(negative, 1_850)
+        self.assertLessEqual(negative, 2_150)
+        state = training.training_curriculum_state()
+        self.assertEqual(state["version"], 2)
+        self.assertEqual(state["frontier"], 4)
+        self.assertEqual(state["momentum"]["stage"], "foundation")
+
+    def test_fresh_drone_actor_is_initialized_at_physical_hover(self) -> None:
+        initialization = self.spec.actor_initialization
+        self.assertIsNotNone(initialization)
+        hover_action = 2.0 * (drone.G / (2.0 * drone.T_MAX)) - 1.0
+        self.assertAlmostEqual(hover_action, -2.0 / 7.0)
+        self.assertEqual(initialization.scope, "drone_hover_only")
+        self.assertEqual(initialization.continuous_action_labels,
+                         ("left_rotor_thrust", "right_rotor_thrust"))
+        self.assertEqual(initialization.continuous_action_prior,
+                         (hover_action, hover_action))
+        self.assertEqual(initialization.continuous_log_std, (-0.5, -0.5))
+
+        env = self.spec.make_env(False)
+        agent = PPOAgent(
+            env.obs_dim, env.n_continuous, env.n_binary,
+            torch.device("cpu"), actor_initialization=initialization,
+        )
+        action, _, _ = agent.select_action(
+            np.zeros(env.obs_dim, dtype=np.float32), deterministic=True)
+        np.testing.assert_allclose(
+            action, [hover_action, hover_action], atol=1e-7)
+        total_thrust = sum((float(value) + 1.0) / 2.0 * drone.T_MAX
+                           for value in action)
+        self.assertAlmostEqual(total_thrust, drone.G, places=5)
 
     def test_unlocked_sampling_rehearses_active_and_mastered_frontiers(self) -> None:
         training = self.spec.make_training_env()
+        complete_momentum(training)
         for expected in (3, 2, 1):
             transition = pass_frontier(training)
             self.assertTrue(transition["unlocked"])
@@ -125,9 +223,6 @@ class TestDroneReverseCurriculum(unittest.TestCase):
         # Frontier 1 is active; 2, 3 and 4 are mastered later segments.
         training.rng.seed(2026)
         starts = []
-        inbound = 0
-        opposite = 0
-        low_speed = 0
         for _ in range(4_000):
             training.reset()
             starts.append(training.k)
@@ -136,9 +231,8 @@ class TestDroneReverseCurriculum(unittest.TestCase):
                 training.k - 2]
             self.assertLessEqual(abs(training.vx), 100.0)
             relative_velocity = training.vx * (origin[0] - prior[0])
-            inbound += relative_velocity > 0.0
-            opposite += relative_velocity < 0.0
-            low_speed += abs(training.vx) < 60.0
+            self.assertGreater(relative_velocity, 0.0)
+            self.assertGreaterEqual(abs(training.vx), 60.0)
 
         counts = Counter(starts)
         self.assertEqual(set(starts), {1, 2, 3, 4})
@@ -147,15 +241,92 @@ class TestDroneReverseCurriculum(unittest.TestCase):
         for mastered in (2, 3, 4):
             self.assertGreaterEqual(counts[mastered], 500)
             self.assertLessEqual(counts[mastered], 850)
-        self.assertGreaterEqual(inbound, 2_850)
-        self.assertLessEqual(inbound, 3_150)
-        self.assertGreaterEqual(opposite, 850)
-        self.assertLessEqual(opposite, 1_150)
-        self.assertGreaterEqual(low_speed, 1_050)
-        self.assertLessEqual(low_speed, 1_350)
+        self.assertEqual(training.training_control_state()["stage"], "hard")
+        self.assertTrue(training.training_control_state()["complete"])
+
+    def test_momentum_control_progresses_only_at_deterministic_proficiency(self) -> None:
+        training = self.spec.make_training_env()
+        control = getattr(self.curriculum, "training_control", None)
+        self.assertIsNotNone(control)
+
+        failed = training.record_training_control_evaluation(
+            0.79, control, evaluation_episode=25)
+        self.assertFalse(failed["unlocked"])
+        self.assertEqual(failed["stage_after"], "foundation")
+
+        foundation = training.record_training_control_evaluation(
+            0.8, control, evaluation_episode=50)
+        self.assertTrue(foundation["unlocked"])
+        self.assertEqual(foundation["stage_after"], "bridge")
+
+        training.rng.seed(2027)
+        foundation_retention = 0
+        bridge_active = 0
+        for _ in range(4_000):
+            training.reset()
+            self.assertEqual(training.k, 4)
+            if abs(training.vx) <= 20.0:
+                foundation_retention += 1
+            else:
+                bridge_active += 1
+                self.assertGreaterEqual(training.vx, 20.0)
+                self.assertLessEqual(training.vx, 60.0)
+        self.assertGreaterEqual(bridge_active, 2_850)
+        self.assertLessEqual(bridge_active, 3_150)
+        self.assertGreaterEqual(foundation_retention, 850)
+        self.assertLessEqual(foundation_retention, 1_150)
+
+        bridge = training.record_training_control_evaluation(
+            0.8, control, evaluation_episode=75)
+        self.assertTrue(bridge["unlocked"])
+        self.assertEqual(bridge["stage_after"], "hard")
+
+        training.rng.seed(2028)
+        hard_active = 0
+        mastered_retention = 0
+        for _ in range(4_000):
+            training.reset()
+            if abs(training.vx) >= 60.0:
+                hard_active += 1
+                self.assertGreaterEqual(training.vx, 60.0)
+                self.assertLessEqual(training.vx, 100.0)
+            else:
+                mastered_retention += 1
+                self.assertLessEqual(abs(training.vx), 60.0)
+        self.assertGreaterEqual(hard_active, 2_850)
+        self.assertLessEqual(hard_active, 3_150)
+        self.assertGreaterEqual(mastered_retention, 850)
+        self.assertLessEqual(mastered_retention, 1_150)
+
+        hard = training.record_training_control_evaluation(
+            0.8, control, evaluation_episode=100)
+        self.assertFalse(hard["unlocked"])
+        self.assertTrue(hard["completed"])
+        self.assertEqual(hard["stage_after"], "hard")
+        state = training.training_control_state()
+        self.assertTrue(state["complete"])
+        self.assertEqual(state["mastered"], ["foundation", "bridge"])
+
+    def test_hard_outer_gate_cannot_unlock_before_momentum_control(self) -> None:
+        training = self.spec.make_training_env()
+
+        blocked = training.record_training_curriculum_evaluation(
+            1.0, self.curriculum, evaluation_episode=25)
+        self.assertTrue(blocked["passed"])
+        self.assertFalse(blocked["prerequisite_met"])
+        self.assertFalse(blocked["unlocked"])
+        self.assertEqual(blocked["frontier_after"], 4)
+
+        complete_momentum(training)
+        unlocked = training.record_training_curriculum_evaluation(
+            0.9, self.curriculum, evaluation_episode=50)
+        self.assertTrue(unlocked["prerequisite_met"])
+        self.assertTrue(unlocked["unlocked"])
+        self.assertEqual(unlocked["frontier_after"], 3)
 
     def test_gate_unlocks_after_one_threshold_pass(self) -> None:
         training = self.spec.make_training_env()
+        complete_momentum(training)
 
         failed = training.record_training_curriculum_evaluation(0.89, self.curriculum)
         self.assertEqual(failed["frontier_after"], 4)
@@ -172,6 +343,7 @@ class TestDroneReverseCurriculum(unittest.TestCase):
 
     def test_repeated_save_at_one_episode_cannot_double_count_confirmation(self) -> None:
         training = self.spec.make_training_env()
+        complete_momentum(training)
         first = training.record_training_curriculum_evaluation(
             0.9, self.curriculum, evaluation_episode=25)
         duplicate = training.record_training_curriculum_evaluation(
@@ -194,6 +366,7 @@ class TestDroneReverseCurriculum(unittest.TestCase):
 
     def test_final_frontier_keeps_half_of_resets_canonical(self) -> None:
         training = self.spec.make_training_env()
+        complete_momentum(training)
         for expected_frontier in (3, 2, 1, 0):
             self.assertEqual(pass_frontier(training)["frontier_after"],
                              expected_frontier)
@@ -473,6 +646,64 @@ class TestDroneReverseCurriculum(unittest.TestCase):
         self.assertEqual(first["episodes"], 10)
         self.assertEqual(first["frontier"], 4)
 
+    def test_fixed_momentum_suites_are_exact_repeatable_and_stage_specific(self) -> None:
+        control = getattr(self.curriculum, "training_control", None)
+        self.assertIsNotNone(control)
+        expected_ranges = {
+            "foundation": range(500_000, 500_010),
+            "bridge": range(501_000, 501_010),
+            "hard": range(502_000, 502_010),
+        }
+        for stage, expected in expected_ranges.items():
+            with self.subTest(stage=stage):
+                self.assertEqual(
+                    [control.evaluation_seed(stage, i) for i in range(10)],
+                    list(expected),
+                )
+                env = drone.make_momentum_evaluation_env(stage)
+                env.rng.seed(control.evaluation_seed(stage, 0))
+                env.reset()
+                self.assertEqual(env.k, 4)
+                if stage == "foundation":
+                    self.assertLessEqual(abs(env.vx), 20.0)
+                elif stage == "bridge":
+                    self.assertGreaterEqual(env.vx, 20.0)
+                    self.assertLessEqual(env.vx, 60.0)
+                else:
+                    self.assertGreaterEqual(env.vx, 60.0)
+                    self.assertLessEqual(env.vx, 100.0)
+
+        first_env = self.spec.make_training_env()
+        second_env = self.spec.make_training_env()
+        first = trainer_module.evaluate_training_control(
+            control, first_env, ConstantAgent())
+        second = trainer_module.evaluate_training_control(
+            control, second_env, ConstantAgent())
+        self.assertEqual(first, second)
+        self.assertEqual(first["stage"], "foundation")
+        self.assertEqual(first["evaluation_suite"],
+                         "drone-momentum-control-v1-foundation-n10")
+        self.assertEqual(first["seeds"], list(range(500_000, 500_010)))
+
+    def test_trainer_defers_the_hard_outer_suite_until_control_is_complete(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "state.json").write_text(
+                '{"active_scenario":"drone-hover"}')
+            trainer = trainer_module.Trainer(Settings(
+                port=8901, checkpoint_dir=root, checkpoint_every_n=25,
+                max_episodes=10, use_gpu=False, seed=42, eval_episodes=1,
+            ))
+            trainer.agent = ConstantAgent()
+            self.assertIsNone(trainer._run_training_curriculum_eval())
+            complete_momentum(trainer.env)
+            hard = trainer._run_training_curriculum_eval()
+
+        self.assertIsNotNone(hard)
+        self.assertEqual(hard["evaluation_suite"],
+                         "drone-segment-eval-v3-k4-n10")
+        self.assertEqual(hard["seeds"], list(range(404_000, 404_010)))
+
     def test_every_segment_suite_is_disjoint_from_selection_and_holdout(self) -> None:
         named_ranges = {
             f"segment-k{segment}": {
@@ -485,6 +716,13 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             trainer_module.evaluation_seed(episode) for episode in range(10)
         }
         named_ranges["default-holdout"] = set(range(200_000, 200_100))
+        control = getattr(self.curriculum, "training_control", None)
+        self.assertIsNotNone(control)
+        for stage in control.stage_ids:
+            named_ranges[f"momentum-{stage}"] = {
+                control.evaluation_seed(stage, episode)
+                for episode in range(control.evaluation_episodes)
+            }
 
         names = list(named_ranges)
         for index, left_name in enumerate(names):
@@ -524,6 +762,7 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             ))
             trainer.agent = ConstantAgent()
             before = trainer._run_eval()
+            complete_momentum(trainer.env)
             pass_frontier(trainer.env)
             after = trainer._run_eval()
 
@@ -534,8 +773,10 @@ class TestDroneReverseCurriculum(unittest.TestCase):
 
     def test_curriculum_state_round_trip_replays_future_reset_sequence(self) -> None:
         training = self.spec.make_training_env()
+        control = getattr(self.curriculum, "training_control", None)
+        self.assertIsNotNone(control)
+        training.record_training_control_evaluation(0.8, control)
         pass_frontier(training)
-        training.record_training_curriculum_evaluation(1.0, self.curriculum)
         training.rng.seed(718)
         state = trainer_module.capture_rng_state(training)
 
@@ -547,12 +788,37 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             return result
 
         expected = sample_starts()
-        training.record_training_curriculum_evaluation(0.0, self.curriculum)
+        training.record_training_control_evaluation(0.8, control)
         trainer_module.restore_rng_state(state, training)
 
         self.assertEqual(training.training_curriculum_state(),
                          state["training_curriculum"])
+        self.assertEqual(
+            training.training_control_state()["stage"], "bridge")
         self.assertEqual(sample_starts(), expected)
+
+    def test_rejected_cross_layer_state_restore_is_atomic(self) -> None:
+        training = self.spec.make_training_env()
+        before = copy.deepcopy(training.training_curriculum_state())
+        invalid = copy.deepcopy(before)
+        invalid.update({
+            "frontier_position": 1,
+            "frontier": 3,
+            "mastered": [4],
+        })
+        invalid["momentum"].update({
+            "stage_position": 1,
+            "stage": "bridge",
+            "mastered": ["foundation"],
+            "evaluations": 1,
+            "last_success_rate": 0.8,
+            "last_evaluation_episode": 25,
+        })
+
+        with self.assertRaisesRegex(ValueError, "hard proficiency"):
+            training.restore_training_curriculum_state(invalid)
+
+        self.assertEqual(training.training_curriculum_state(), before)
 
     def test_checkpoint_resume_restores_gate_state_and_pending_reset(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -564,9 +830,9 @@ class TestDroneReverseCurriculum(unittest.TestCase):
                 max_episodes=10, use_gpu=False, seed=42, eval_episodes=1,
             )
             first = trainer_module.Trainer(settings)
-            pass_frontier(first.env)
-            first.env.record_training_curriculum_evaluation(
-                1.0, self.curriculum)
+            control = getattr(self.curriculum, "training_control", None)
+            self.assertIsNotNone(control)
+            first.env.record_training_control_evaluation(0.8, control)
             first.env.rng.seed(991)
             first.episode = 25
             first.history = [{
@@ -581,6 +847,7 @@ class TestDroneReverseCurriculum(unittest.TestCase):
                 "seed": 42, "trajectory": [],
             }
             first._run_eval = lambda: copy.deepcopy(eval_payload)
+            first._run_training_control_eval = lambda: None
             first._run_training_curriculum_eval = lambda: None
             first._save_checkpoint()
             expected_state = first.env.training_curriculum_state()
@@ -612,8 +879,8 @@ class TestDroneReverseCurriculum(unittest.TestCase):
                 port=8901, checkpoint_dir=root, checkpoint_every_n=25,
                 max_episodes=10, use_gpu=False, seed=42, eval_episodes=1,
             ))
-            pass_frontier(trainer.env)
-            self.assertEqual(trainer.env.training_curriculum_state()["frontier"], 3)
+            complete_momentum(trainer.env)
+            self.assertTrue(trainer.env.training_control_state()["complete"])
 
             self.assertTrue(trainer.reset_agent(seed=17))
 
@@ -622,6 +889,9 @@ class TestDroneReverseCurriculum(unittest.TestCase):
         self.assertEqual(state["pass_streak"], 0)
         self.assertEqual(state["evaluations"], 0)
         self.assertFalse(state["complete"])
+        self.assertEqual(state["momentum"]["stage"], "foundation")
+        self.assertEqual(state["momentum"]["evaluations"], 0)
+        self.assertFalse(state["momentum"]["complete"])
         self.assertEqual(trainer.env.k, 4)
 
     def test_protocol_and_diagnostics_disclose_the_exact_training_contract(self) -> None:
@@ -648,17 +918,38 @@ class TestDroneReverseCurriculum(unittest.TestCase):
                 "evaluation_suite": "drone-segment-eval-v3-k4-n10",
                 "seeds": list(range(404_000, 404_010)),
             }
+            control = {
+                "stage": "hard",
+                "episodes": 10,
+                "successes": 8,
+                "success_rate": 0.8,
+                "evaluation_suite": "drone-momentum-control-v1-hard-n10",
+                "seeds": list(range(502_000, 502_010)),
+            }
+            control_spec = getattr(self.curriculum, "training_control", None)
+            self.assertIsNotNone(control_spec)
+            trainer.env.record_training_control_evaluation(0.8, control_spec)
+            trainer.env.record_training_control_evaluation(0.8, control_spec)
+            trainer.episode = 25
             trainer._run_eval = lambda: copy.deepcopy(canonical)
+            trainer._run_training_control_eval = lambda: copy.deepcopy(control)
             trainer._run_training_curriculum_eval = lambda: copy.deepcopy(segment)
             trainer._save_checkpoint()
             meta = trainer.registry.list()[0]
-            payload = trainer.registry.load(0)
+            payload = trainer.registry.load(25)
 
-        self.assertEqual(meta["schema_version"], 14)
-        self.assertEqual(meta["protocol"]["version"], 14)
+        self.assertEqual(meta["schema_version"], 15)
+        self.assertEqual(meta["protocol"]["version"], 15)
         self.assertEqual(meta["protocol"]["gamma"], 1.0)
         self.assertEqual(meta["protocol"]["training_curriculum"],
                          EXPECTED_CURRICULUM_PROTOCOL)
+        self.assertEqual(meta["protocol"]["training_control"],
+                         EXPECTED_MOMENTUM_PROTOCOL)
+        control_diagnostic = meta["training_diagnostics"]["training_control"]
+        self.assertEqual(control_diagnostic["stage_before"], "hard")
+        self.assertEqual(control_diagnostic["stage_after"], "hard")
+        self.assertTrue(control_diagnostic["completed"])
+        self.assertTrue(control_diagnostic["state_after"]["complete"])
         diagnostic = meta["training_diagnostics"]["training_curriculum"]
         self.assertEqual(diagnostic["frontier_before"], 4)
         self.assertEqual(diagnostic["frontier_after"], 3)
@@ -667,11 +958,78 @@ class TestDroneReverseCurriculum(unittest.TestCase):
         self.assertEqual(diagnostic["state_after"]["frontier"], 3)
         self.assertEqual(diagnostic["state_after"]["pass_streak"], 0)
         self.assertEqual(diagnostic["state_after"]["evaluations"], 1)
-        self.assertEqual(diagnostic["state_after"]["last_evaluation_episode"], 0)
+        self.assertEqual(diagnostic["state_after"]["last_evaluation_episode"], 25)
         self.assertEqual(meta["success_rate"], canonical["success_rate"])
         self.assertEqual(meta["eval_metric"], canonical["metric"])
         self.assertEqual(
             payload["rng_state"]["training_curriculum"]["frontier"], 3)
+        self.assertTrue(
+            payload["rng_state"]["training_curriculum"]["momentum"]["complete"])
+
+    def test_failed_checkpoint_attempt_rolls_back_all_gate_transitions(self) -> None:
+        canonical = {
+            "reward": 0.0, "reward_std": 0.0, "metric": 0.0,
+            "metric_std": 0.0, "failure_progress": None, "episodes": 1,
+            "success_rate": 0.0, "success_ci_low": 0.0,
+            "success_ci_high": 1.0, "evaluation_suite": "canonical-test",
+            "seed": 42, "trajectory": [],
+        }
+        control_result = {
+            "stage": "hard", "episodes": 10, "successes": 8,
+            "success_rate": 0.8,
+            "evaluation_suite": "drone-momentum-control-v1-hard-n10",
+            "seeds": list(range(502_000, 502_010)),
+        }
+        segment_result = {
+            "frontier": 4, "episodes": 10, "successes": 9,
+            "success_rate": 0.9,
+            "evaluation_suite": "drone-segment-eval-v3-k4-n10",
+            "seeds": list(range(404_000, 404_010)),
+        }
+
+        def build_trainer(root: Path):
+            (root / "state.json").write_text(
+                '{"active_scenario":"drone-hover"}')
+            trainer = trainer_module.Trainer(Settings(
+                port=8901, checkpoint_dir=root, checkpoint_every_n=25,
+                max_episodes=10, use_gpu=False, seed=42, eval_episodes=1,
+            ))
+            control = getattr(self.curriculum, "training_control", None)
+            self.assertIsNotNone(control)
+            trainer.env.record_training_control_evaluation(0.8, control)
+            trainer.env.record_training_control_evaluation(0.8, control)
+            trainer.episode = 25
+            trainer._run_eval = lambda: copy.deepcopy(canonical)
+            trainer._run_training_control_eval = (
+                lambda: copy.deepcopy(control_result))
+            return trainer
+
+        with tempfile.TemporaryDirectory() as tmp:
+            trainer = build_trainer(Path(tmp))
+            before = copy.deepcopy(trainer.env.training_curriculum_state())
+
+            def fail_outer():
+                raise RuntimeError("outer evaluation failed")
+
+            trainer._run_training_curriculum_eval = fail_outer
+            with self.assertRaisesRegex(RuntimeError, "outer evaluation"):
+                trainer._save_checkpoint()
+            self.assertEqual(trainer.env.training_curriculum_state(), before)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            trainer = build_trainer(Path(tmp))
+            before = copy.deepcopy(trainer.env.training_curriculum_state())
+            trainer._run_training_curriculum_eval = (
+                lambda: copy.deepcopy(segment_result))
+
+            def fail_save(*args, **kwargs):
+                del args, kwargs
+                raise OSError("persistence failed")
+
+            trainer.registry.save = fail_save
+            with self.assertRaisesRegex(OSError, "persistence"):
+                trainer._save_checkpoint()
+            self.assertEqual(trainer.env.training_curriculum_state(), before)
 
     def test_non_drone_scenarios_keep_their_training_contracts_and_schemas(self) -> None:
         expected_schemas = {
@@ -702,10 +1060,13 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             "(k4); unlock k3, k2, k1, then canonical k0 after one >=90% fixed "
             "segment evaluation; active frontier receives 50% of resets and "
             "mastered later segments uniformly share the remainder; "
-            "noncanonical training starts mix 50% hard inbound horizontal "
-            "velocity with the previous-segment sign and magnitude uniform on "
-            "[60, 100] units/s and 50% overlap velocity uniform on [-100, 100] "
-            "units/s; fixed segment gates retain only the hard inbound starts",
+            "while k4 is locked, momentum advances after one >=80% fixed "
+            "training-control evaluation from signed [-20, 20], through inbound "
+            "[20, 60], to inbound [60, 100] units/s; the active momentum stage "
+            "receives 75% of k4 resets and mastered earlier stages uniformly "
+            "share the remainder; the unchanged hard v3 segment gate runs only "
+            "after momentum control is complete; later outer frontiers retain "
+            "hard inbound [60, 100] starts",
         )
         self.assertEqual(self.spec.training_curriculum.protocol(),
                          EXPECTED_CURRICULUM_PROTOCOL)
@@ -721,7 +1082,7 @@ class TestDroneReverseCurriculum(unittest.TestCase):
                 "−50 crash or timeout",
             ),
         )
-        self.assertEqual(self.spec.checkpoint_schema, 14)
+        self.assertEqual(self.spec.checkpoint_schema, 15)
 
 
 if __name__ == "__main__":

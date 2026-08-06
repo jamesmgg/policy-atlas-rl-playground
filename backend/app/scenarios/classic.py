@@ -16,6 +16,12 @@ LANDER_ACTOR_INITIALIZATION = ActorInitialization(
     continuous_log_std=(-1.2, -1.2),
 )
 
+DRONE_ACTOR_INITIALIZATION = ActorInitialization(
+    scope="drone_hover_only",
+    continuous_action_labels=("left_rotor_thrust", "right_rotor_thrust"),
+    continuous_action_prior=(drone.HOVER_ACTION, drone.HOVER_ACTION),
+)
+
 
 CLASSIC_SPECS: list[ScenarioSpec] = [
     ScenarioSpec(
@@ -93,7 +99,8 @@ CLASSIC_SPECS: list[ScenarioSpec] = [
         difficulty="Advanced", horizon_steps=drone.DroneEnv.max_steps,
         horizon_seconds=drone.DroneEnv.max_steps * drone.DroneEnv.dt,
         gamma=1.0,
-        checkpoint_schema=14),
+        actor_initialization=DRONE_ACTOR_INITIALIZATION,
+        checkpoint_schema=15),
     ScenarioSpec(
         id="cartpole-balance", name="Continuous Cart-Pole", group="Foundations",
         kind="generic",

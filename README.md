@@ -69,12 +69,15 @@ recoverable from the checkpoint archive.
   after one >=90% segment evaluation. Before the first unlock, every reset
   targets the active frontier; afterward, half target the active frontier while
   half uniformly rehearse mastered later segments to prevent forgetting.
-  Noncanonical training starts use a disclosed 50/50 overlap distribution:
-  half replay the hard seeded 60â€“100 units/s horizontal arrival in the
-  preceding segment's direction, while half draw uniformly from -100 to 100
-  units/s. This supplies a continuous learning bridge without weakening the
-  fixed segment gates, which retain only the hard inbound starts. Canonical
-  evaluation and holdout starts remain unchanged at rest.
+  While the final segment is locked, a nested momentum control progresses from
+  signed -20â€“20 units/s starts, through inbound 20â€“60, to the unchanged hard
+  inbound 60â€“100 range. Each band advances after one >=80% deterministic
+  10-start control suite; 75% of resets use the active band and 25% uniformly
+  retain mastered easier bands. The unchanged hard v3 segment gate runs only
+  after all three bands are proficient. Later outer frontiers use hard inbound
+  starts. Canonical evaluation and holdout starts remain unchanged at rest.
+  Fresh Drone policies also begin at the physically neutral -2/7 action on
+  both rotors (total thrust equals gravity), with exploration variance unchanged.
   Drone uses an undiscounted finite-horizon objective (`gamma = 1.0`), and both
   crash and timeout apply the same terminal failure cost so hovering until the
   deadline is not an artificially safe strategy. Its terminal-zero shaping
@@ -87,8 +90,9 @@ recoverable from the checkpoint archive.
   completed, ranking successful controllers by efficiency without making an
   early crash cheaper than a longer failed attempt. Other scenarios retain
   `gamma = 0.995`.
-  Segment gates use suite v3 at seeds 400,000 and above, disjoint from both
-  checkpoint selection (100,000+) and the default holdout (200,000+).
+  Segment gates use suite v3 at seeds 400,000 and above; momentum controls use
+  versioned suites at 500,000 and above. Both are disjoint from checkpoint
+  selection (100,000+) and the default holdout (200,000+).
   Curriculum state is checkpointed exactly, and its diagnostics never enter
   full-course checkpoint selection.
 - The benchmark campaign freezes checkpoint selection before an optional
