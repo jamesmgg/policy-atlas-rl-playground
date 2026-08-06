@@ -24,7 +24,7 @@ export default function SimulatorPage() {
         <div className="topbar-context">
           <span>{scenarios.length || 16} experiments</span>
           <span aria-hidden="true">·</span>
-          <span>PPO learning live</span>
+          <span>Watch policies learn</span>
         </div>
         <div className={`connection-state connection-${connectionState}`} aria-live="polite">
           <span className="connection-dot" aria-hidden="true" />
@@ -65,6 +65,10 @@ export default function SimulatorPage() {
       </div>
 
       <nav className="mobile-setup-dock" aria-label="Quick setup navigation">
+        <a href="#experiment-stage">
+          <span className="dock-glyph dock-glyph-watch" aria-hidden="true">◉</span>
+          <span><small>Live</small><strong>Watch</strong></span>
+        </a>
         <a href="#experiment-library">
           <span className="dock-glyph" aria-hidden="true">∿</span>
           <span><small>Browse</small><strong>Experiment</strong></span>

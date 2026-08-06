@@ -53,11 +53,14 @@ export default function ExperimentBrief() {
         </div>
       </details>
 
-      <div className="method-strip">
-        <span><strong>PPO</strong> clipped policy updates</span>
-        <span><strong>Seed {status?.seed ?? 42}</strong> reproducible reset</span>
-        <span><strong>{metricMode === "min" ? "↓" : "↑"}</strong> {currentScenario.metric_label}</span>
-      </div>
+      <details className="method-details">
+        <summary>Method details</summary>
+        <div className="method-strip">
+          <span><strong>PPO</strong> clipped policy updates</span>
+          <span><strong>Seed {status?.seed ?? 42}</strong> reproducible reset</span>
+          <span><strong>{metricMode === "min" ? "↓" : "↑"}</strong> {currentScenario.metric_label}</span>
+        </div>
+      </details>
     </section>
   );
 }

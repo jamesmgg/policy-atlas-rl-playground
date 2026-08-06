@@ -1,5 +1,7 @@
-import { useMemo, useState } from "react";
-import { filterScenarios, formatMetric } from "../../api/types";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  filterScenarios, formatMetric, getRevealScrollPosition, scrollExperimentStage,
+} from "../../api/types";
 import type { ScenarioInfo } from "../../api/types";
 import { useTrainingSocket } from "../../hooks/useTrainingSocket";
 
@@ -20,12 +22,45 @@ export default function ScenarioSwitcher() {
   const [query, setQuery] = useState("");
   const [group, setGroup] = useState("All");
   const [switching, setSwitching] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef(new Map<string, HTMLButtonElement>());
+  const previousScenarioId = useRef<string | null>(null);
 
   const groups = GROUP_ORDER.filter((name) => name === "All" || scenarios.some((s) => s.group === name));
   const filtered = useMemo(
     () => filterScenarios(scenarios, query, group),
     [scenarios, query, group],
   );
+
+  useEffect(() => {
+    const list = listRef.current;
+    const item = scenarioId ? itemRefs.current.get(scenarioId) : null;
+    if (list && item) {
+      const next = getRevealScrollPosition(
+        list.getBoundingClientRect(),
+        item.getBoundingClientRect(),
+        { left: list.scrollLeft, top: list.scrollTop },
+      );
+      if (next) {
+        list.scrollTo({
+          ...next,
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+            ? "auto" : "smooth",
+        });
+      }
+    }
+
+    const changed = previousScenarioId.current != null
+      && previousScenarioId.current !== scenarioId;
+    previousScenarioId.current = scenarioId;
+    if (changed) {
+      scrollExperimentStage(
+        document.getElementById("experiment-stage"),
+        window.matchMedia("(max-width: 900px)").matches,
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+      );
+    }
+  }, [filtered, scenarioId]);
 
   const onSelect = async (scenario: ScenarioInfo) => {
     if (scenario.id === scenarioId || switching) return;
@@ -62,11 +97,15 @@ export default function ScenarioSwitcher() {
         ))}
       </div>
 
-      <div className="experiment-list" aria-label="Available experiments">
+      <div className="experiment-list" aria-label="Available experiments" ref={listRef}>
         {filtered.map((scenario) => {
           const active = scenario.id === scenarioId;
           return (
             <button type="button" key={scenario.id}
+              ref={(element) => {
+                if (element) itemRefs.current.set(scenario.id, element);
+                else itemRefs.current.delete(scenario.id);
+              }}
               className={`experiment-item ${active ? "experiment-item-active" : ""}`}
               aria-current={active ? "page" : undefined}
               onClick={() => onSelect(scenario)} disabled={switching}>

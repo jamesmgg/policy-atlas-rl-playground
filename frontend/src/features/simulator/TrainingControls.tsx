@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { formatMetric, getRunWindow, normalizeRunConfig } from "../../api/types";
+import {
+  formatMetric, getRunWindow, normalizeRunConfig, scrollExperimentStage,
+} from "../../api/types";
 import { useTrainingSocket } from "../../hooks/useTrainingSocket";
 
 const PRESETS = [
@@ -52,6 +54,14 @@ export default function TrainingControls() {
     setCheckpointEvery(preset.checkpoint);
   };
 
+  const watchTraining = () => {
+    scrollExperimentStage(
+      document.getElementById("experiment-stage"),
+      window.matchMedia("(max-width: 900px)").matches,
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    );
+  };
+
   const run = () => {
     const config = normalizeRunConfig(episodes, checkpointEvery);
     setEpisodes(config.episodes);
@@ -60,11 +70,13 @@ export default function TrainingControls() {
       ? status!.run_target_episode
       : (status?.episode ?? 0) + config.episodes;
     startTraining(target, config.checkpointEvery);
+    watchTraining();
   };
 
   const replaceBudget = () => {
     const config = normalizeRunConfig(episodes, checkpointEvery);
     startTraining((status?.episode ?? 0) + config.episodes, config.checkpointEvery);
+    watchTraining();
   };
 
   const newRun = () => {

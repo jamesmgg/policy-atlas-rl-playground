@@ -188,6 +188,56 @@ test("the active experiment is visualization first with diagnostics collapsed", 
   assert.ok(source.indexOf("<LearningCurve />", diagnostics) > diagnostics);
 });
 
+test("scientific method jargon stays behind a plain-language disclosure", () => {
+  const page = readFileSync(
+    new URL("../src/features/simulator/SimulatorPage.tsx", import.meta.url),
+    "utf8",
+  );
+  const brief = readFileSync(
+    new URL("../src/features/simulator/ExperimentBrief.tsx", import.meta.url),
+    "utf8",
+  );
+
+  const details = brief.indexOf('<details className="method-details">');
+  const method = brief.indexOf('<div className="method-strip">');
+  assert.ok(details >= 0 && method > details, "PPO, seed, and metric details must default closed");
+  assert.match(brief, /<summary>Method details<\/summary>/);
+  assert.doesNotMatch(page, /PPO learning live/);
+  assert.match(page, /Watch policies learn/);
+});
+
+test("compact navigation scrolls only the requested stage and honors reduced motion", () => {
+  assert.equal(typeof api.scrollExperimentStage, "function");
+  const calls = [];
+  const target = { scrollIntoView: (options) => calls.push(options) };
+
+  assert.equal(api.scrollExperimentStage(target, false, false), false);
+  assert.deepEqual(calls, []);
+  assert.equal(api.scrollExperimentStage(target, true, false), true);
+  assert.deepEqual(calls.at(-1), { behavior: "smooth", block: "start" });
+  assert.equal(api.scrollExperimentStage(target, true, true), true);
+  assert.deepEqual(calls.at(-1), { behavior: "auto", block: "start" });
+});
+
+test("active experiments are revealed inside their own scroll container", () => {
+  assert.equal(typeof api.getRevealScrollPosition, "function");
+  assert.deepEqual(api.getRevealScrollPosition(
+    { left: 0, right: 100, top: 0, bottom: 100 },
+    { left: 180, right: 220, top: 20, bottom: 40 },
+    { left: 20, top: 5 },
+  ), { left: 140, top: 5 });
+  assert.deepEqual(api.getRevealScrollPosition(
+    { left: 10, right: 110, top: 20, bottom: 120 },
+    { left: 30, right: 70, top: -30, bottom: 10 },
+    { left: 40, top: 80 },
+  ), { left: 40, top: 30 });
+  assert.equal(api.getRevealScrollPosition(
+    { left: 0, right: 100, top: 0, bottom: 100 },
+    { left: 20, right: 80, top: 20, bottom: 80 },
+    { left: 4, top: 7 },
+  ), null);
+});
+
 test("mobile users get direct setup anchors without interrupting the experiment stage", () => {
   const page = readFileSync(
     new URL("../src/features/simulator/SimulatorPage.tsx", import.meta.url),
@@ -212,15 +262,47 @@ test("mobile users get direct setup anchors without interrupting the experiment 
   const quickNav = page.indexOf('className="mobile-setup-dock"');
   assert.ok(simulator < topRuns && topRuns < diagnostics && diagnostics < quickNav);
   assert.match(page, /aria-label="Quick setup navigation"/);
+  assert.match(page, /href="#experiment-stage"/);
   assert.match(page, /href="#experiment-library"/);
   assert.match(page, /href="#run-setup"/);
+  assert.match(page, /<strong>Watch<\/strong>/);
   assert.match(switcher, /id="experiment-library"/);
+  assert.match(switcher, /getRevealScrollPosition/);
+  assert.match(switcher, /scrollExperimentStage/);
   assert.match(controls, /id="run-setup"/);
+  assert.match(controls, /scrollExperimentStage/);
   assert.match(styles, /\.mobile-setup-dock\s*\{[^}]*display:\s*none/s);
   assert.match(
     styles,
     /@media \(max-width: 900px\)[\s\S]*?\.mobile-setup-dock\s*\{[^}]*display:\s*grid/s,
   );
+  assert.match(styles, /\.experiment-stage\s*\{[^}]*scroll-margin-top:\s*82px/s);
+});
+
+test("experiment categories wrap instead of hiding groups off screen", () => {
+  const styles = readFileSync(
+    new URL("../src/styles/app.css", import.meta.url),
+    "utf8",
+  );
+  const filterBlock = styles.match(/\.library-filters\s*\{([^}]*)\}/s)?.[1] ?? "";
+
+  assert.match(filterBlock, /display:\s*grid/);
+  assert.match(filterBlock, /grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+  assert.doesNotMatch(filterBlock, /overflow-x:\s*auto/);
+  assert.match(styles, /\.library-filters button:first-child\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/s);
+});
+
+test("mobile experiment and podium controls use comfortable touch targets", () => {
+  const styles = readFileSync(
+    new URL("../src/styles/app.css", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(styles, /\.library-filters button,[\s\S]*?min-height:\s*44px/s);
+  assert.match(styles, /\.podium-actions button\s*\{[^}]*min-height:\s*44px/s);
+  assert.match(styles, /\.scene-telemetry small\s*\{[^}]*font-size:\s*10px/s);
+  assert.match(styles, /\.podium-score dt\s*\{[^}]*font-size:\s*10px/s);
+  assert.doesNotMatch(styles, /\.preset-grid span\s*\{[^}]*font:[^;]*9px/s);
 });
 
 test("the top three evaluated runs receive accessible medal treatments", () => {
