@@ -81,7 +81,7 @@ class ThunderInitializationAblationTests(unittest.TestCase):
         torch.testing.assert_close(restored.network.mu.bias, torch.tensor([-0.4, 0.3]))
         torch.testing.assert_close(restored.network.drift_logit.bias, torch.tensor([1.5]))
 
-    def test_protocol_v13_records_the_exact_thunder_prior(self) -> None:
+    def test_protocol_v14_records_the_exact_thunder_prior(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "state.json").write_text('{"active_scenario":"thunder-oval"}')
