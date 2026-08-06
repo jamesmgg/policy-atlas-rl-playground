@@ -28,12 +28,16 @@ PAD_CX = (PAD_X0 + PAD_X1) / 2
 SAFE_VX, SAFE_VY, SAFE_THETA = 8.0, 14.0, 0.25
 FAILURE_REWARD = -100.0
 
-# Half of training episodes retain the evaluation start distribution. A short
-# terminal-rehearsal band makes the sparse successful touchdown discoverable;
-# a wider approach band connects that skill back toward the full descent.
+# Bootstrap touchdown rehearsals make the sparse terminal success discoverable.
+# After episode 500, canonical starts become dominant and the already-learned
+# touchdown band yields its share to full descents for policy consolidation.
 STANDARD_START_PROBABILITY = 0.5
 TOUCHDOWN_START_PROBABILITY = 0.25
 APPROACH_START_PROBABILITY = 0.25
+CURRICULUM_BOOTSTRAP_EPISODES = 500
+CONSOLIDATION_STANDARD_START_PROBABILITY = 0.75
+CONSOLIDATION_TOUCHDOWN_START_PROBABILITY = 0.0
+CONSOLIDATION_APPROACH_START_PROBABILITY = 0.25
 TOUCHDOWN_ALTITUDE_MIN, TOUCHDOWN_ALTITUDE_MAX = 5.0, 18.0
 TOUCHDOWN_X_OFFSET_MAX = 20.0
 TOUCHDOWN_VX_MAX = 3.0
@@ -47,9 +51,11 @@ APPROACH_VY_MIN, APPROACH_VY_MAX = 2.0, 18.0
 APPROACH_THETA_MAX = 0.18
 APPROACH_OMEGA_MAX = 0.25
 TRAINING_START_DISTRIBUTION = (
-    "50% standard high-altitude starts; 25% touchdown rehearsal 5-18 units "
-    "above the pad; 25% braking approaches 30-500 units above the pad; all "
-    "sampled states expose velocity, tilt, time, and fuel"
+    "episodes 1-500: 50% standard high-altitude starts, 25% touchdown "
+    "rehearsal 5-18 units above the pad, and 25% braking approaches "
+    "30-500 units above the pad; episodes 501+: 75% standard and 25% "
+    "braking approaches with touchdown rehearsal disabled; all sampled "
+    "states expose velocity, tilt, time, and fuel"
 )
 
 
@@ -95,6 +101,16 @@ class LanderEnv:
     def __post_init__(self):
         self.reset()
 
+    def reset_for_training_episode(self, episode: int) -> np.ndarray:
+        """Reset with the one-based episode that selects the curriculum phase."""
+        if episode < 1:
+            raise ValueError("training episode must be one-based")
+        self._training_episode = episode
+        try:
+            return self.reset()
+        finally:
+            del self._training_episode
+
     def reset(self) -> np.ndarray:
         self.x, self.y = 500.0, 120.0
         self.vx = self.rng.uniform(-15.0, 15.0) if self.jitter else 0.0
@@ -109,12 +125,22 @@ class LanderEnv:
         self._u_main = 0.0
         self._start_kind = "standard"
         if self.approach_curriculum:
+            training_episode = getattr(self, "_training_episode", 1)
+            if training_episode <= CURRICULUM_BOOTSTRAP_EPISODES:
+                standard_probability = STANDARD_START_PROBABILITY
+                touchdown_probability = TOUCHDOWN_START_PROBABILITY
+                approach_probability = APPROACH_START_PROBABILITY
+            else:
+                standard_probability = CONSOLIDATION_STANDARD_START_PROBABILITY
+                touchdown_probability = CONSOLIDATION_TOUCHDOWN_START_PROBABILITY
+                approach_probability = CONSOLIDATION_APPROACH_START_PROBABILITY
             start_draw = self.rng.random()
-            if start_draw >= STANDARD_START_PROBABILITY:
-                if start_draw < (STANDARD_START_PROBABILITY
-                                 + TOUCHDOWN_START_PROBABILITY):
+            if start_draw >= standard_probability:
+                if start_draw < standard_probability + touchdown_probability:
                     self._reset_touchdown()
-                else:
+                elif start_draw < (standard_probability
+                                   + touchdown_probability
+                                   + approach_probability):
                     self._reset_approach()
         self._phi_prev = self._phi()
         return self._obs()

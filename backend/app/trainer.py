@@ -172,6 +172,14 @@ def learning_payload(observation: np.ndarray, action: np.ndarray,
     }
 
 
+def reset_training_environment(env, episode: int) -> np.ndarray:
+    """Reset a training env with its one-based episode when it supports it."""
+    episode_reset = getattr(env, "reset_for_training_episode", None)
+    if callable(episode_reset):
+        return episode_reset(episode)
+    return env.reset()
+
+
 def capture_rng_state(env) -> dict:
     state = {
         "python": random.getstate(),
@@ -236,7 +244,7 @@ class Trainer:
         self.env = self.spec.make_training_env()
         if hasattr(self.env, "rng"):
             self.env.rng.seed(self.seed)
-            self.env.reset()
+            reset_training_environment(self.env, 1)
         self.agent = PPOAgent(self.env.obs_dim, self.env.n_continuous,
                               self.env.n_binary, self.device,
                               actor_initialization=self.spec.actor_initialization)
@@ -345,7 +353,7 @@ class Trainer:
             self.ghost = None
             self._learning = None
             self.latest_update_metrics = None
-            env.reset()
+            reset_training_environment(env, 1)
             self._emit_status()
             self.emit({"type": "history", "scenario_id": self.spec.id, "history": []})
             self.emit({"type": "checkpoint_list", "scenario_id": self.spec.id,
@@ -455,7 +463,7 @@ class Trainer:
         # boundaries while ensuring a saved state is exactly resumable.
         buffer = RolloutBuffer(
             ROLLOUT_STEPS + env.max_steps, env.obs_dim, self.agent.act_dim)
-        obs = env.reset()
+        obs = reset_training_environment(env, self.episode + 1)
         done = False
         last_frame = 0.0
 
@@ -496,7 +504,7 @@ class Trainer:
                     if (self.episode >= self.max_episodes
                             or buffer.ptr >= ROLLOUT_STEPS):
                         break
-                    obs = env.reset()
+                    obs = reset_training_environment(env, self.episode + 1)
                     done = False
                 else:
                     obs = next_obs
@@ -527,7 +535,7 @@ class Trainer:
             # trainer also begins with exactly one reset, reproducing the same
             # pending initial condition.
             if done and not self._stop.is_set() and self.episode < self.max_episodes:
-                obs = env.reset()
+                obs = reset_training_environment(env, self.episode + 1)
                 done = False
 
         final_status = self.status()
@@ -569,7 +577,7 @@ class Trainer:
             self, "latest_update_metrics", None)
         eval_result["protocol"] = {
             "algorithm": "PPO",
-            "version": 6,
+            "version": 7,
             "rollout_steps": ROLLOUT_STEPS,
             "episode_aligned_rollouts": True,
             "gamma": GAMMA,

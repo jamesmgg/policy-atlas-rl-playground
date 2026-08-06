@@ -801,7 +801,7 @@ class TestEvaluationProtocol(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 6)
+        self.assertEqual(protocol["version"], 7)
         self.assertEqual(protocol["training_reward_scale"], 0.01)
         self.assertEqual(protocol["entropy_coefficient"], 0.0)
         self.assertEqual(protocol["value_loss_scale"], "rollout return RMS")
@@ -1258,6 +1258,81 @@ class TestEvaluationProtocol(unittest.TestCase):
         expected = sample()
         restore(state, env)
         self.assertEqual(sample(), expected)
+
+    def test_training_resets_receive_the_restored_next_episode_number(self) -> None:
+        """Curriculum phase must derive from persisted completed episodes."""
+        class EpisodeAwareOneStepEnv:
+            obs_dim = 1
+            n_continuous = 1
+            n_binary = 0
+            max_steps = 1
+            dt = 0.1
+
+            def __init__(self):
+                self.episode_reward = 0.0
+                self.training_episodes = []
+
+            def reset(self):
+                self.fail("trainer bypassed the episode-aware reset")
+
+            def fail(self, message):
+                raise AssertionError(message)
+
+            def reset_for_training_episode(self, episode):
+                self.training_episodes.append(episode)
+                self.episode_reward = 0.0
+                return np.array([float(episode)], dtype=np.float32)
+
+            def step(self, action):
+                self.episode_reward = 1.0
+                return np.array([0.0], dtype=np.float32), 1.0, True, {
+                    "truncated": False,
+                }
+
+            def episode_summary(self):
+                return {"reward": 1.0, "steps": 1, "cause": "done",
+                        "metric": 1.0, "success": True}
+
+            def frame_payload(self):
+                return {}
+
+        class Agent:
+            act_dim = 1
+
+            def select_action(self, observation, deterministic=False):
+                return np.array([0.0], dtype=np.float32), 0.0, 0.0
+
+            def update(self, buffer):
+                return {"policy_loss": 0.0, "value_loss": 0.0,
+                        "entropy": 0.0, "approx_kl": 0.0, "clip_frac": 0.0}
+
+            def get_value(self, observation):
+                return 0.0
+
+        trainer = object.__new__(trainer_module.Trainer)
+        trainer.env = EpisodeAwareOneStepEnv()
+        trainer.agent = Agent()
+        trainer.spec = SimpleNamespace(id="episode-aware", metric_mode="max",
+                                       kind="generic", metric_label="score")
+        trainer.episode = 499
+        trainer.total_steps = trainer.update_count = 0
+        trainer.sps = 0.0
+        trainer.history = []
+        trainer.best_reward = trainer.best_metric = None
+        trainer.ghost = trainer._learning = None
+        trainer.seed = 42
+        trainer.settings = SimpleNamespace(eval_episodes=1)
+        trainer.device = torch.device("cpu")
+        trainer.max_episodes = 501
+        trainer.checkpoint_every_n = 10_000
+        trainer._stop = trainer_module.threading.Event()
+        trainer._thread = None
+        trainer.emit = lambda message: None
+        trainer._save_checkpoint = lambda: None
+
+        trainer._run()
+
+        self.assertEqual(trainer.env.training_episodes, [500, 501])
 
     def test_checkpoint_rng_precedes_the_next_episode_reset(self) -> None:
         """A restored checkpoint must reproduce the pending next start."""
