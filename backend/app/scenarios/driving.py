@@ -99,14 +99,18 @@ def _driving_spec(id: str, name: str, group: str, description: str,
             f"traffic {index + 1} already passed",
         ))
     observation_dimensions.append("remaining horizon fraction")
-    rolling_checkpoint_label = (
-        "1..N-1"
-        if training_rolling_checkpoints is None
-        else "..".join((
+    if training_rolling_checkpoints is None:
+        rolling_checkpoint_label = "1..N-1"
+    elif tuple(training_rolling_checkpoints) == tuple(range(
+            training_rolling_checkpoints[0],
+            training_rolling_checkpoints[-1] + 1)):
+        rolling_checkpoint_label = "..".join((
             str(training_rolling_checkpoints[0]),
             str(training_rolling_checkpoints[-1]),
         ))
-    )
+    else:
+        rolling_checkpoint_label = ",".join(
+            str(index) for index in training_rolling_checkpoints)
     curriculum_state = []
     if features.fuel:
         curriculum_state.append("65% throttle-equivalent fuel")
@@ -181,7 +185,8 @@ DRIVING_SPECS: list[ScenarioSpec] = [
         "apex-gp-wet", "Apex GP — Wet", "Weather",
         "Rain at Apex GP: reduced grip everywhere, standing water in three zones.",
         "APEX_GP",
-        features=DrivingFeatures(global_grip=0.75, zones=WET_ZONES)),
+        features=DrivingFeatures(global_grip=0.75, zones=WET_ZONES),
+        training_rolling_checkpoints=(1, 6, 9)),
     _driving_spec(
         "glacier", "Glacier Lake", "Weather",
         "A circuit on ice. Gentle inputs preserve momentum; controlled slides can help rotation.",
