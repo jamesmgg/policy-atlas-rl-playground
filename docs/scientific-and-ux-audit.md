@@ -16,6 +16,13 @@ final test. Training successes and reward peaks are not solves. Curriculum
 evaluations control frontier progression, but remain excluded from full-course
 checkpoint selection and cannot establish a solve by themselves.
 
+All 16 task contracts now have a verified checkpoint. That is a validation of
+the educational puzzles, not a claim that every result is pure PPO from random
+initialization: Traffic Rush and Drone Course use fully disclosed
+demonstration-assisted PPO warm starts. Their teachers generate training data
+only, are absent at inference, and the frozen neural policies alone are scored
+by selection and holdout.
+
 ## Experiment evidence matrix
 
 | Experiment | Main learning improvement or finding | Selected episode | Post-selection holdout |
@@ -30,20 +37,23 @@ checkpoint selection and cannot establish a solve by themselves.
 | Kart Sprint | Shared driving curriculum with unchanged fixed start | 1,501 | 93/100 |
 | Drift Trial | Progress coefficient restored while style remained the task metric | 1,704 | 96/100 |
 | Eco GP | Fuel state and objective completion made observable | 876 | 96/100 |
-| Traffic Rush | 90 s reachability, traffic-state reconstruction, and staged overtake rehearsal; terminal-cost follow-up running | — | Active |
+| Traffic Rush | v17: retained-terminal progress credit, geometric guidance observations, a fixed near-pass schedule, and a two-round DAgger actor warm start | 28 | 100/100 |
 | Lunar Lander | v13: undiscounted task returns plus descent-envelope shaping and a performance-gated altitude curriculum; fixed suite 10/10 | 380 | 98/100 |
 | Pendulum Swing-Up | Correct continuous-action likelihood and an observed finite horizon | 252 | 100/100 |
-| Drone Course | Reverse waypoint curriculum and momentum-aware handoff rehearsal; follow-up pending | — | Active |
+| Drone Course | v18: all-direction fixed rehearsal schedule, normalized desired-control errors, and a physics-controller behavior-cloning warm start | 33 | 100/100 |
 | Continuous Cart-Pole | Added a disclosed continuous-force, semi-implicit control task | 276 | 100/100 |
 | Mountain Car | Added normalized continuous Mountain Car dynamics | 53 | 100/100 |
 
 The machine-readable reports live in [`docs/results`](results/). Selection uses
-seeds 100000–100009; holdout uses seeds 200000–200099. The two ranges are
-separate within a campaign, but both are fixed and have been reused across
-iterative branches. Reports record the engine source digest, checkpoint digest,
-evaluation suite, Wilson interval, and whether evidence influenced selection.
-All current campaigns use optimizer/training seed 42; the 100 holdout seeds are
-environment-start variation, not 100 independent training replications.
+seeds 100000–100009. Early campaigns generally used holdout seeds
+200000–200099; the final Drone and Traffic branch validations use fresh ranges
+970000–970099 and 980000–980099. Selection and holdout are separate within each
+campaign, but several older ranges were reused while iterating, so the reports
+are validation rather than one locked project-wide test. Reports record the
+engine source digest, checkpoint digest, evaluation suite, Wilson interval,
+assistance contract, and whether evidence influenced selection. All current
+campaigns use optimizer/training seed 42; the 100 holdout seeds vary environment
+starts, not independent training replications.
 
 ## AI engineer viewpoint
 
@@ -74,6 +84,28 @@ environment-start variation, not 100 independent training replications.
   but reuse across branches makes the present holdout validation evidence.
 - RNG state, schema versions, engine hashes, checkpoint hashes, and archived
   branch integrity checks make continuation and comparison auditable.
+- Demonstration-assisted runs disclose the expert formula, training-only seed
+  ranges, dataset digest, supervised loss, sample count, and DAgger rounds.
+  Tests disable the expert during evaluation and require the learned actor to
+  solve both fixed and fresh canonical suites.
+
+### What the hard-task ablations established
+
+- Traffic v16 failed all 2,000 episodes and its frozen holdout 0/100 even after
+  adding an easier bot-speed curriculum. The terminal-zero course potential
+  telescoped away failed-path progress, while finite-λ GAE concentrated a large
+  negative correction near late failures; the policy learned to brake or quit
+  rather than complete a safe overtake.
+- Drone v17 first mastered its easy momentum stage near episode 1,706 and its
+  bridge near 1,778, but scored 0/100 at 2,000 episodes. A fresh 4,000-episode
+  replicate still never mastered the hard handoff. Serial competence gates,
+  out-of-scale velocity inputs, and weak cross-direction transfer—not an early
+  reset bug—were the binding constraints.
+- Reference controllers completed 100/100 canonical starts for each hard task.
+  This separated physical infeasibility from learning failure and supplied a
+  reproducible training-data baseline. The final learned actors then completed
+  100/100 fixed acceptance starts and 100/100 fresh starts with the teachers
+  deliberately unavailable at inference.
 
 ### Highest-priority remaining scientific work
 
@@ -93,6 +125,9 @@ environment-start variation, not 100 independent training replications.
    renderer-only change never appears to alter a scientific task identity.
 6. Publish learning curves with across-seed confidence bands and area-under-
    curve/sample-efficiency comparisons, not only the winning checkpoint.
+7. Keep pure-PPO-from-scratch and demonstration-assisted results as separate
+   leaderboard classes. Add matched ablations for warm start only, curriculum
+   only, and PPO fine-tuning so sample-efficiency gains have a clear cause.
 
 The vehicle, lander, and drone dynamics remain educational approximations.
 They are coherent control environments, not validated engineering models, and
@@ -132,6 +167,8 @@ not silently compare incompatible science.
    protocol, and source/checkpoint hashes.
 6. Preserve experiment/filter/scroll state in the URL so exploration is
    navigable and browser Back behaves predictably.
+7. Lazy-load the charting/diagnostics bundle after the visualization is ready;
+   the production build is correct but currently emits a large-chunk warning.
 
 ## Simulator roadmap
 
