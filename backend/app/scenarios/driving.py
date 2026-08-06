@@ -265,6 +265,6 @@ DRIVING_SPECS: list[ScenarioSpec] = [
         metric_label="overtakes", metric_mode="max",
         objective="Pass traffic without contact while maintaining forward progress.",
         success="Overtake all three traffic cars in one episode.",
-        difficulty="Advanced", training_rolling_checkpoints=(1, 2, 3),
-        horizon_steps=2250, checkpoint_schema=9),
+        difficulty="Advanced", training_rolling_checkpoints=(4, 10, 11),
+        horizon_steps=2250, checkpoint_schema=10),
 ]

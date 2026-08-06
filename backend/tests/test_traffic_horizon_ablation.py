@@ -87,7 +87,7 @@ class TrafficHorizonAblationTests(unittest.TestCase):
         )
         self.assertEqual(
             self.traffic.training_start_distribution,
-            "75% canonical start; 25% uniform checkpoints 1..3 as rolling "
+            "75% canonical start; 25% uniform checkpoints 4,10,11 as rolling "
             "states at 70-90% of the curvature/grip backward-braking "
             "envelope; clock integrates an 80% envelope with a 1-second "
             "reserve; time-advanced traffic and pass masks; no reset reward",
@@ -97,7 +97,7 @@ class TrafficHorizonAblationTests(unittest.TestCase):
             "Overtake all three traffic cars in one episode.",
         )
 
-    def test_schema_nine_refuses_a_schema_eight_traffic_checkpoint(self) -> None:
+    def test_schema_ten_refuses_a_schema_eight_traffic_checkpoint(self) -> None:
         env = self.traffic.make_env(False)
         agent = PPOAgent(
             env.obs_dim, env.n_continuous, env.n_binary, torch.device("cpu"))
@@ -111,12 +111,12 @@ class TrafficHorizonAblationTests(unittest.TestCase):
                 "reward": 1.0, "metric": 1.0, "trajectory": [],
             })
 
-            self.assertEqual(self.traffic.checkpoint_schema, 9)
+            self.assertEqual(self.traffic.checkpoint_schema, 10)
             self.assertEqual(current.list(), [])
             with self.assertRaises(IncompatibleCheckpointError):
                 current.load_into(25, agent)
 
-    def test_protocol_v9_records_the_exact_task_horizon(self) -> None:
+    def test_protocol_v10_records_the_exact_task_horizon(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "state.json").write_text(
@@ -147,7 +147,7 @@ class TrafficHorizonAblationTests(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 9)
+        self.assertEqual(protocol["version"], 10)
         self.assertEqual(protocol["task_horizon_steps"], 2250)
         self.assertEqual(protocol["task_horizon_seconds"], 90.0)
 

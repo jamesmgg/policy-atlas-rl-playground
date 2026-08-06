@@ -650,7 +650,7 @@ class Trainer:
         )
         eval_result["protocol"] = {
             "algorithm": "PPO",
-            "version": 9,
+            "version": 10,
             "rollout_steps": ROLLOUT_STEPS,
             "episode_aligned_rollouts": True,
             "gamma": GAMMA,
