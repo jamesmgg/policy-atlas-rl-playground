@@ -1,0 +1,2940 @@
+{
+  "base_url": "http://host.docker.internal:8973",
+  "checkpoint_every_n": 25,
+  "created_at": "2026-08-06T08:12:45+00:00",
+  "current": null,
+  "full_budget": false,
+  "holdout_protocol": {
+    "checkpoint_root": "/checkpoints",
+    "episodes": 100,
+    "influences_selection": false,
+    "role": "post_selection_only",
+    "seed_base": 1200000,
+    "seed_end": 1200099
+  },
+  "inventory_after": {
+    "active_run": {
+      "episode": 45,
+      "seed": 42,
+      "total_steps": 4136,
+      "training": false,
+      "updates": 2
+    },
+    "active_scenario": "traffic-rush",
+    "engine_source_sha256": "226b1fe9aa247d4da050684c39f323a1a540ee49777544cba7196d29f5268d88",
+    "evaluation_episodes": 10,
+    "evaluation_suite": "policy-atlas-eval-v1-n10",
+    "scenario_count": 16,
+    "scenarios": [
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "apex-gp",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Apex GP"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "velocita",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Velocit\u00e0"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "grandville",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Grandville Streets"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "thunder-oval",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Thunder Oval"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "apex-gp-wet",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Apex GP \u2014 Wet"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "glacier",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Glacier Lake"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "rally-ridge",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Rally Ridge"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "kart-sprint",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Kart Sprint"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "drift-trial",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Drift Trial"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "eco-gp",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Eco GP"
+      },
+      {
+        "best_metric": 3.0,
+        "checkpoints": 2,
+        "episode": 45,
+        "id": "traffic-rush",
+        "kind": "driving",
+        "mean_reward": 22.27,
+        "name": "Traffic Rush"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "lunar-lander",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Lunar Lander"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "pendulum-swingup",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Pendulum Swing-Up"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "drone-hover",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Drone Course"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "cartpole-balance",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Continuous Cart-Pole"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "mountain-car",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Mountain Car"
+      }
+    ]
+  },
+  "inventory_before": {
+    "active_run": {
+      "episode": 0,
+      "seed": 42,
+      "total_steps": 0,
+      "training": false,
+      "updates": 0
+    },
+    "active_scenario": "apex-gp",
+    "engine_source_sha256": "226b1fe9aa247d4da050684c39f323a1a540ee49777544cba7196d29f5268d88",
+    "evaluation_episodes": 10,
+    "evaluation_suite": "policy-atlas-eval-v1-n10",
+    "scenario_count": 16,
+    "scenarios": [
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "apex-gp",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Apex GP"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "velocita",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Velocit\u00e0"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "grandville",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Grandville Streets"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "thunder-oval",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Thunder Oval"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "apex-gp-wet",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Apex GP \u2014 Wet"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "glacier",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Glacier Lake"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "rally-ridge",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Rally Ridge"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "kart-sprint",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Kart Sprint"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "drift-trial",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Drift Trial"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "eco-gp",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Eco GP"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "traffic-rush",
+        "kind": "driving",
+        "mean_reward": null,
+        "name": "Traffic Rush"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "lunar-lander",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Lunar Lander"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "pendulum-swingup",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Pendulum Swing-Up"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "drone-hover",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Drone Course"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "cartpole-balance",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Continuous Cart-Pole"
+      },
+      {
+        "best_metric": null,
+        "checkpoints": 0,
+        "episode": 0,
+        "id": "mountain-car",
+        "kind": "generic",
+        "mean_reward": null,
+        "name": "Mountain Car"
+      }
+    ]
+  },
+  "max_episodes": 2000,
+  "report_protocol": "policy-atlas-benchmark-v2",
+  "runs": [
+    {
+      "checkpoint_every_n": 25,
+      "checkpoint_trace": [
+        {
+          "checkpoint_sha256": "18866fb6acf7704d6942dfcd688d77529ab514c791179e7b8eed939d0d3fa6ec",
+          "episode": 28,
+          "eval_reward": 263.88,
+          "eval_reward_std": 0.073,
+          "failure_progress": null,
+          "mean_training_reward": 17.42,
+          "metadata_sha256": "71faecda98b8bd59a407bd0f6c0fdda1d28344aeced43f48adba879ba1418672",
+          "metric": 3.0,
+          "metric_std": 0.0,
+          "success_ci_high": 1.0,
+          "success_ci_low": 0.7225,
+          "success_rate": 1.0,
+          "total_steps": 2061,
+          "training_diagnostics": {
+            "action_std_0": 0.13541,
+            "action_std_1": 0.13542,
+            "action_std_max": 0.13542,
+            "action_std_mean": 0.13541,
+            "action_std_min": 0.13541,
+            "approx_kl": 0.38962,
+            "binary_deterministic_on_fraction_0": 0.0,
+            "binary_probability_mean_0": 0.00011,
+            "clip_frac": 0.36133,
+            "continuous_action_mean_0": 0.55417,
+            "continuous_action_mean_1": -0.10493,
+            "entropy": -3.1832,
+            "explained_variance": -0.37556,
+            "policy_loss": 0.11307,
+            "training_control": {
+              "complete_after": false,
+              "complete_before": false,
+              "completed": false,
+              "confirmation_streak_after": 1,
+              "confirmation_streak_before": 0,
+              "episodes": 10,
+              "evaluation_episode": 28,
+              "evaluation_suite": "traffic-cp11-bot3-speed-control-v1-speed-18-n10",
+              "ignored_duplicate": false,
+              "mastered_after": [],
+              "mastered_before": [],
+              "passed": true,
+              "seeds": [
+                800000,
+                800001,
+                800002,
+                800003,
+                800004,
+                800005,
+                800006,
+                800007,
+                800008,
+                800009
+              ],
+              "speed_mps_after": 18.0,
+              "speed_mps_before": 18.0,
+              "stage": "speed-18",
+              "stage_after": "speed-18",
+              "stage_before": "speed-18",
+              "state_after": {
+                "complete": false,
+                "control_id": "traffic-cp11-bot3-speed-v1",
+                "evaluations": 1,
+                "last_evaluation_episode": 28,
+                "last_success_rate": 1.0,
+                "mastered": [],
+                "pass_streak": 1,
+                "speed_mps": 18.0,
+                "stage": "speed-18",
+                "stage_position": 0,
+                "version": 1
+              },
+              "success_rate": 1.0,
+              "successes": 10,
+              "unlocked": false
+            },
+            "value_bias": -0.34099,
+            "value_clip_frac": 0.02344,
+            "value_loss": 0.1712,
+            "value_scale": 1.0
+          },
+          "updates": 1
+        },
+        {
+          "checkpoint_sha256": "84f1ee6925f38363aa8545da9760a954521b37cb05dc50e6a7df37595084bfa3",
+          "episode": 45,
+          "eval_reward": 131.85,
+          "eval_reward_std": 86.582,
+          "failure_progress": 0.895,
+          "mean_training_reward": 22.27,
+          "metadata_sha256": "cf81ef6d5da9eb4b5367e03638c84a22841574cdcdbf7a56cb9e4eef3be03c75",
+          "metric": 2.3,
+          "metric_std": 0.458,
+          "success_ci_high": 0.6032,
+          "success_ci_low": 0.1078,
+          "success_rate": 0.3,
+          "total_steps": 4136,
+          "training_diagnostics": {
+            "action_std_0": 0.13538,
+            "action_std_1": 0.13548,
+            "action_std_max": 0.13548,
+            "action_std_mean": 0.13543,
+            "action_std_min": 0.13538,
+            "approx_kl": 0.05482,
+            "binary_deterministic_on_fraction_0": 0.0,
+            "binary_probability_mean_0": 0.0001,
+            "clip_frac": 0.28906,
+            "continuous_action_mean_0": 0.55968,
+            "continuous_action_mean_1": -0.09837,
+            "entropy": -4.12404,
+            "explained_variance": -0.79578,
+            "policy_loss": 0.03613,
+            "training_control": {
+              "complete_after": false,
+              "complete_before": false,
+              "completed": false,
+              "confirmation_streak_after": 0,
+              "confirmation_streak_before": 1,
+              "episodes": 10,
+              "evaluation_episode": 45,
+              "evaluation_suite": "traffic-cp11-bot3-speed-control-v1-speed-18-n10",
+              "ignored_duplicate": false,
+              "mastered_after": [
+                "speed-18"
+              ],
+              "mastered_before": [],
+              "passed": true,
+              "seeds": [
+                800000,
+                800001,
+                800002,
+                800003,
+                800004,
+                800005,
+                800006,
+                800007,
+                800008,
+                800009
+              ],
+              "speed_mps_after": 24.0,
+              "speed_mps_before": 18.0,
+              "stage": "speed-18",
+              "stage_after": "speed-24",
+              "stage_before": "speed-18",
+              "state_after": {
+                "complete": false,
+                "control_id": "traffic-cp11-bot3-speed-v1",
+                "evaluations": 2,
+                "last_evaluation_episode": 45,
+                "last_success_rate": 1.0,
+                "mastered": [
+                  "speed-18"
+                ],
+                "pass_streak": 0,
+                "speed_mps": 24.0,
+                "stage": "speed-24",
+                "stage_position": 1,
+                "version": 1
+              },
+              "success_rate": 1.0,
+              "successes": 10,
+              "unlocked": true
+            },
+            "value_bias": -0.19994,
+            "value_clip_frac": 0.0,
+            "value_loss": 0.12004,
+            "value_scale": 1.0
+          },
+          "updates": 2
+        }
+      ],
+      "checkpoints_observed": 2,
+      "checkpoints_seen_total": 2,
+      "completed_episodes": 45,
+      "earliest_solve": {
+        "checkpoint": {
+          "checkpoint_sha256": "18866fb6acf7704d6942dfcd688d77529ab514c791179e7b8eed939d0d3fa6ec",
+          "engine_source_sha256": "226b1fe9aa247d4da050684c39f323a1a540ee49777544cba7196d29f5268d88",
+          "episode": 28,
+          "eval_reward": 263.88,
+          "eval_reward_std": 0.073,
+          "evaluation_episodes": 10,
+          "evaluation_suite": "policy-atlas-eval-v1-n10",
+          "failure_progress": null,
+          "metadata_sha256": "71faecda98b8bd59a407bd0f6c0fdda1d28344aeced43f48adba879ba1418672",
+          "metric": 3.0,
+          "metric_std": 0.0,
+          "n_binary": 1,
+          "n_continuous": 2,
+          "obs_dim": 41,
+          "protocol": {
+            "actor_initialization": {
+              "applies_on": "fresh_seeded_policy_construction",
+              "binary_action_labels": [
+                "drift"
+              ],
+              "binary_head_weight_std": 0.01,
+              "binary_logit_bias": [
+                -2.9444389791664403
+              ],
+              "binary_probability_prior": [
+                0.05
+              ],
+              "checkpoint_restore_overrides_initialization": true,
+              "continuous_action_labels": [
+                "throttle_brake",
+                "steering"
+              ],
+              "continuous_action_prior": [
+                0.25,
+                0.0
+              ],
+              "continuous_head_weight_std": 0.01,
+              "continuous_latent_bias": [
+                0.25541281188299536,
+                0.0
+              ],
+              "continuous_log_std": [
+                -2.0,
+                -2.0
+              ],
+              "deterministic_zero_observation_action": [
+                0.25,
+                0.0,
+                0.0
+              ],
+              "scope": "traffic_demonstration_assisted_ppo"
+            },
+            "actor_warm_start": {
+              "contract": {
+                "checkpoint_restore_overrides_warm_start": true,
+                "dagger": {
+                  "episodes_per_round": 40,
+                  "expert_role": "labels learned-policy rollout states only",
+                  "rollout_seed_base": 920000,
+                  "round_seed_stride": 1000,
+                  "rounds": 2,
+                  "state_stride": 2
+                },
+                "dataset": {
+                  "episodes": 30,
+                  "observations": "pre-action environment observations",
+                  "seed_base": 900000,
+                  "seed_formula": "seed_base + episode_index",
+                  "start_state": "ordinary jittered canonical full-course starts disjoint from selection, holdout, outer-gate, and nested-control suites",
+                  "state_stride": 2,
+                  "targets": "bounded expert actions"
+                },
+                "expert": {
+                  "description": "training-only pure pursuit with lookahead 18 m + 0.25 * speed, 95% curvature/grip speed envelope, heading gain 1.6, lateral damping 0.3, and an opposite +/-0.72 lane target only while the nearest unpassed bot is between -12 m and +80 m; the expert labels training states and is absent at inference",
+                  "id": "traffic-physics-pure-pursuit-v1",
+                  "used_at_inference": false
+                },
+                "id": "traffic-pure-pursuit-dagger-v1",
+                "optimizer": {
+                  "algorithm": "Adam",
+                  "batch_size": 2048,
+                  "epochs_per_dagger_fit": 50,
+                  "epochs_per_initial_fit": 50,
+                  "initialization_seed": 42,
+                  "learning_rate": 0.001,
+                  "loss": {
+                    "binary_drift_bce_weight": 0.1,
+                    "steering_mse_weight": 5.0,
+                    "throttle_mse_weight": 1.0
+                  },
+                  "shuffle": false,
+                  "trained_parameters": "shared torso, continuous mean head, and any binary head"
+                },
+                "ppo_fine_tuning": true,
+                "pure_model_free_from_scratch": false,
+                "role": "actor DAgger warm start"
+              },
+              "realized": {
+                "dagger_rounds": [
+                  {
+                    "final_binary_bce": 3.174981975462288e-05,
+                    "final_mse": 0.0010219021933153272,
+                    "round": 1,
+                    "samples_added": 32210,
+                    "total_samples": 56496
+                  },
+                  {
+                    "final_binary_bce": 5.662594503519358e-06,
+                    "final_mse": 0.0022372999228537083,
+                    "round": 2,
+                    "samples_added": 32926,
+                    "total_samples": 89422
+                  }
+                ],
+                "dataset_sha256": "c62a128bc321b81c66ca41cbcf1be20735b1994a67dd81939ceb9b0b9d2c455a",
+                "final_binary_bce": 5.662594503519358e-06,
+                "final_mse": 0.0022372999228537083,
+                "initialization_seed": 42,
+                "samples": 89422
+              }
+            },
+            "algorithm": "demonstration-assisted PPO",
+            "clip_epsilon": 0.2,
+            "course_reward_potential": {
+              "discount_factor": 1.0,
+              "enabled": true,
+              "episode_sum": "potential(end_state) - potential(start_state)",
+              "live_transition": "potential(next_state) - potential(state)",
+              "state_potential": "0.05 * signed_progress + 3 * completed_checkpoints + 30 * completed_laps",
+              "terminal_potential": "retained physical end potential"
+            },
+            "deterministic_evaluation": true,
+            "device": "cpu",
+            "engine_source_sha256": "226b1fe9aa247d4da050684c39f323a1a540ee49777544cba7196d29f5268d88",
+            "entropy_coefficient": 0.0,
+            "episode_aligned_rollouts": true,
+            "evaluation_episodes": 10,
+            "evaluation_seed_base": 100000,
+            "evaluation_suite": "policy-atlas-eval-v1-n10",
+            "failure_clock_regularizer": {
+              "canonical_failure_clock_total": -45.0,
+              "enabled": true,
+              "failure_causes": [
+                "collision",
+                "contact",
+                "stall",
+                "wrong_way",
+                "timeout"
+              ],
+              "remaining_cost_formula": "time_per_step * max(horizon_steps - terminal_step, 0)",
+              "rolling_start_semantics": "constant over the remaining suffix from each sampled start; no reset reward",
+              "successful_completion": "elapsed live-step time cost only",
+              "time_per_step": -0.02
+            },
+            "gae_lambda": 0.95,
+            "gamma": 1.0,
+            "learning_rate": 0.0003,
+            "minibatch_size": 256,
+            "reproducibility_scope": "RNG-exact continuation on the saved runtime; bitwise identity is not guaranteed across devices or dependency builds",
+            "rollout_steps": 2048,
+            "target_kl": 0.03,
+            "task_horizon_seconds": 90.0,
+            "task_horizon_steps": 2250,
+            "torch_version": "2.4.1+cu124",
+            "training_control": {
+              "checkpoint_selection": "bot3 speed control is training-only; fixed canonical full-course evaluation remains the checkpoint-selection signal",
+              "control_evaluation": {
+                "deterministic_policy": true,
+                "episodes": 10,
+                "seed_base": 800000,
+                "seed_formula": "seed_base + stage_position * stage_seed_stride + episode_index",
+                "stage_seed_stride": 1000,
+                "start_state": "the active speed stage's disclosed physical checkpoint-11 state",
+                "suite_version": "traffic-cp11-bot3-speed-control-v1"
+              },
+              "gate": {
+                "comparison": ">=",
+                "consecutive_confirmations": 2,
+                "distinct_checkpoint_episodes": true,
+                "success_rate_threshold": 0.8
+              },
+              "id": "traffic-cp11-bot3-speed-v1",
+              "outer_gate_dependency": "the checkpoint-11 outer gate remains locked until canonical 30 m/s bot3 speed proficiency is complete",
+              "scope": "only bot3 speed at outer frontier checkpoint 11 before it may unlock",
+              "stages": [
+                {
+                  "id": "speed-18",
+                  "start_state": "checkpoint 11 with bot3 at 18 m/s, reconstructed gap 319.42 m, 48.64 s remaining, required catch-up average 24.57 m/s, pass masks [true,true,false], time-advanced bot arc, and no reset reward"
+                },
+                {
+                  "id": "speed-24",
+                  "start_state": "checkpoint 11 with bot3 at 24 m/s, reconstructed gap 567.58 m, 48.64 s remaining, required catch-up average 35.67 m/s, pass masks [true,true,false], time-advanced bot arc, and no reset reward"
+                },
+                {
+                  "id": "speed-30",
+                  "start_state": "checkpoint 11 with canonical bot3 at 30 m/s, reconstructed gap 815.74 m, 48.64 s remaining, required catch-up average 46.77 m/s, pass masks [true,true,false], time-advanced bot arc, and no reset reward"
+                }
+              ],
+              "start_sampling": {
+                "active_stage_probability": 0.8,
+                "empty_mastered_fallback": "100% active stage",
+                "mastered_earlier_stages": "uniform remainder"
+              }
+            },
+            "training_curriculum": {
+              "checkpoint_selection": "segment evaluation is training-only diagnostic; fixed full-course evaluation remains the checkpoint-selection signal",
+              "frontier_order": [
+                11,
+                9,
+                3,
+                0
+              ],
+              "gate": {
+                "comparison": ">=",
+                "consecutive_confirmations": 2,
+                "distinct_checkpoint_episodes": true,
+                "success_rate_threshold": 0.8,
+                "success_rate_threshold_by_frontier": [
+                  {
+                    "frontier": 11,
+                    "threshold": 0.8
+                  },
+                  {
+                    "frontier": 9,
+                    "threshold": 0.8
+                  },
+                  {
+                    "frontier": 3,
+                    "threshold": 0.8
+                  },
+                  {
+                    "frontier": 0,
+                    "threshold": 0.9
+                  }
+                ]
+              },
+              "id": "traffic-reverse-overtake-v1",
+              "segment_evaluation": {
+                "deterministic_policy": true,
+                "episodes": 10,
+                "seed_base": 700000,
+                "seed_formula": "seed_base + segment * segment_seed_stride + episode_index",
+                "segment_seed_stride": 1000,
+                "start_state": "audited APEX_GP checkpoint with curvature/grip speed envelope, time-advanced bots, reconstructed pass masks, and no reset reward",
+                "suite_version": "traffic-stage-eval-v1"
+              },
+              "start_sampling": {
+                "active_frontier_probability": 0.8,
+                "empty_mastered_fallback": "100% active frontier",
+                "mastered_later_segments": "uniform remainder"
+              },
+              "training_control": {
+                "checkpoint_selection": "bot3 speed control is training-only; fixed canonical full-course evaluation remains the checkpoint-selection signal",
+                "control_evaluation": {
+                  "deterministic_policy": true,
+                  "episodes": 10,
+                  "seed_base": 800000,
+                  "seed_formula": "seed_base + stage_position * stage_seed_stride + episode_index",
+                  "stage_seed_stride": 1000,
+                  "start_state": "the active speed stage's disclosed physical checkpoint-11 state",
+                  "suite_version": "traffic-cp11-bot3-speed-control-v1"
+                },
+                "gate": {
+                  "comparison": ">=",
+                  "consecutive_confirmations": 2,
+                  "distinct_checkpoint_episodes": true,
+                  "success_rate_threshold": 0.8
+                },
+                "id": "traffic-cp11-bot3-speed-v1",
+                "outer_gate_dependency": "the checkpoint-11 outer gate remains locked until canonical 30 m/s bot3 speed proficiency is complete",
+                "scope": "only bot3 speed at outer frontier checkpoint 11 before it may unlock",
+                "stages": [
+                  {
+                    "id": "speed-18",
+                    "start_state": "checkpoint 11 with bot3 at 18 m/s, reconstructed gap 319.42 m, 48.64 s remaining, required catch-up average 24.57 m/s, pass masks [true,true,false], time-advanced bot arc, and no reset reward"
+                  },
+                  {
+                    "id": "speed-24",
+                    "start_state": "checkpoint 11 with bot3 at 24 m/s, reconstructed gap 567.58 m, 48.64 s remaining, required catch-up average 35.67 m/s, pass masks [true,true,false], time-advanced bot arc, and no reset reward"
+                  },
+                  {
+                    "id": "speed-30",
+                    "start_state": "checkpoint 11 with canonical bot3 at 30 m/s, reconstructed gap 815.74 m, 48.64 s remaining, required catch-up average 46.77 m/s, pass masks [true,true,false], time-advanced bot arc, and no reset reward"
+                  }
+                ],
+                "start_sampling": {
+                  "active_stage_probability": 0.8,
+                  "empty_mastered_fallback": "100% active stage",
+                  "mastered_earlier_stages": "uniform remainder"
+                }
+              }
+            },
+            "training_reward_scale": 0.01,
+            "training_schedule": {
+              "advancement": {
+                "evaluation_conditioned": false,
+                "fixed_before_training": true,
+                "signal": "one-based completed-training-episode schedule"
+              },
+              "checkpoint_selection": "schedule and DAgger are training-only; fixed canonical full-course learned-policy evaluation remains the sole selection signal",
+              "id": "traffic-near-pass-episode-schedule-v1",
+              "phases": [
+                {
+                  "description": "frequent physical checkpoint-11 bot3 rehearsals at 12 m/s bridge the first clean-overtake signal",
+                  "episodes": [
+                    1,
+                    200
+                  ],
+                  "id": "near_pass_bootstrap",
+                  "sampling": {
+                    "near_pass_rehearsal": 0.75,
+                    "nested_speed_control": 0.25
+                  }
+                },
+                {
+                  "description": "reduce near-pass rehearsal while the nested 18/24/30 m/s proficiency control becomes dominant",
+                  "episodes": [
+                    201,
+                    400
+                  ],
+                  "id": "near_pass_bridge",
+                  "sampling": {
+                    "near_pass_rehearsal": 0.25,
+                    "nested_speed_control": 0.75
+                  }
+                },
+                {
+                  "description": "retire the 12 m/s rehearsal and use only the proficiency-gated nested control plus mastered outer frontiers",
+                  "episodes": [
+                    401,
+                    null
+                  ],
+                  "id": "canonical_speed_consolidation",
+                  "sampling": {
+                    "nested_speed_control": 1.0
+                  }
+                }
+              ],
+              "start_states": "the schedule affects only locked checkpoint-11 training resets; 12 m/s bot3 states preserve time-advanced arcs, masks, clock, and zero reset reward",
+              "type": "predeclared_episode_schedule"
+            },
+            "training_start_distribution": "Predeclared Traffic rehearsal schedule: episodes 1-200 sample 75% physical checkpoint-11 near-pass starts with bot3 at 12 m/s and 25% nested speed-control starts; episodes 201-400 sample those modes at 25% and 75%; episodes 401 onward use nested speed-control starts only. The performance-gated reverse curriculum uses audited physical checkpoints 11, 9, 3, then canonical 0 with 80% active frontier and 20% uniformly sampled mastered stages. Before checkpoint 11 can unlock, nested bot3 control advances through 18, 24, and canonical 30 m/s after two distinct >=80% fixed 10-seed confirmations per speed, sampling 80% active speed and 20% uniformly among mastered speeds. Rolling states use the 70-90% curvature/grip backward-braking envelope, an 80% reference clock with a 1-second reserve, time-advanced traffic, reconstructed pass masks, and no reset reward",
+            "update_epochs": 10,
+            "value_coefficient": 0.5,
+            "value_loss_scale": "rollout return RMS",
+            "version": 18
+          },
+          "schema_version": 18,
+          "seed": 42,
+          "success_ci_high": 1.0,
+          "success_ci_low": 0.7225,
+          "success_rate": 1.0,
+          "total_steps": 2061,
+          "training_diagnostics": {
+            "action_std_0": 0.13541,
+            "action_std_1": 0.13542,
+            "action_std_max": 0.13542,
+            "action_std_mean": 0.13541,
+            "action_std_min": 0.13541,
+            "approx_kl": 0.38962,
+            "binary_deterministic_on_fraction_0": 0.0,
+            "binary_probability_mean_0": 0.00011,
+            "clip_frac": 0.36133,
+            "continuous_action_mean_0": 0.55417,
+            "continuous_action_mean_1": -0.10493,
+            "entropy": -3.1832,
+            "explained_variance": -0.37556,
+            "policy_loss": 0.11307,
+            "training_control": {
+              "complete_after": false,
+              "complete_before": false,
+              "completed": false,
+              "confirmation_streak_after": 1,
+              "confirmation_streak_before": 0,
+              "episodes": 10,
+              "evaluation_episode": 28,
+              "evaluation_suite": "traffic-cp11-bot3-speed-control-v1-speed-18-n10",
+              "ignored_duplicate": false,
+              "mastered_after": [],
+              "mastered_before": [],
+              "passed": true,
+              "seeds": [
+                800000,
+                800001,
+                800002,
+                800003,
+                800004,
+                800005,
+                800006,
+                800007,
+                800008,
+                800009
+              ],
+              "speed_mps_after": 18.0,
+              "speed_mps_before": 18.0,
+              "stage": "speed-18",
+              "stage_after": "speed-18",
+              "stage_before": "speed-18",
+              "state_after": {
+                "complete": false,
+                "control_id": "traffic-cp11-bot3-speed-v1",
+                "evaluations": 1,
+                "last_evaluation_episode": 28,
+                "last_success_rate": 1.0,
+                "mastered": [],
+                "pass_streak": 1,
+                "speed_mps": 18.0,
+                "stage": "speed-18",
+                "stage_position": 0,
+                "version": 1
+              },
+              "success_rate": 1.0,
+              "successes": 10,
+              "unlocked": false
+            },
+            "value_bias": -0.34099,
+            "value_clip_frac": 0.02344,
+            "value_loss": 0.1712,
+            "value_scale": 1.0
+          },
+          "updates": 1
+        },
+        "confirmed_episode": 28,
+        "earliest_episode": 28
+      },
+      "engine_source_sha256": "226b1fe9aa247d4da050684c39f323a1a540ee49777544cba7196d29f5268d88",
+      "evaluation_suite": "policy-atlas-eval-v1-n10",
+      "final_checkpoint": {
+        "checkpoint_sha256": "84f1ee6925f38363aa8545da9760a954521b37cb05dc50e6a7df37595084bfa3",
+        "engine_source_sha256": "226b1fe9aa247d4da050684c39f323a1a540ee49777544cba7196d29f5268d88",
+        "episode": 45,
+        "eval_reward": 131.85,
+        "eval_reward_std": 86.582,
+        "evaluation_episodes": 10,
+        "evaluation_suite": "policy-atlas-eval-v1-n10",
+        "failure_progress": 0.895,
+        "metadata_sha256": "cf81ef6d5da9eb4b5367e03638c84a22841574cdcdbf7a56cb9e4eef3be03c75",
+        "metric": 2.3,
+        "metric_std": 0.458,
+        "n_binary": 1,
+        "n_continuous": 2,
+        "obs_dim": 41,
+        "protocol": {
+          "actor_initialization": {
+            "applies_on": "fresh_seeded_policy_construction",
+            "binary_action_labels": [
+              "drift"
+            ],
+            "binary_head_weight_std": 0.01,
+            "binary_logit_bias": [
+              -2.9444389791664403
+            ],
+            "binary_probability_prior": [
+              0.05
+            ],
+            "checkpoint_restore_overrides_initialization": true,
+            "continuous_action_labels": [
+              "throttle_brake",
+              "steering"
+            ],
+            "continuous_action_prior": [
+              0.25,
+              0.0
+            ],
+            "continuous_head_weight_std": 0.01,
+            "continuous_latent_bias": [
+              0.25541281188299536,
+              0.0
+            ],
+            "continuous_log_std": [
+              -2.0,
+              -2.0
+            ],
+            "deterministic_zero_observation_action": [
+              0.25,
+              0.0,
+              0.0
+            ],
+            "scope": "traffic_demonstration_assisted_ppo"
+          },
+          "actor_warm_start": {
+            "contract": {
+              "checkpoint_restore_overrides_warm_start": true,
+              "dagger": {
+                "episodes_per_round": 40,
+                "expert_role": "labels learned-policy rollout states only",
+                "rollout_seed_base": 920000,
+                "round_seed_stride": 1000,
+                "rounds": 2,
+                "state_stride": 2
+              },
+              "dataset": {
+                "episodes": 30,
+                "observations": "pre-action environment observations",
+                "seed_base": 900000,
+                "seed_formula": "seed_base + episode_index",
+                "start_state": "ordinary jittered canonical full-course starts disjoint from selection, holdout, outer-gate, and nested-control suites",
+                "state_stride": 2,
+                "targets": "bounded expert actions"
+              },
+              "expert": {
+                "description": "training-only pure pursuit with lookahead 18 m + 0.25 * speed, 95% curvature/grip speed envelope, heading gain 1.6, lateral damping 0.3, and an opposite +/-0.72 lane target only while the nearest unpassed bot is between -12 m and +80 m; the expert labels training states and is absent at inference",
+                "id": "traffic-physics-pure-pursuit-v1",
+                "used_at_inference": false
+              },
+              "id": "traffic-pure-pursuit-dagger-v1",
+              "optimizer": {
+                "algorithm": "Adam",
+                "batch_size": 2048,
+                "epochs_per_dagger_fit": 50,
+                "epochs_per_initial_fit": 50,
+                "initialization_seed": 42,
+                "learning_rate": 0.001,
+                "loss": {
+                  "binary_drift_bce_weight": 0.1,
+                  "steering_mse_weight": 5.0,
+                  "throttle_mse_weight": 1.0
+                },
+                "shuffle": false,
+                "trained_parameters": "shared torso, continuous mean head, and any binary head"
+              },
+              "ppo_fine_tuning": true,
+              "pure_model_free_from_scratch": false,
+              "role": "actor DAgger warm start"
+            },
+            "realized": {
+              "dagger_rounds": [
+                {
+                  "final_binary_bce": 3.174981975462288e-05,
+                  "final_mse": 0.0010219021933153272,
+                  "round": 1,
+                  "samples_added": 32210,
+                  "total_samples": 56496
+                },
+                {
+                  "final_binary_bce": 5.662594503519358e-06,
+                  "final_mse": 0.0022372999228537083,
+                  "round": 2,
+                  "samples_added": 32926,
+                  "total_samples": 89422
+                }
+              ],
+              "dataset_sha256": "c62a128bc321b81c66ca41cbcf1be20735b1994a67dd81939ceb9b0b9d2c455a",
+              "final_binary_bce": 5.662594503519358e-06,
+              "final_mse": 0.0022372999228537083,
+              "initialization_seed": 42,
+              "samples": 89422
+            }
+          },
+          "algorithm": "demonstration-assisted PPO",
+          "clip_epsilon": 0.2,
+          "course_reward_potential": {
+            "discount_factor": 1.0,
+            "enabled": true,
+            "episode_sum": "potential(end_state) - potential(start_state)",
+            "live_transition": "potential(next_state) - potential(state)",
+            "state_potential": "0.05 * signed_progress + 3 * completed_checkpoints + 30 * completed_laps",
+            "terminal_potential": "retained physical end potential"
+          },
+          "deterministic_evaluation": true,
+          "device": "cpu",
+          "engine_source_sha256": "226b1fe9aa247d4da050684c39f323a1a540ee49777544cba7196d29f5268d88",
+          "entropy_coefficient": 0.0,
+          "episode_aligned_rollouts": true,
+          "evaluation_episodes": 10,
+          "evaluation_seed_base": 100000,
+          "evaluation_suite": "policy-atlas-eval-v1-n10",
+          "failure_clock_regularizer": {
+            "canonical_failure_clock_total": -45.0,
+            "enabled": true,
+            "failure_causes": [
+              "collision",
+              "contact",
+              "stall",
+              "wrong_way",
+              "timeout"
+            ],
+            "remaining_cost_formula": "time_per_step * max(horizon_steps - terminal_step, 0)",
+            "rolling_start_semantics": "constant over the remaining suffix from each sampled start; no reset reward",
+            "successful_completion": "elapsed live-step time cost only",
+            "time_per_step": -0.02
+          },
+          "gae_lambda": 0.95,
+          "gamma": 1.0,
+          "learning_rate": 0.0003,
+          "minibatch_size": 256,
+          "reproducibility_scope": "RNG-exact continuation on the saved runtime; bitwise identity is not guaranteed across devices or dependency builds",
+          "rollout_steps": 2048,
+          "target_kl": 0.03,
+          "task_horizon_seconds": 90.0,
+          "task_horizon_steps": 2250,
+          "torch_version": "2.4.1+cu124",
+          "training_control": {
+            "checkpoint_selection": "bot3 speed control is training-only; fixed canonical full-course evaluation remains the checkpoint-selection signal",
+            "control_evaluation": {
+              "deterministic_policy": true,
+              "episodes": 10,
+              "seed_base": 800000,
+              "seed_formula": "seed_base + stage_position * stage_seed_stride + episode_index",
+              "stage_seed_stride": 1000,
+              "start_state": "the active speed stage's disclosed physical checkpoint-11 state",
+              "suite_version": "traffic-cp11-bot3-speed-control-v1"
+            },
+            "gate": {
+              "comparison": ">=",
+              "consecutive_confirmations": 2,
+              "distinct_checkpoint_episodes": true,
+              "success_rate_threshold": 0.8
+            },
+            "id": "traffic-cp11-bot3-speed-v1",
+            "outer_gate_dependency": "the checkpoint-11 outer gate remains locked until canonical 30 m/s bot3 speed proficiency is complete",
+            "scope": "only bot3 speed at outer frontier checkpoint 11 before it may unlock",
+            "stages": [
+              {
+                "id": "speed-18",
+                "start_state": "checkpoint 11 with bot3 at 18 m/s, reconstructed gap 319.42 m, 48.64 s remaining, required catch-up average 24.57 m/s, pass masks [true,true,false], time-advanced bot arc, and no reset reward"
+              },
+              {
+                "id": "speed-24",
+                "start_state": "checkpoint 11 with bot3 at 24 m/s, reconstructed gap 567.58 m, 48.64 s remaining, required catch-up average 35.67 m/s, pass masks [true,true,false], time-advanced bot arc, and no reset reward"
+              },
+              {
+                "id": "speed-30",
+                "start_state": "checkpoint 11 with canonical bot3 at 30 m/s, reconstructed gap 815.74 m, 48.64 s remaining, required catch-up average 46.77 m/s, pass masks [true,true,false], time-advanced bot arc, and no reset reward"
+              }
+            ],
+            "start_sampling": {
+              "active_stage_probability": 0.8,
+              "empty_mastered_fallback": "100% active stage",
+              "mastered_earlier_stages": "uniform remainder"
+            }
+          },
+          "training_curriculum": {
+            "checkpoint_selection": "segment evaluation is training-only diagnostic; fixed full-course evaluation remains the checkpoint-selection signal",
+            "frontier_order": [
+              11,
+              9,
+              3,
+              0
+            ],
+            "gate": {
+              "comparison": ">=",
+              "consecutive_confirmations": 2,
+              "distinct_checkpoint_episodes": true,
+              "success_rate_threshold": 0.8,
+              "success_rate_threshold_by_frontier": [
+                {
+                  "frontier": 11,
+                  "threshold": 0.8
+                },
+                {
+                  "frontier": 9,
+                  "threshold": 0.8
+                },
+                {
+                  "frontier": 3,
+                  "threshold": 0.8
+                },
+                {
+                  "frontier": 0,
+                  "threshold": 0.9
+                }
+              ]
+            },
+            "id": "traffic-reverse-overtake-v1",
+            "segment_evaluation": {
+              "deterministic_policy": true,
+              "episodes": 10,
+              "seed_base": 700000,
+              "seed_formula": "seed_base + segment * segment_seed_stride + episode_index",
+              "segment_seed_stride": 1000,
+              "start_state": "audited APEX_GP checkpoint with curvature/grip speed envelope, time-advanced bots, reconstructed pass masks, and no reset reward",
+              "suite_version": "traffic-stage-eval-v1"
+            },
+            "start_sampling": {
+              "active_frontier_probability": 0.8,
+              "empty_mastered_fallback": "100% active frontier",
+              "mastered_later_segments": "uniform remainder"
+            },
+            "training_control": {
+              "checkpoint_selection": "bot3 speed control is training-only; fixed canonical full-course evaluation remains the checkpoint-selection signal",
+              "control_evaluation": {
+                "deterministic_policy": true,
+                "episodes": 10,
+                "seed_base": 800000,
+                "seed_formula": "seed_base + stage_position * stage_seed_stride + episode_index",
+                "stage_seed_stride": 1000,
+                "start_state": "the active speed stage's disclosed physical checkpoint-11 state",
+                "suite_version": "traffic-cp11-bot3-speed-control-v1"
+              },
+              "gate": {
+                "comparison": ">=",
+                "consecutive_confirmations": 2,
+                "distinct_checkpoint_episodes": true,
+                "success_rate_threshold": 0.8
+              },
+              "id": "traffic-cp11-bot3-speed-v1",
+              "outer_gate_dependency": "the checkpoint-11 outer gate remains locked until canonical 30 m/s bot3 speed proficiency is complete",
+              "scope": "only bot3 speed at outer frontier checkpoint 11 before it may unlock",
+              "stages": [
+                {
+                  "id": "speed-18",
+                  "start_state": "checkpoint 11 with bot3 at 18 m/s, reconstructed gap 319.42 m, 48.64 s remaining, required catch-up average 24.57 m/s, pass masks [true,true,false], time-advanced bot arc, and no reset reward"
+                },
+                {
+                  "id": "speed-24",
+                  "start_state": "checkpoint 11 with bot3 at 24 m/s, reconstructed gap 567.58 m, 48.64 s remaining, required catch-up average 35.67 m/s, pass masks [true,true,false], time-advanced bot arc, and no reset reward"
+                },
+                {
+                  "id": "speed-30",
+                  "start_state": "checkpoint 11 with canonical bot3 at 30 m/s, reconstructed gap 815.74 m, 48.64 s remaining, required catch-up average 46.77 m/s, pass masks [true,true,false], time-advanced bot arc, and no reset reward"
+                }
+              ],
+              "start_sampling": {
+                "active_stage_probability": 0.8,
+                "empty_mastered_fallback": "100% active stage",
+                "mastered_earlier_stages": "uniform remainder"
+              }
+            }
+          },
+          "training_reward_scale": 0.01,
+          "training_schedule": {
+            "advancement": {
+              "evaluation_conditioned": false,
+              "fixed_before_training": true,
+              "signal": "one-based completed-training-episode schedule"
+            },
+            "checkpoint_selection": "schedule and DAgger are training-only; fixed canonical full-course learned-policy evaluation remains the sole selection signal",
+            "id": "traffic-near-pass-episode-schedule-v1",
+            "phases": [
+              {
+                "description": "frequent physical checkpoint-11 bot3 rehearsals at 12 m/s bridge the first clean-overtake signal",
+                "episodes": [
+                  1,
+                  200
+                ],
+                "id": "near_pass_bootstrap",
+                "sampling": {
+                  "near_pass_rehearsal": 0.75,
+                  "nested_speed_control": 0.25
+                }
+              },
+              {
+                "description": "reduce near-pass rehearsal while the nested 18/24/30 m/s proficiency control becomes dominant",
+                "episodes": [
+                  201,
+                  400
+                ],
+                "id": "near_pass_bridge",
+                "sampling": {
+                  "near_pass_rehearsal": 0.25,
+                  "nested_speed_control": 0.75
+                }
+              },
+              {
+                "description": "retire the 12 m/s rehearsal and use only the proficiency-gated nested control plus mastered outer frontiers",
+                "episodes": [
+                  401,
+                  null
+                ],
+                "id": "canonical_speed_consolidation",
+                "sampling": {
+                  "nested_speed_control": 1.0
+                }
+              }
+            ],
+            "start_states": "the schedule affects only locked checkpoint-11 training resets; 12 m/s bot3 states preserve time-advanced arcs, masks, clock, and zero reset reward",
+            "type": "predeclared_episode_schedule"
+          },
+          "training_start_distribution": "Predeclared Traffic rehearsal schedule: episodes 1-200 sample 75% physical checkpoint-11 near-pass starts with bot3 at 12 m/s and 25% nested speed-control starts; episodes 201-400 sample those modes at 25% and 75%; episodes 401 onward use nested speed-control starts only. The performance-gated reverse curriculum uses audited physical checkpoints 11, 9, 3, then canonical 0 with 80% active frontier and 20% uniformly sampled mastered stages. Before checkpoint 11 can unlock, nested bot3 control advances through 18, 24, and canonical 30 m/s after two distinct >=80% fixed 10-seed confirmations per speed, sampling 80% active speed and 20% uniformly among mastered speeds. Rolling states use the 70-90% curvature/grip backward-braking envelope, an 80% reference clock with a 1-second reserve, time-advanced traffic, reconstructed pass masks, and no reset reward",
+          "update_epochs": 10,
+          "value_coefficient": 0.5,
+          "value_loss_scale": "rollout return RMS",
+          "version": 18
+        },
+        "schema_version": 18,
+        "seed": 42,
+        "success_ci_high": 0.6032,
+        "success_ci_low": 0.1078,
+        "success_rate": 0.3,
+        "total_steps": 4136,
+        "training_diagnostics": {
+          "action_std_0": 0.13538,
+          "action_std_1": 0.13548,
+          "action_std_max": 0.13548,
+          "action_std_mean": 0.13543,
+          "action_std_min": 0.13538,
+          "approx_kl": 0.05482,
+          "binary_deterministic_on_fraction_0": 0.0,
+          "binary_probability_mean_0": 0.0001,
+          "clip_frac": 0.28906,
+          "continuous_action_mean_0": 0.55968,
+          "continuous_action_mean_1": -0.09837,
+          "entropy": -4.12404,
+          "explained_variance": -0.79578,
+          "policy_loss": 0.03613,
+          "training_control": {
+            "complete_after": false,
+            "complete_before": false,
+            "completed": false,
+            "confirmation_streak_after": 0,
+            "confirmation_streak_before": 1,
+            "episodes": 10,
+            "evaluation_episode": 45,
+            "evaluation_suite": "traffic-cp11-bot3-speed-control-v1-speed-18-n10",
+            "ignored_duplicate": false,
+            "mastered_after": [
+              "speed-18"
+            ],
+            "mastered_before": [],
+            "passed": true,
+            "seeds": [
+              800000,
+              800001,
+              800002,
+              800003,
+              800004,
+              800005,
+              800006,
+              800007,
+              800008,
+              800009
+            ],
+            "speed_mps_after": 24.0,
+            "speed_mps_before": 18.0,
+            "stage": "speed-18",
+            "stage_after": "speed-24",
+            "stage_before": "speed-18",
+            "state_after": {
+              "complete": false,
+              "control_id": "traffic-cp11-bot3-speed-v1",
+              "evaluations": 2,
+              "last_evaluation_episode": 45,
+              "last_success_rate": 1.0,
+              "mastered": [
+                "speed-18"
+              ],
+              "pass_streak": 0,
+              "speed_mps": 24.0,
+              "stage": "speed-24",
+              "stage_position": 1,
+              "version": 1
+            },
+            "success_rate": 1.0,
+            "successes": 10,
+            "unlocked": true
+          },
+          "value_bias": -0.19994,
+          "value_clip_frac": 0.0,
+          "value_loss": 0.12004,
+          "value_scale": 1.0
+        },
+        "updates": 2
+      },
+      "finished_at": "2026-08-06T08:15:07+00:00",
+      "holdout": {
+        "deterministic_policy": true,
+        "engine_source_sha256": "226b1fe9aa247d4da050684c39f323a1a540ee49777544cba7196d29f5268d88",
+        "episodes": 100,
+        "failure_progress": null,
+        "failure_progress_std": null,
+        "influences_selection": false,
+        "metric": 3.0,
+        "metric_std": 0.0,
+        "protocol_role": "post_selection_holdout",
+        "requested_episodes": 100,
+        "requested_seed_base": 1200000,
+        "requested_seed_end": 1200099,
+        "reward_mean": 263.8790171303184,
+        "reward_std": 0.06707980899358189,
+        "seed_base": 1200000,
+        "seed_end": 1200099,
+        "seed_range_disjoint_from_selection": true,
+        "seed_range_disjoint_from_training_curriculum": true,
+        "selected_checkpoint_episode": 28,
+        "selected_checkpoint_sha256": "18866fb6acf7704d6942dfcd688d77529ab514c791179e7b8eed939d0d3fa6ec",
+        "selection_reason": "earliest_confirmed_solve",
+        "selection_seed_base": 100000,
+        "selection_seed_end": 100009,
+        "selection_suite": "policy-atlas-eval-v1-n10",
+        "state": "complete",
+        "success_ci_high": 0.9999999999999999,
+        "success_ci_low": 0.9630051925239981,
+        "success_rate": 1.0,
+        "successes": 100,
+        "suite": "policy-atlas-holdout-v1-n100-seeds1200000-1200099",
+        "training_curriculum_seed_ranges": [
+          {
+            "curriculum_id": "traffic-reverse-overtake-v1",
+            "episodes": 10,
+            "range_kind": "training_curriculum",
+            "seed_base": 711000,
+            "seed_end": 711009,
+            "segment": 11
+          },
+          {
+            "curriculum_id": "traffic-reverse-overtake-v1",
+            "episodes": 10,
+            "range_kind": "training_curriculum",
+            "seed_base": 709000,
+            "seed_end": 709009,
+            "segment": 9
+          },
+          {
+            "curriculum_id": "traffic-reverse-overtake-v1",
+            "episodes": 10,
+            "range_kind": "training_curriculum",
+            "seed_base": 703000,
+            "seed_end": 703009,
+            "segment": 3
+          },
+          {
+            "curriculum_id": "traffic-reverse-overtake-v1",
+            "episodes": 10,
+            "range_kind": "training_curriculum",
+            "seed_base": 700000,
+            "seed_end": 700009,
+            "segment": 0
+          },
+          {
+            "control_id": "traffic-cp11-bot3-speed-v1",
+            "curriculum_id": "traffic-reverse-overtake-v1",
+            "episodes": 10,
+            "range_kind": "training_control",
+            "seed_base": 800000,
+            "seed_end": 800009,
+            "stage": "speed-18",
+            "stage_position": 0
+          },
+          {
+            "control_id": "traffic-cp11-bot3-speed-v1",
+            "curriculum_id": "traffic-reverse-overtake-v1",
+            "episodes": 10,
+            "range_kind": "training_control",
+            "seed_base": 801000,
+            "seed_end": 801009,
+            "stage": "speed-24",
+            "stage_position": 1
+          },
+          {
+            "control_id": "traffic-cp11-bot3-speed-v1",
+            "curriculum_id": "traffic-reverse-overtake-v1",
+            "episodes": 10,
+            "range_kind": "training_control",
+            "seed_base": 802000,
+            "seed_end": 802009,
+            "stage": "speed-30",
+            "stage_position": 2
+          }
+        ],
+        "trials": [
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 0,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200000,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 1,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200001,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 2,
+            "metric": 3.0,
+            "reward": 263.97373725004286,
+            "seed": 1200002,
+            "steps": 1580,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 3,
+            "metric": 3.0,
+            "reward": 263.973737250043,
+            "seed": 1200003,
+            "steps": 1580,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 4,
+            "metric": 3.0,
+            "reward": 263.97373725004286,
+            "seed": 1200004,
+            "steps": 1580,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 5,
+            "metric": 3.0,
+            "reward": 263.973737250043,
+            "seed": 1200005,
+            "steps": 1580,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 6,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200006,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 7,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200007,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 8,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200008,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 9,
+            "metric": 3.0,
+            "reward": 263.97373725004286,
+            "seed": 1200009,
+            "steps": 1580,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 10,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200010,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 11,
+            "metric": 3.0,
+            "reward": 263.7858644203109,
+            "seed": 1200011,
+            "steps": 1576,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 12,
+            "metric": 3.0,
+            "reward": 263.97373725004286,
+            "seed": 1200012,
+            "steps": 1580,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 13,
+            "metric": 3.0,
+            "reward": 263.97373725004286,
+            "seed": 1200013,
+            "steps": 1580,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 14,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200014,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 15,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200015,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 16,
+            "metric": 3.0,
+            "reward": 263.973737250043,
+            "seed": 1200016,
+            "steps": 1580,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 17,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200017,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 18,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200018,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 19,
+            "metric": 3.0,
+            "reward": 263.7858644203109,
+            "seed": 1200019,
+            "steps": 1576,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 20,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200020,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 21,
+            "metric": 3.0,
+            "reward": 263.88011850719755,
+            "seed": 1200021,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 22,
+            "metric": 3.0,
+            "reward": 263.7858644203109,
+            "seed": 1200022,
+            "steps": 1576,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 23,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200023,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 24,
+            "metric": 3.0,
+            "reward": 263.7858644203109,
+            "seed": 1200024,
+            "steps": 1576,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 25,
+            "metric": 3.0,
+            "reward": 263.97373725004286,
+            "seed": 1200025,
+            "steps": 1580,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 26,
+            "metric": 3.0,
+            "reward": 263.7858644203109,
+            "seed": 1200026,
+            "steps": 1576,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 27,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200027,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 28,
+            "metric": 3.0,
+            "reward": 263.973737250043,
+            "seed": 1200028,
+            "steps": 1580,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 29,
+            "metric": 3.0,
+            "reward": 263.973737250043,
+            "seed": 1200029,
+            "steps": 1580,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 30,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200030,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 31,
+            "metric": 3.0,
+            "reward": 263.97373725004286,
+            "seed": 1200031,
+            "steps": 1580,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 32,
+            "metric": 3.0,
+            "reward": 263.973737250043,
+            "seed": 1200032,
+            "steps": 1580,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 33,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200033,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 34,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200034,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 35,
+            "metric": 3.0,
+            "reward": 263.7858644203109,
+            "seed": 1200035,
+            "steps": 1576,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 36,
+            "metric": 3.0,
+            "reward": 263.97373725004286,
+            "seed": 1200036,
+            "steps": 1580,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 37,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200037,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 38,
+            "metric": 3.0,
+            "reward": 263.7858644203109,
+            "seed": 1200038,
+            "steps": 1576,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 39,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200039,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 40,
+            "metric": 3.0,
+            "reward": 263.97373725004286,
+            "seed": 1200040,
+            "steps": 1580,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 41,
+            "metric": 3.0,
+            "reward": 263.7858644203109,
+            "seed": 1200041,
+            "steps": 1576,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 42,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200042,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 43,
+            "metric": 3.0,
+            "reward": 263.7858644203109,
+            "seed": 1200043,
+            "steps": 1576,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 44,
+            "metric": 3.0,
+            "reward": 263.7858644203109,
+            "seed": 1200044,
+            "steps": 1576,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 45,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200045,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 46,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200046,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 47,
+            "metric": 3.0,
+            "reward": 263.7858644203109,
+            "seed": 1200047,
+            "steps": 1576,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 48,
+            "metric": 3.0,
+            "reward": 263.97373725004286,
+            "seed": 1200048,
+            "steps": 1580,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 49,
+            "metric": 3.0,
+            "reward": 263.97373725004286,
+            "seed": 1200049,
+            "steps": 1580,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 50,
+            "metric": 3.0,
+            "reward": 263.7858644203109,
+            "seed": 1200050,
+            "steps": 1576,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 51,
+            "metric": 3.0,
+            "reward": 263.973737250043,
+            "seed": 1200051,
+            "steps": 1580,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 52,
+            "metric": 3.0,
+            "reward": 263.973737250043,
+            "seed": 1200052,
+            "steps": 1580,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 53,
+            "metric": 3.0,
+            "reward": 263.7858644203109,
+            "seed": 1200053,
+            "steps": 1576,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 54,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200054,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 55,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200055,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 56,
+            "metric": 3.0,
+            "reward": 263.7858644203109,
+            "seed": 1200056,
+            "steps": 1576,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 57,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200057,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 58,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200058,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 59,
+            "metric": 3.0,
+            "reward": 263.7858644203109,
+            "seed": 1200059,
+            "steps": 1576,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 60,
+            "metric": 3.0,
+            "reward": 263.7858644203109,
+            "seed": 1200060,
+            "steps": 1576,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 61,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200061,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 62,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200062,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 63,
+            "metric": 3.0,
+            "reward": 263.973737250043,
+            "seed": 1200063,
+            "steps": 1580,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 64,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200064,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 65,
+            "metric": 3.0,
+            "reward": 263.973737250043,
+            "seed": 1200065,
+            "steps": 1580,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 66,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200066,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 67,
+            "metric": 3.0,
+            "reward": 263.7858644203109,
+            "seed": 1200067,
+            "steps": 1576,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 68,
+            "metric": 3.0,
+            "reward": 263.88011850719755,
+            "seed": 1200068,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 69,
+            "metric": 3.0,
+            "reward": 263.7858644203109,
+            "seed": 1200069,
+            "steps": 1576,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 70,
+            "metric": 3.0,
+            "reward": 263.7858644203109,
+            "seed": 1200070,
+            "steps": 1576,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 71,
+            "metric": 3.0,
+            "reward": 263.88011850719755,
+            "seed": 1200071,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 72,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200072,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 73,
+            "metric": 3.0,
+            "reward": 263.7858644203109,
+            "seed": 1200073,
+            "steps": 1576,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 74,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200074,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 75,
+            "metric": 3.0,
+            "reward": 263.97373725004286,
+            "seed": 1200075,
+            "steps": 1580,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 76,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200076,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 77,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200077,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 78,
+            "metric": 3.0,
+            "reward": 263.7858644203109,
+            "seed": 1200078,
+            "steps": 1576,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 79,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200079,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 80,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200080,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 81,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200081,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 82,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200082,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 83,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200083,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 84,
+            "metric": 3.0,
+            "reward": 263.97373725004286,
+            "seed": 1200084,
+            "steps": 1580,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 85,
+            "metric": 3.0,
+            "reward": 263.7858644203109,
+            "seed": 1200085,
+            "steps": 1576,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 86,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200086,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 87,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200087,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 88,
+            "metric": 3.0,
+            "reward": 263.7858644203109,
+            "seed": 1200088,
+            "steps": 1576,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 89,
+            "metric": 3.0,
+            "reward": 263.7858644203109,
+            "seed": 1200089,
+            "steps": 1576,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 90,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200090,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 91,
+            "metric": 3.0,
+            "reward": 263.973737250043,
+            "seed": 1200091,
+            "steps": 1580,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 92,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200092,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 93,
+            "metric": 3.0,
+            "reward": 263.973737250043,
+            "seed": 1200093,
+            "steps": 1580,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 94,
+            "metric": 3.0,
+            "reward": 263.7858644203109,
+            "seed": 1200094,
+            "steps": 1576,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 95,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200095,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 96,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200096,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 97,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200097,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 98,
+            "metric": 3.0,
+            "reward": 263.88011850719766,
+            "seed": 1200098,
+            "steps": 1578,
+            "success": true
+          },
+          {
+            "cause": "complete",
+            "failure_progress": null,
+            "index": 99,
+            "metric": 3.0,
+            "reward": 263.7858644203109,
+            "seed": 1200099,
+            "steps": 1576,
+            "success": true
+          }
+        ]
+      },
+      "max_episodes": 2000,
+      "scenario_id": "traffic-rush",
+      "seed": 42,
+      "selection": {
+        "checkpoint": {
+          "checkpoint_sha256": "18866fb6acf7704d6942dfcd688d77529ab514c791179e7b8eed939d0d3fa6ec",
+          "engine_source_sha256": "226b1fe9aa247d4da050684c39f323a1a540ee49777544cba7196d29f5268d88",
+          "episode": 28,
+          "eval_reward": 263.88,
+          "eval_reward_std": 0.073,
+          "evaluation_episodes": 10,
+          "evaluation_suite": "policy-atlas-eval-v1-n10",
+          "failure_progress": null,
+          "metadata_sha256": "71faecda98b8bd59a407bd0f6c0fdda1d28344aeced43f48adba879ba1418672",
+          "metric": 3.0,
+          "metric_std": 0.0,
+          "n_binary": 1,
+          "n_continuous": 2,
+          "obs_dim": 41,
+          "protocol": {
+            "actor_initialization": {
+              "applies_on": "fresh_seeded_policy_construction",
+              "binary_action_labels": [
+                "drift"
+              ],
+              "binary_head_weight_std": 0.01,
+              "binary_logit_bias": [
+                -2.9444389791664403
+              ],
+              "binary_probability_prior": [
+                0.05
+              ],
+              "checkpoint_restore_overrides_initialization": true,
+              "continuous_action_labels": [
+                "throttle_brake",
+                "steering"
+              ],
+              "continuous_action_prior": [
+                0.25,
+                0.0
+              ],
+              "continuous_head_weight_std": 0.01,
+              "continuous_latent_bias": [
+                0.25541281188299536,
+                0.0
+              ],
+              "continuous_log_std": [
+                -2.0,
+                -2.0
+              ],
+              "deterministic_zero_observation_action": [
+                0.25,
+                0.0,
+                0.0
+              ],
+              "scope": "traffic_demonstration_assisted_ppo"
+            },
+            "actor_warm_start": {
+              "contract": {
+                "checkpoint_restore_overrides_warm_start": true,
+                "dagger": {
+                  "episodes_per_round": 40,
+                  "expert_role": "labels learned-policy rollout states only",
+                  "rollout_seed_base": 920000,
+                  "round_seed_stride": 1000,
+                  "rounds": 2,
+                  "state_stride": 2
+                },
+                "dataset": {
+                  "episodes": 30,
+                  "observations": "pre-action environment observations",
+                  "seed_base": 900000,
+                  "seed_formula": "seed_base + episode_index",
+                  "start_state": "ordinary jittered canonical full-course starts disjoint from selection, holdout, outer-gate, and nested-control suites",
+                  "state_stride": 2,
+                  "targets": "bounded expert actions"
+                },
+                "expert": {
+                  "description": "training-only pure pursuit with lookahead 18 m + 0.25 * speed, 95% curvature/grip speed envelope, heading gain 1.6, lateral damping 0.3, and an opposite +/-0.72 lane target only while the nearest unpassed bot is between -12 m and +80 m; the expert labels training states and is absent at inference",
+                  "id": "traffic-physics-pure-pursuit-v1",
+                  "used_at_inference": false
+                },
+                "id": "traffic-pure-pursuit-dagger-v1",
+                "optimizer": {
+                  "algorithm": "Adam",
+                  "batch_size": 2048,
+                  "epochs_per_dagger_fit": 50,
+                  "epochs_per_initial_fit": 50,
+                  "initialization_seed": 42,
+                  "learning_rate": 0.001,
+                  "loss": {
+                    "binary_drift_bce_weight": 0.1,
+                    "steering_mse_weight": 5.0,
+                    "throttle_mse_weight": 1.0
+                  },
+                  "shuffle": false,
+                  "trained_parameters": "shared torso, continuous mean head, and any binary head"
+                },
+                "ppo_fine_tuning": true,
+                "pure_model_free_from_scratch": false,
+                "role": "actor DAgger warm start"
+              },
+              "realized": {
+                "dagger_rounds": [
+                  {
+                    "final_binary_bce": 3.174981975462288e-05,
+                    "final_mse": 0.0010219021933153272,
+                    "round": 1,
+                    "samples_added": 32210,
+                    "total_samples": 56496
+                  },
+                  {
+                    "final_binary_bce": 5.662594503519358e-06,
+                    "final_mse": 0.0022372999228537083,
+                    "round": 2,
+                    "samples_added": 32926,
+                    "total_samples": 89422
+                  }
+                ],
+                "dataset_sha256": "c62a128bc321b81c66ca41cbcf1be20735b1994a67dd81939ceb9b0b9d2c455a",
+                "final_binary_bce": 5.662594503519358e-06,
+                "final_mse": 0.0022372999228537083,
+                "initialization_seed": 42,
+                "samples": 89422
+              }
+            },
+            "algorithm": "demonstration-assisted PPO",
+            "clip_epsilon": 0.2,
+            "course_reward_potential": {
+              "discount_factor": 1.0,
+              "enabled": true,
+              "episode_sum": "potential(end_state) - potential(start_state)",
+              "live_transition": "potential(next_state) - potential(state)",
+              "state_potential": "0.05 * signed_progress + 3 * completed_checkpoints + 30 * completed_laps",
+              "terminal_potential": "retained physical end potential"
+            },
+            "deterministic_evaluation": true,
+            "device": "cpu",
+            "engine_source_sha256": "226b1fe9aa247d4da050684c39f323a1a540ee49777544cba7196d29f5268d88",
+            "entropy_coefficient": 0.0,
+            "episode_aligned_rollouts": true,
+            "evaluation_episodes": 10,
+            "evaluation_seed_base": 100000,
+            "evaluation_suite": "policy-atlas-eval-v1-n10",
+            "failure_clock_regularizer": {
+              "canonical_failure_clock_total": -45.0,
+              "enabled": true,
+              "failure_causes": [
+                "collision",
+                "contact",
+                "stall",
+                "wrong_way",
+                "timeout"
+              ],
+              "remaining_cost_formula": "time_per_step * max(horizon_steps - terminal_step, 0)",
+              "rolling_start_semantics": "constant over the remaining suffix from each sampled start; no reset reward",
+              "successful_completion": "elapsed live-step time cost only",
+              "time_per_step": -0.02
+            },
+            "gae_lambda": 0.95,
+            "gamma": 1.0,
+            "learning_rate": 0.0003,
+            "minibatch_size": 256,
+            "reproducibility_scope": "RNG-exact continuation on the saved runtime; bitwise identity is not guaranteed across devices or dependency builds",
+            "rollout_steps": 2048,
+            "target_kl": 0.03,
+            "task_horizon_seconds": 90.0,
+            "task_horizon_steps": 2250,
+            "torch_version": "2.4.1+cu124",
+            "training_control": {
+              "checkpoint_selection": "bot3 speed control is training-only; fixed canonical full-course evaluation remains the checkpoint-selection signal",
+              "control_evaluation": {
+                "deterministic_policy": true,
+                "episodes": 10,
+                "seed_base": 800000,
+                "seed_formula": "seed_base + stage_position * stage_seed_stride + episode_index",
+                "stage_seed_stride": 1000,
+                "start_state": "the active speed stage's disclosed physical checkpoint-11 state",
+                "suite_version": "traffic-cp11-bot3-speed-control-v1"
+              },
+              "gate": {
+                "comparison": ">=",
+                "consecutive_confirmations": 2,
+                "distinct_checkpoint_episodes": true,
+                "success_rate_threshold": 0.8
+              },
+              "id": "traffic-cp11-bot3-speed-v1",
+              "outer_gate_dependency": "the checkpoint-11 outer gate remains locked until canonical 30 m/s bot3 speed proficiency is complete",
+              "scope": "only bot3 speed at outer frontier checkpoint 11 before it may unlock",
+              "stages": [
+                {
+                  "id": "speed-18",
+                  "start_state": "checkpoint 11 with bot3 at 18 m/s, reconstructed gap 319.42 m, 48.64 s remaining, required catch-up average 24.57 m/s, pass masks [true,true,false], time-advanced bot arc, and no reset reward"
+                },
+                {
+                  "id": "speed-24",
+                  "start_state": "checkpoint 11 with bot3 at 24 m/s, reconstructed gap 567.58 m, 48.64 s remaining, required catch-up average 35.67 m/s, pass masks [true,true,false], time-advanced bot arc, and no reset reward"
+                },
+                {
+                  "id": "speed-30",
+                  "start_state": "checkpoint 11 with canonical bot3 at 30 m/s, reconstructed gap 815.74 m, 48.64 s remaining, required catch-up average 46.77 m/s, pass masks [true,true,false], time-advanced bot arc, and no reset reward"
+                }
+              ],
+              "start_sampling": {
+                "active_stage_probability": 0.8,
+                "empty_mastered_fallback": "100% active stage",
+                "mastered_earlier_stages": "uniform remainder"
+              }
+            },
+            "training_curriculum": {
+              "checkpoint_selection": "segment evaluation is training-only diagnostic; fixed full-course evaluation remains the checkpoint-selection signal",
+              "frontier_order": [
+                11,
+                9,
+                3,
+                0
+              ],
+              "gate": {
+                "comparison": ">=",
+                "consecutive_confirmations": 2,
+                "distinct_checkpoint_episodes": true,
+                "success_rate_threshold": 0.8,
+                "success_rate_threshold_by_frontier": [
+                  {
+                    "frontier": 11,
+                    "threshold": 0.8
+                  },
+                  {
+                    "frontier": 9,
+                    "threshold": 0.8
+                  },
+                  {
+                    "frontier": 3,
+                    "threshold": 0.8
+                  },
+                  {
+                    "frontier": 0,
+                    "threshold": 0.9
+                  }
+                ]
+              },
+              "id": "traffic-reverse-overtake-v1",
+              "segment_evaluation": {
+                "deterministic_policy": true,
+                "episodes": 10,
+                "seed_base": 700000,
+                "seed_formula": "seed_base + segment * segment_seed_stride + episode_index",
+                "segment_seed_stride": 1000,
+                "start_state": "audited APEX_GP checkpoint with curvature/grip speed envelope, time-advanced bots, reconstructed pass masks, and no reset reward",
+                "suite_version": "traffic-stage-eval-v1"
+              },
+              "start_sampling": {
+                "active_frontier_probability": 0.8,
+                "empty_mastered_fallback": "100% active frontier",
+                "mastered_later_segments": "uniform remainder"
+              },
+              "training_control": {
+                "checkpoint_selection": "bot3 speed control is training-only; fixed canonical full-course evaluation remains the checkpoint-selection signal",
+                "control_evaluation": {
+                  "deterministic_policy": true,
+                  "episodes": 10,
+                  "seed_base": 800000,
+                  "seed_formula": "seed_base + stage_position * stage_seed_stride + episode_index",
+                  "stage_seed_stride": 1000,
+                  "start_state": "the active speed stage's disclosed physical checkpoint-11 state",
+                  "suite_version": "traffic-cp11-bot3-speed-control-v1"
+                },
+                "gate": {
+                  "comparison": ">=",
+                  "consecutive_confirmations": 2,
+                  "distinct_checkpoint_episodes": true,
+                  "success_rate_threshold": 0.8
+                },
+                "id": "traffic-cp11-bot3-speed-v1",
+                "outer_gate_dependency": "the checkpoint-11 outer gate remains locked until canonical 30 m/s bot3 speed proficiency is complete",
+                "scope": "only bot3 speed at outer frontier checkpoint 11 before it may unlock",
+                "stages": [
+                  {
+                    "id": "speed-18",
+                    "start_state": "checkpoint 11 with bot3 at 18 m/s, reconstructed gap 319.42 m, 48.64 s remaining, required catch-up average 24.57 m/s, pass masks [true,true,false], time-advanced bot arc, and no reset reward"
+                  },
+                  {
+                    "id": "speed-24",
+                    "start_state": "checkpoint 11 with bot3 at 24 m/s, reconstructed gap 567.58 m, 48.64 s remaining, required catch-up average 35.67 m/s, pass masks [true,true,false], time-advanced bot arc, and no reset reward"
+                  },
+                  {
+                    "id": "speed-30",
+                    "start_state": "checkpoint 11 with canonical bot3 at 30 m/s, reconstructed gap 815.74 m, 48.64 s remaining, required catch-up average 46.77 m/s, pass masks [true,true,false], time-advanced bot arc, and no reset reward"
+                  }
+                ],
+                "start_sampling": {
+                  "active_stage_probability": 0.8,
+                  "empty_mastered_fallback": "100% active stage",
+                  "mastered_earlier_stages": "uniform remainder"
+                }
+              }
+            },
+            "training_reward_scale": 0.01,
+            "training_schedule": {
+              "advancement": {
+                "evaluation_conditioned": false,
+                "fixed_before_training": true,
+                "signal": "one-based completed-training-episode schedule"
+              },
+              "checkpoint_selection": "schedule and DAgger are training-only; fixed canonical full-course learned-policy evaluation remains the sole selection signal",
+              "id": "traffic-near-pass-episode-schedule-v1",
+              "phases": [
+                {
+                  "description": "frequent physical checkpoint-11 bot3 rehearsals at 12 m/s bridge the first clean-overtake signal",
+                  "episodes": [
+                    1,
+                    200
+                  ],
+                  "id": "near_pass_bootstrap",
+                  "sampling": {
+                    "near_pass_rehearsal": 0.75,
+                    "nested_speed_control": 0.25
+                  }
+                },
+                {
+                  "description": "reduce near-pass rehearsal while the nested 18/24/30 m/s proficiency control becomes dominant",
+                  "episodes": [
+                    201,
+                    400
+                  ],
+                  "id": "near_pass_bridge",
+                  "sampling": {
+                    "near_pass_rehearsal": 0.25,
+                    "nested_speed_control": 0.75
+                  }
+                },
+                {
+                  "description": "retire the 12 m/s rehearsal and use only the proficiency-gated nested control plus mastered outer frontiers",
+                  "episodes": [
+                    401,
+                    null
+                  ],
+                  "id": "canonical_speed_consolidation",
+                  "sampling": {
+                    "nested_speed_control": 1.0
+                  }
+                }
+              ],
+              "start_states": "the schedule affects only locked checkpoint-11 training resets; 12 m/s bot3 states preserve time-advanced arcs, masks, clock, and zero reset reward",
+              "type": "predeclared_episode_schedule"
+            },
+            "training_start_distribution": "Predeclared Traffic rehearsal schedule: episodes 1-200 sample 75% physical checkpoint-11 near-pass starts with bot3 at 12 m/s and 25% nested speed-control starts; episodes 201-400 sample those modes at 25% and 75%; episodes 401 onward use nested speed-control starts only. The performance-gated reverse curriculum uses audited physical checkpoints 11, 9, 3, then canonical 0 with 80% active frontier and 20% uniformly sampled mastered stages. Before checkpoint 11 can unlock, nested bot3 control advances through 18, 24, and canonical 30 m/s after two distinct >=80% fixed 10-seed confirmations per speed, sampling 80% active speed and 20% uniformly among mastered speeds. Rolling states use the 70-90% curvature/grip backward-braking envelope, an 80% reference clock with a 1-second reserve, time-advanced traffic, reconstructed pass masks, and no reset reward",
+            "update_epochs": 10,
+            "value_coefficient": 0.5,
+            "value_loss_scale": "rollout return RMS",
+            "version": 18
+          },
+          "schema_version": 18,
+          "seed": 42,
+          "success_ci_high": 1.0,
+          "success_ci_low": 0.7225,
+          "success_rate": 1.0,
+          "total_steps": 2061,
+          "training_diagnostics": {
+            "action_std_0": 0.13541,
+            "action_std_1": 0.13542,
+            "action_std_max": 0.13542,
+            "action_std_mean": 0.13541,
+            "action_std_min": 0.13541,
+            "approx_kl": 0.38962,
+            "binary_deterministic_on_fraction_0": 0.0,
+            "binary_probability_mean_0": 0.00011,
+            "clip_frac": 0.36133,
+            "continuous_action_mean_0": 0.55417,
+            "continuous_action_mean_1": -0.10493,
+            "entropy": -3.1832,
+            "explained_variance": -0.37556,
+            "policy_loss": 0.11307,
+            "training_control": {
+              "complete_after": false,
+              "complete_before": false,
+              "completed": false,
+              "confirmation_streak_after": 1,
+              "confirmation_streak_before": 0,
+              "episodes": 10,
+              "evaluation_episode": 28,
+              "evaluation_suite": "traffic-cp11-bot3-speed-control-v1-speed-18-n10",
+              "ignored_duplicate": false,
+              "mastered_after": [],
+              "mastered_before": [],
+              "passed": true,
+              "seeds": [
+                800000,
+                800001,
+                800002,
+                800003,
+                800004,
+                800005,
+                800006,
+                800007,
+                800008,
+                800009
+              ],
+              "speed_mps_after": 18.0,
+              "speed_mps_before": 18.0,
+              "stage": "speed-18",
+              "stage_after": "speed-18",
+              "stage_before": "speed-18",
+              "state_after": {
+                "complete": false,
+                "control_id": "traffic-cp11-bot3-speed-v1",
+                "evaluations": 1,
+                "last_evaluation_episode": 28,
+                "last_success_rate": 1.0,
+                "mastered": [],
+                "pass_streak": 1,
+                "speed_mps": 18.0,
+                "stage": "speed-18",
+                "stage_position": 0,
+                "version": 1
+              },
+              "success_rate": 1.0,
+              "successes": 10,
+              "unlocked": false
+            },
+            "value_bias": -0.34099,
+            "value_clip_frac": 0.02344,
+            "value_loss": 0.1712,
+            "value_scale": 1.0
+          },
+          "updates": 1
+        },
+        "protocol_role": "checkpoint_selection",
+        "reason": "earliest_confirmed_solve",
+        "seed_base": 100000,
+        "suite": "policy-atlas-eval-v1-n10"
+      },
+      "solve_criteria": {
+        "confirmations": 1,
+        "definition": "Selection chooses the first checkpoint in a streak of 1 consecutive qualifying checkpoint. A qualifier must match the run protocol and meet the configured fixed-suite success-rate, Wilson-bound, and suite-size thresholds. Independent holdout evidence is evaluated only after selection.",
+        "min_ci_low": 0.7,
+        "min_eval_episodes": 10,
+        "min_success_rate": 0.9
+      },
+      "started_at": "2026-08-06T08:12:45+00:00",
+      "state": "solved",
+      "stop_on_solve": true,
+      "total_steps": 4136,
+      "updates": 2
+    }
+  ],
+  "schema_version": 2,
+  "seeds": [
+    42
+  ],
+  "selected_scenarios": [
+    "traffic-rush"
+  ],
+  "solve_contract": {
+    "confirmations": 1,
+    "definition": "Selection chooses the first checkpoint in a streak of 1 consecutive qualifying checkpoint. A qualifier must match the run protocol and meet the configured fixed-suite success-rate, Wilson-bound, and suite-size thresholds. Independent holdout evidence is evaluated only after selection.",
+    "min_ci_low": 0.7,
+    "min_eval_episodes": 10,
+    "min_success_rate": 0.9
+  },
+  "state": "verified",
+  "updated_at": "2026-08-06T08:16:30+00:00",
+  "verification": {
+    "all_verified": true,
+    "expected_runs": 1,
+    "failures": [],
+    "observed_runs": 1,
+    "require_holdout": true,
+    "verified_runs": 1
+  }
+}
