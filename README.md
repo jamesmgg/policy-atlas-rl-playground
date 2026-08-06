@@ -73,20 +73,49 @@ recoverable from the checkpoint archive.
   verified result is empirical evidence for the complete training protocol.
 - Lunar Lander uses a fixed-suite, performance-gated reverse-altitude
   curriculum: touchdown rehearsals first, then overlapping 30-100, 50-200,
-  and 100-500 unit approach bands before the canonical descent. Drone Course
-  likewise learns the final waypoint first, then unlocks each earlier course
-  segment. Lander optimizes undiscounted finite-horizon return (`gamma = 1.0`),
+  and 100-500 unit approach bands before the canonical descent. Lander
+  optimizes undiscounted finite-horizon return (`gamma = 1.0`),
   so a terminal failure has the same cost whether it happens immediately or
-  near the deadline; every other scenario retains `gamma = 0.995`. Lander's
+  near the deadline. Lander's
   touchdown frontier advances after one >=90% deterministic 20-start
-  evaluation; harder Lander frontiers use >=75%, while Drone frontiers retain
-  their >=90% gate. Once a Lander frontier has been mastered, half of resets
+  evaluation; harder Lander frontiers use >=75%. Once a Lander frontier has
+  been mastered, half of resets
   stay on the active frontier and the other half retain mastered easier work;
-  every Drone reset targets its active frontier because longer starts already
-  traverse mastered later gates. Curriculum evaluation is therefore a
+  curriculum evaluation is therefore a
   training-control signal, not a passive diagnostic. Its state is checkpointed
   exactly, while its results remain excluded from full-course checkpoint
   selection.
+- Drone Course uses a fixed-suite, performance-gated reverse curriculum that
+  learns the final waypoint first, then unlocks each earlier course segment
+  after one >=90% segment evaluation. Before the first unlock, every reset
+  targets the active frontier; afterward, half target the active frontier while
+  half uniformly rehearse mastered later segments to prevent forgetting.
+  While the final segment is locked, a nested momentum control progresses from
+  signed -20 to 20 units/s starts, through inbound 20 to 60, to the unchanged
+  hard inbound 60 to 100 range. Each band advances after one >=80% deterministic
+  10-start control suite; 75% of resets use the active band and 25% uniformly
+  retain mastered easier bands. The unchanged hard v3 segment gate runs only
+  after all three bands are proficient. Later outer frontiers use hard inbound
+  starts. Canonical evaluation and holdout starts remain unchanged at rest.
+  Fresh Drone policies also begin at the physically neutral -2/7 action on
+  both rotors (total thrust equals gravity), with exploration variance unchanged.
+  Drone uses an undiscounted finite-horizon objective (`gamma = 1.0`), and both
+  crash and timeout apply the same terminal failure cost so hovering until the
+  deadline is not an artificially safe strategy. Its terminal-zero shaping
+  potential combines waypoint distance (0.05), error from a 20--80 unit/s
+  braking-envelope velocity target (0.10), and error from the corresponding
+  one-second desired tilt (5.0). At `gamma = 1.0` it telescopes to a fixed
+  start-state constant, preserving terminal-outcome ordering while immediately
+  rewarding the counter-thrust needed to reverse inbound momentum. Attitude
+  and thrust regularizers are accumulated and charged only when the course is
+  completed, ranking successful controllers by efficiency without making an
+  early crash cheaper than a longer failed attempt. Other scenarios retain
+  `gamma = 0.995`.
+  Segment gates use suite v3 at seeds 400,000 and above; momentum controls use
+  versioned suites at 500,000 and above. Both are disjoint from checkpoint
+  selection (100,000+) and the default holdout (200,000+).
+  Curriculum state is checkpointed exactly, and its diagnostics never enter
+  full-course checkpoint selection.
 - The benchmark campaign freezes checkpoint selection before an optional
   100-start holdout at a disjoint seed range. Within one campaign, those starts
   cannot affect early stopping or checkpoint choice. The same holdout range has

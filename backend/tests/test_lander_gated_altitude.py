@@ -130,13 +130,14 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
             "the discounted baseline incorrectly prefers a delayed failure",
         )
 
-    def test_undiscounted_training_objective_is_isolated_to_lander(self) -> None:
+    def test_undiscounted_training_objective_is_lander_and_drone_only(self) -> None:
         self.assertEqual(self.spec.info().get("training_discount_factor"), 1.0)
         for spec in list_specs():
-            if spec.id == self.spec.id:
-                continue
             with self.subTest(scenario=spec.id):
-                self.assertEqual(spec.training_discount_factor, 0.995)
+                expected = 1.0 if spec.id in {
+                    "lunar-lander", "drone-hover",
+                } else 0.995
+                self.assertEqual(spec.training_discount_factor, expected)
 
     def test_descent_envelope_rewards_falling_when_below_target_speed(self) -> None:
         """The k3 shaping signal must not ask a slow descent to brake or hover."""
@@ -536,7 +537,7 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
             payload = trainer.registry.load(25)
 
         self.assertEqual(meta["schema_version"], 11)
-        self.assertEqual(meta["protocol"]["version"], 14)
+        self.assertEqual(meta["protocol"]["version"], 15)
         self.assertEqual(meta["protocol"]["gamma"], 1.0)
         self.assertEqual(meta["protocol"]["training_curriculum"],
                          EXPECTED_CURRICULUM_PROTOCOL)

@@ -36,9 +36,10 @@ class ScenarioSpec:
     # PPO default; finite-horizon tasks may explicitly optimize undiscounted
     # episode return when delaying failure must not reduce its terminal cost.
     training_discount_factor: float = 0.995
-    # Increment when observations, actions, or metric semantics change
-    # incompatibly. Old checkpoints remain on disk but are hidden rather than
-    # loaded or compared under a different scientific contract.
+    # Increment when observations, actions, rewards, optimization, or metric
+    # semantics change incompatibly. Old checkpoints remain on disk but are
+    # hidden rather than loaded or compared under a different scientific
+    # contract.
     checkpoint_schema: int = 1
 
     def make_training_env(self) -> Env:

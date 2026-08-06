@@ -17,6 +17,7 @@ import unittest
 from unittest import mock
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import numpy as np
 import torch
@@ -117,6 +118,98 @@ class TestRolloutBoundaries(unittest.TestCase):
             msg="the scenario discount must also control external bootstrapping",
         )
 
+    def test_trainer_uses_scenario_discount_for_reward_and_gae(self) -> None:
+        reward_gammas: list[float | None] = []
+        gae_gammas: list[float] = []
+
+        class OneStepDeadlineEnv:
+            obs_dim = 1
+            n_continuous = 1
+            n_binary = 0
+            max_steps = 1
+            dt = 0.1
+
+            def reset(self):
+                self.steps = 0
+                self.episode_reward = 0.0
+                return np.array([0.0], dtype=np.float32)
+
+            def step(self, action):
+                del action
+                self.steps = 1
+                self.episode_reward = -50.0
+                return np.array([0.0], dtype=np.float32), -50.0, True, {
+                    "truncated": True,
+                    "task_deadline": True,
+                }
+
+            def episode_summary(self):
+                return {"reward": -50.0, "steps": 1, "cause": "timeout",
+                        "metric": 0.0, "success": False}
+
+            def frame_payload(self):
+                return {}
+
+        class RecordingAgent:
+            act_dim = 1
+
+            def select_action(self, observation, deterministic=False):
+                del observation, deterministic
+                return np.array([0.0], dtype=np.float32), 0.0, 0.0
+
+            def get_value(self, observation):
+                del observation
+                return 7.0
+
+            def update(self, buffer):
+                del buffer
+                return {"policy_loss": 0.0, "value_loss": 0.0,
+                        "entropy": 0.0, "approx_kl": 0.0,
+                        "clip_frac": 0.0}
+
+        class RecordingBuffer(RolloutBuffer):
+            def compute_gae(self, last_value, last_done, gamma=0.995,
+                            gae_lambda=0.95):
+                gae_gammas.append(gamma)
+                return super().compute_gae(
+                    last_value, last_done, gamma=gamma,
+                    gae_lambda=gae_lambda)
+
+        def record_training_reward(reward, next_value, done, info, gamma=None):
+            del next_value, done, info
+            reward_gammas.append(gamma)
+            return reward * trainer_module.TRAINING_REWARD_SCALE
+
+        trainer = object.__new__(trainer_module.Trainer)
+        trainer.env = OneStepDeadlineEnv()
+        trainer.agent = RecordingAgent()
+        trainer.spec = SimpleNamespace(
+            id="one-step", metric_mode="max", kind="generic",
+            metric_label="score", training_discount_factor=1.0,
+        )
+        trainer.episode = trainer.total_steps = trainer.update_count = 0
+        trainer.sps = 0.0
+        trainer.history = []
+        trainer.best_reward = trainer.best_metric = None
+        trainer.ghost = trainer._learning = None
+        trainer.seed = 42
+        trainer.settings = SimpleNamespace(eval_episodes=1)
+        trainer.device = torch.device("cpu")
+        trainer.max_episodes = 1
+        trainer.checkpoint_every_n = 100
+        trainer._stop = trainer_module.threading.Event()
+        trainer._thread = None
+        trainer.emit = lambda message: None
+        trainer._save_checkpoint = lambda: None
+
+        with patch.object(trainer_module, "training_reward",
+                          side_effect=record_training_reward), patch.object(
+                              trainer_module, "RolloutBuffer", RecordingBuffer):
+            trainer._run()
+
+        self.assertEqual(reward_gammas, [1.0])
+        self.assertEqual(gae_gammas, [1.0])
+
     def test_every_fixed_horizon_is_marked_as_an_intrinsic_deadline(self) -> None:
         for spec in list_specs():
             with self.subTest(scenario=spec.id):
@@ -190,7 +283,8 @@ class TestRolloutBoundaries(unittest.TestCase):
             trainer.env = ThreeEpisodeEnv()
             trainer.agent = RecordingAgent()
             trainer.spec = SimpleNamespace(id="three-step", metric_mode="max",
-                                           kind="generic", metric_label="score")
+                                           kind="generic", metric_label="score",
+                                           gamma=0.995)
             trainer.episode = trainer.total_steps = trainer.update_count = 0
             trainer.sps = 0.0
             trainer.history = []
@@ -347,7 +441,7 @@ class TestExperimentContract(unittest.TestCase):
             "id", "name", "group", "kind", "description", "metric_label",
             "metric_mode", "objective", "success", "observations", "actions",
             "observation_dimensions", "reward_terms", "termination_conditions", "difficulty",
-            "horizon_steps", "horizon_seconds",
+            "horizon_steps", "horizon_seconds", "training_discount_factor",
         }
         for spec in list_specs():
             with self.subTest(spec=spec.id):
@@ -815,7 +909,7 @@ class TestEvaluationProtocol(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 14)
+        self.assertEqual(protocol["version"], 15)
         self.assertEqual(protocol["gamma"], trainer.spec.training_discount_factor)
         self.assertEqual(protocol["training_reward_scale"], 0.01)
         self.assertEqual(protocol["entropy_coefficient"], 0.0)
@@ -1502,7 +1596,8 @@ class TestEvaluationProtocol(unittest.TestCase):
         trainer.env = OneStepEnv()
         trainer.agent = OneStepAgent()
         trainer.spec = SimpleNamespace(id="one-step", metric_mode="max",
-                                       kind="generic", metric_label="score")
+                                       kind="generic", metric_label="score",
+                                       gamma=0.995)
         trainer.episode = 0
         trainer.total_steps = 0
         trainer.update_count = 0
@@ -1609,7 +1704,8 @@ class TestEvaluationProtocol(unittest.TestCase):
         trainer.env = EpisodeAwareOneStepEnv()
         trainer.agent = Agent()
         trainer.spec = SimpleNamespace(id="episode-aware", metric_mode="max",
-                                       kind="generic", metric_label="score")
+                                       kind="generic", metric_label="score",
+                                       gamma=0.995)
         trainer.episode = 499
         trainer.total_steps = trainer.update_count = 0
         trainer.sps = 0.0
@@ -1691,7 +1787,8 @@ class TestEvaluationProtocol(unittest.TestCase):
         trainer.agent = Agent()
         trainer.registry = registry
         trainer.spec = SimpleNamespace(id="seeded", metric_mode="max",
-                                       kind="generic", metric_label="score")
+                                       kind="generic", metric_label="score",
+                                       gamma=0.995)
         trainer.episode = trainer.total_steps = trainer.update_count = 0
         trainer.sps = 0.0
         trainer.history = []

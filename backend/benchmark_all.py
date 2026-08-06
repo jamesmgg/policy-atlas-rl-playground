@@ -346,7 +346,7 @@ def _seed_ranges_overlap(first_base: int, first_count: int,
 def training_curriculum_seed_ranges(
     protocol: dict[str, Any] | None,
 ) -> list[dict[str, Any]]:
-    """Expand every fixed segment suite disclosed by a training curriculum."""
+    """Expand every fixed outer and nested training-control seed suite."""
     if not protocol:
         return []
     curriculum = protocol.get("training_curriculum")
@@ -385,9 +385,63 @@ def training_curriculum_seed_ranges(
         if not 0 <= start <= end <= max_seed:
             raise ValueError("training curriculum seed range is outside uint32")
         ranges.append({
+            "range_kind": "training_curriculum",
             "curriculum_id": curriculum.get("id"),
             "segment": raw_segment,
             "episodes": episodes,
+            "seed_base": start,
+            "seed_end": end,
+        })
+
+    control = curriculum.get("training_control")
+    if control is None:
+        return ranges
+    if not isinstance(control, dict):
+        raise ValueError("training control protocol must be an object")
+    stages = control.get("stages")
+    control_evaluation = control.get("control_evaluation")
+    if not isinstance(stages, list) or not stages:
+        raise ValueError("training control stages must be non-empty")
+    if not isinstance(control_evaluation, dict):
+        raise ValueError("training control evaluation is missing")
+
+    def required_control_integer(field: str, *, minimum: int = 0) -> int:
+        value = control_evaluation.get(field)
+        if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+            raise ValueError(
+                f"training control {field} must be an integer >= {minimum}")
+        return value
+
+    control_seed_base = required_control_integer("seed_base")
+    control_stride = required_control_integer("stage_seed_stride", minimum=1)
+    control_episodes = required_control_integer("episodes", minimum=1)
+    if control_stride < control_episodes:
+        raise ValueError("training control stage seed suites overlap")
+
+    seen_stages: set[str] = set()
+    for stage_position, raw_stage in enumerate(stages):
+        if isinstance(raw_stage, str):
+            stage = raw_stage
+        elif isinstance(raw_stage, dict):
+            stage = raw_stage.get("id")
+        else:
+            stage = None
+        if not isinstance(stage, str) or not stage.strip():
+            raise ValueError("training control stage ids must be non-empty strings")
+        if stage in seen_stages:
+            raise ValueError("training control stage ids must be distinct")
+        seen_stages.add(stage)
+        start = control_seed_base + stage_position * control_stride
+        end = start + control_episodes - 1
+        if not 0 <= start <= end <= max_seed:
+            raise ValueError("training control seed range is outside uint32")
+        ranges.append({
+            "range_kind": "training_control",
+            "curriculum_id": curriculum.get("id"),
+            "control_id": control.get("id"),
+            "stage": stage,
+            "stage_position": stage_position,
+            "episodes": control_episodes,
             "seed_base": start,
             "seed_end": end,
         })
@@ -406,9 +460,19 @@ def _assert_holdout_disjoint_from_training_curriculum(
             int(seed_range["seed_base"]),
             int(seed_range["episodes"]),
         ):
+            if seed_range.get("range_kind") == "training_control":
+                source = (
+                    "training control "
+                    f"{seed_range.get('control_id')} stage "
+                    f"{seed_range['stage']}"
+                )
+            else:
+                source = (
+                    "training curriculum segment "
+                    f"{seed_range['segment']}"
+                )
             raise ValueError(
-                "holdout seed range overlaps training curriculum segment "
-                f"{seed_range['segment']} seeds "
+                f"holdout seed range overlaps {source} seeds "
                 f"{seed_range['seed_base']}-{seed_range['seed_end']}"
             )
 
