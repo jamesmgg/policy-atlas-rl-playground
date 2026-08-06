@@ -79,10 +79,10 @@ export default function Leaderboard() {
               return (
                 <article className={`podium-card podium-${medal.tone}`} key={checkpoint.episode}>
                   <div className="podium-card-topline">
-                    <span className={`podium-medal medal-${medal.tone}`} aria-label={medal.accessible}>
+                    <span className={`podium-medal medal-${medal.tone}`} role="img" aria-label={medal.accessible}>
                       <span aria-hidden="true">{index + 1}</span>
                     </span>
-                    <span className="medal-name">{medal.label}</span>
+                    <span className="medal-name" aria-hidden="true">{medal.label}</span>
                   </div>
                   <div className="podium-run-copy">
                     <strong>Episode {checkpoint.episode.toLocaleString()}</strong>

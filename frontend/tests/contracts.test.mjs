@@ -315,6 +315,8 @@ test("the top three evaluated runs receive accessible medal treatments", () => {
   assert.match(source, /Gold medal, first place/);
   assert.match(source, /Silver medal, second place/);
   assert.match(source, /Bronze medal, third place/);
+  assert.match(source, /role="img" aria-label=\{medal\.accessible\}/);
+  assert.match(source, /className="medal-name" aria-hidden="true"/);
   assert.match(source, /<details className="checkpoint-details">/);
 });
 
@@ -363,6 +365,15 @@ test("Policy Atlas declares a dark instrument theme", () => {
     return (light + 0.05) / (dark + 0.05);
   };
   assert.ok(contrast(faint, "#10232f") >= 4.5, "subdued text must remain readable on cards");
+});
+
+test("mobile browser chrome matches the dark lab canvas", () => {
+  const html = readFileSync(
+    new URL("../index.html", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(html, /<meta name="theme-color" content="#07131c" \/>/);
 });
 
 test("fullscreen controls expose capability, errors, state, and focus restoration", () => {
