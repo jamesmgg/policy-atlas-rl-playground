@@ -35,9 +35,9 @@ EXPECTED_CURRICULUM_PROTOCOL = {
         "distinct_checkpoint_episodes": True,
     },
     "segment_evaluation": {
-        "suite_version": "drone-segment-eval-v2",
+        "suite_version": "drone-segment-eval-v3",
         "episodes": 10,
-        "seed_base": 200_000,
+        "seed_base": 400_000,
         "segment_seed_stride": 1_000,
         "seed_formula": "seed_base + segment * segment_seed_stride + episode_index",
         "deterministic_policy": True,
@@ -301,10 +301,10 @@ class TestDroneReverseCurriculum(unittest.TestCase):
     def test_fixed_segment_suite_seeds_are_exact_and_repeatable(self) -> None:
         self.assertEqual(
             [self.curriculum.evaluation_seed(4, i) for i in range(10)],
-            list(range(204_000, 204_010)),
+            list(range(404_000, 404_010)),
         )
         self.assertEqual(self.curriculum.evaluation_suite_id(4),
-                         "drone-segment-eval-v2-k4-n10")
+                         "drone-segment-eval-v3-k4-n10")
 
         first_env = self.spec.make_training_env()
         second_env = self.spec.make_training_env()
@@ -315,10 +315,33 @@ class TestDroneReverseCurriculum(unittest.TestCase):
 
         self.assertEqual(first, second)
         self.assertEqual(first["evaluation_suite"],
-                         "drone-segment-eval-v2-k4-n10")
-        self.assertEqual(first["seeds"], list(range(204_000, 204_010)))
+                         "drone-segment-eval-v3-k4-n10")
+        self.assertEqual(first["seeds"], list(range(404_000, 404_010)))
         self.assertEqual(first["episodes"], 10)
         self.assertEqual(first["frontier"], 4)
+
+    def test_every_segment_suite_is_disjoint_from_selection_and_holdout(self) -> None:
+        named_ranges = {
+            f"segment-k{segment}": {
+                self.curriculum.evaluation_seed(segment, episode)
+                for episode in range(self.curriculum.evaluation_episodes)
+            }
+            for segment in self.curriculum.frontier_order
+        }
+        named_ranges["checkpoint-selection"] = {
+            trainer_module.evaluation_seed(episode) for episode in range(10)
+        }
+        named_ranges["default-holdout"] = set(range(200_000, 200_100))
+
+        names = list(named_ranges)
+        for index, left_name in enumerate(names):
+            for right_name in names[index + 1:]:
+                with self.subTest(left=left_name, right=right_name):
+                    self.assertTrue(
+                        named_ranges[left_name].isdisjoint(
+                            named_ranges[right_name]),
+                        f"{left_name} overlaps {right_name}",
+                    )
 
     def test_evaluation_factories_and_canonical_selection_remain_full_course(self) -> None:
         fixed_suite = self.spec.make_env(True)
@@ -469,8 +492,8 @@ class TestDroneReverseCurriculum(unittest.TestCase):
                 "episodes": 10,
                 "successes": 9,
                 "success_rate": 0.9,
-                "evaluation_suite": "drone-segment-eval-v2-k4-n10",
-                "seeds": list(range(204_000, 204_010)),
+                "evaluation_suite": "drone-segment-eval-v3-k4-n10",
+                "seeds": list(range(404_000, 404_010)),
             }
             trainer._run_eval = lambda: copy.deepcopy(canonical)
             trainer._run_training_curriculum_eval = lambda: copy.deepcopy(segment)
@@ -478,8 +501,8 @@ class TestDroneReverseCurriculum(unittest.TestCase):
             meta = trainer.registry.list()[0]
             payload = trainer.registry.load(0)
 
-        self.assertEqual(meta["schema_version"], 10)
-        self.assertEqual(meta["protocol"]["version"], 12)
+        self.assertEqual(meta["schema_version"], 11)
+        self.assertEqual(meta["protocol"]["version"], 13)
         self.assertEqual(meta["protocol"]["gamma"], 1.0)
         self.assertEqual(meta["protocol"]["training_curriculum"],
                          EXPECTED_CURRICULUM_PROTOCOL)
@@ -532,7 +555,7 @@ class TestDroneReverseCurriculum(unittest.TestCase):
         )
         self.assertEqual(self.spec.training_curriculum.protocol(),
                          EXPECTED_CURRICULUM_PROTOCOL)
-        self.assertEqual(self.spec.checkpoint_schema, 10)
+        self.assertEqual(self.spec.checkpoint_schema, 11)
 
 
 if __name__ == "__main__":

@@ -77,6 +77,8 @@ recoverable from the checkpoint archive.
   crash and timeout apply the same terminal failure cost so hovering until the
   deadline is not an artificially safe strategy. Other scenarios retain
   `gamma = 0.995`.
+  Segment gates use suite v3 at seeds 400,000 and above, disjoint from both
+  checkpoint selection (100,000+) and the default holdout (200,000+).
   Curriculum state is checkpointed exactly, and its diagnostics never enter
   full-course checkpoint selection.
 - The benchmark campaign freezes checkpoint selection before an optional

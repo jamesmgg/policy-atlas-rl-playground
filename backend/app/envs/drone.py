@@ -357,9 +357,9 @@ TRAINING_CURRICULUM = TrainingCurriculumSpec(
     active_frontier_probability=CURRICULUM_ACTIVE_FRONTIER_PROBABILITY,
     success_rate_threshold=CURRICULUM_SUCCESS_RATE_THRESHOLD,
     consecutive_confirmations=CURRICULUM_CONSECUTIVE_CONFIRMATIONS,
-    evaluation_suite_version="drone-segment-eval-v2",
+    evaluation_suite_version="drone-segment-eval-v3",
     evaluation_episodes=10,
-    evaluation_seed_base=200_000,
+    evaluation_seed_base=400_000,
     segment_seed_stride=1_000,
     start_state_description=(
         "noncanonical segment at preceding waypoint with standard seeded "
