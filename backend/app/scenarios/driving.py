@@ -184,7 +184,7 @@ DRIVING_SPECS: list[ScenarioSpec] = [
         features=DrivingFeatures(global_grip=0.75, zones=WET_ZONES)),
     _driving_spec(
         "glacier", "Glacier Lake", "Weather",
-        "A circuit on ice. Grip is a memory — drifting is the only way around.",
+        "A circuit on ice. Gentle inputs preserve momentum; controlled slides can help rotation.",
         "THUNDER_OVAL",
         features=DrivingFeatures(global_grip=ICE_TINT), difficulty="Advanced"),
     _driving_spec(

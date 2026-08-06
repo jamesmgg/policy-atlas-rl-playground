@@ -380,6 +380,12 @@ class TestExperimentContract(unittest.TestCase):
         self.assertTrue(np.all(np.isfinite(cart.step(np.array([0.0]))[0])))
         self.assertTrue(np.all(np.isfinite(mountain.step(np.array([0.0]))[0])))
 
+    def test_glacier_description_does_not_claim_drift_is_mandatory(self) -> None:
+        glacier = {spec.id: spec for spec in list_specs()}["glacier"]
+
+        self.assertNotIn("only way", glacier.description.lower())
+        self.assertIn("controlled slides", glacier.description.lower())
+
     def test_cartpole_canonical_start_is_nontrivial_and_failure_metric_is_distinct(self) -> None:
         cart = {s.id: s for s in list_specs()}["cartpole-balance"].make_env(False)
         observation = cart.reset()
