@@ -28,7 +28,9 @@ def exercise_scenario(spec) -> None:
     rng = np.random.default_rng(0)
     act_dim = env.n_continuous + env.n_binary
     for _ in range(200):
-        obs, reward, done, _ = env.step(rng.uniform(-1, 1, act_dim))
+        random_action = np.concatenate((rng.uniform(-1, 1, env.n_continuous),
+                                        rng.integers(0, 2, env.n_binary)))
+        obs, reward, done, _ = env.step(random_action)
         assert np.all(np.isfinite(obs)), spec.id
         assert np.isfinite(reward), spec.id
         if done:
@@ -164,7 +166,7 @@ def targeted_invariants() -> None:
 
 def main() -> None:
     specs = list_specs()
-    assert len(specs) == 16, len(specs)
+    assert len(specs) == 20, len(specs)
     print(f"exercising {len(specs)} scenarios:")
     for spec in specs:
         exercise_scenario(spec)
