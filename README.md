@@ -11,24 +11,52 @@ time. Projects are searchable and grouped by category; starting training or
 choosing a saved replay opens Watch automatically. Desktop keeps the full
 workspace with the project library and training controls alongside the simulator.
 
-The playground currently contains 20 experiments:
+The playground currently contains 23 experiments:
 
 - driving tasks, including wet grip, traffic, endurance, efficiency, and drift;
 - control benchmarks: a continuous-force CartPole variant and Continuous Mountain Car;
 - aerospace tasks: Lunar Lander and a five-waypoint Drone Course;
 - classic control: Pendulum Swing-up;
 - new control labs: Orbital Docking, Robot Arm Reach, Robot Target Tracking,
-  and Ball & Beam.
+  and Ball & Beam;
+- arcade games: Paddle Rally, Flappy Flight, and Coin Collector.
+
+The September 11 release includes two verified neural policies per game. All
+46 passed 50/50 qualification starts, all ten fixed starts and their canonical
+replay on the final engine. These finite tests establish demonstrated success,
+not a guarantee for every possible start or future training seed.
+
+The default **Pause when all test starts pass** option saves and pauses after a
+policy passes all ten fixed test starts and its canonical replay. It preserves
+a successful policy before later PPO updates can degrade it; it does not
+guarantee success on every possible start. **Watch verified policy** plays an
+archived neural policy without replacing the policy currently being trained.
+All newly recorded replays preserve the whole scene, including driving traffic,
+balls, pipes, coins and final outcomes, and hold their last frame. Legacy
+archives may contain only the original trajectory.
+Telemetry sits below the canvas so it cannot cover the landing pad or game
+objects. The lander's feet match its physical contact point, and a terminal
+frame no longer displays exhaust from its final applied action.
 
 Each experiment describes its objective, success condition, observation space,
 action space, metric direction, difficulty, and horizon before a run starts.
 
-The four new labs include animated analytic reference controllers. **Watch
-reference** demonstrates a feasible solution; it does not play a learned policy.
+Experiments with analytic reference controllers offer **Watch reference** to
+demonstrate a feasible solution; it does not play a learned policy.
 **Compare controllers** evaluates a frozen policy, zero action, random actions,
 and the reference on the same ten starts, with 95% Wilson success intervals.
 These repeatable diagnostics are not untouched holdouts. Model assumptions and
 reference methods appear under **Method details**.
+
+See the [all-games audit](docs/2026-09-11-all-games-audit.md) for the 23-game
+training evidence, explicit demonstration assistance, preserved failed runs,
+and final qualification status. All tasks except Cart-Pole, Pendulum, and Robot
+Target Tracking now use demonstration-assisted initialization before PPO
+practice; the expert is absent during evaluated gameplay. Apex GP, Drift Trial,
+and Robot Arm Reach use smaller PPO learning rates to retain learned precision.
+Robot Reach also uses corrective demonstrations near its targets; the
+[correction study](docs/2026-09-11-robot-reach-corrections.md) records why reducing
+the learning rate alone was insufficient.
 
 See the [September audit and learning study](docs/2026-09-10-chief-scientist-audit.md)
 for the fixes, measurements, task contracts, and limitations.
@@ -168,7 +196,7 @@ recoverable from the checkpoint archive.
   correction. Attitude and thrust regularizers are accumulated and charged
   only when the course is completed, ranking successful controllers by
   efficiency. Traffic Rush, Lunar Lander, and Orbital Docking also use
-  `gamma = 1.0`; other scenarios retain `gamma = 0.995` and their exploration settings.
+  `gamma = 1.0`; other scenarios use `gamma = 0.995`. Each scenario declares its exploration settings.
   The next scheduled episode, selected training mode/segment, and RNG state are
   checkpointed exactly. Training starts and demonstrations never enter
   full-course checkpoint selection.
@@ -181,8 +209,9 @@ recoverable from the checkpoint archive.
   fixed-suite checkpoint; the post-selection 100-start holdout is the
   within-campaign confirmation layer. `--confirmations` remains available for
   stricter selection studies.
-- A fixed canonical rollout is retained only for comparable ghost playback; it
-  is not presented as the statistical evaluation result.
+- A fixed canonical rollout provides comparable ghost playback and a completion
+  check for automatic pause and policy qualification. Statistical success
+  estimates come from the separate evaluation starts.
 - The UI ranks only checkpoints from the same versioned evaluation suite and
   engine source; older protocols remain inspectable without being mixed in.
 

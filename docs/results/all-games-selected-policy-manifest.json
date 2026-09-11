@@ -1,0 +1,420 @@
+{
+  "policies": [
+    {
+      "scenario_id": "apex-gp",
+      "seed": 42,
+      "checkpoint": "/workspace/data/existing-learning-20260911/revision4/apex-checkpoints/apex-gp/archive/20260911T054422110943Z/checkpoint_ep000010.json",
+      "source_schema": 8,
+      "source_engine_source_sha256": "95cf91cf836a6b58739b45df077d7e49fab555a6411f425e219c34fb0a8d8dfe",
+      "checkpoint_sha256": "38ca251719c093d288e1eda681d423deef1b22bcf4a5f74a81f3a7e5f659d24d",
+      "metadata_sha256": "7dad45df4849d92a779798951c93bc3752b467cc25a6f87390cae0c56deb2d1e"
+    },
+    {
+      "scenario_id": "apex-gp",
+      "seed": 123,
+      "checkpoint": "/workspace/data/existing-learning-20260911/revision4/apex-checkpoints/apex-gp/checkpoint_ep000010.json",
+      "source_schema": 8,
+      "source_engine_source_sha256": "95cf91cf836a6b58739b45df077d7e49fab555a6411f425e219c34fb0a8d8dfe",
+      "checkpoint_sha256": "668c3ecae2e7d7788d9cae6b45d13f64503a8919e7629b606b0bd9be95d7d4cb",
+      "metadata_sha256": "6439dfbc02fb54a5b1448c1171c5749009d0f24b33f0240acf02fc24e0ff59aa"
+    },
+    {
+      "scenario_id": "apex-gp-wet",
+      "seed": 42,
+      "checkpoint": "/workspace/data/existing-learning-20260911/revision2/remaining-checkpoints/apex-gp-wet/archive/20260911T054326677809Z/checkpoint_ep000012.json",
+      "source_schema": 10,
+      "source_engine_source_sha256": "26ab9c1025a572f438c2704825c40af8da66d68fba8facb9e1eebd38c23931bc",
+      "checkpoint_sha256": "f6853a54ab5de82ed0e3730e3806bc0ddf838d6134eadba5c9c0b0916b010b62",
+      "metadata_sha256": "c101cdd4e1b78e2aa0ced4f91363141b863399c1191b456b77aeebb819a5ee0d"
+    },
+    {
+      "scenario_id": "apex-gp-wet",
+      "seed": 123,
+      "checkpoint": "/workspace/data/existing-learning-20260911/revision2/remaining-checkpoints/apex-gp-wet/checkpoint_ep000010.json",
+      "source_schema": 10,
+      "source_engine_source_sha256": "26ab9c1025a572f438c2704825c40af8da66d68fba8facb9e1eebd38c23931bc",
+      "checkpoint_sha256": "854d25bd627110c330082758b770eac1392892030a21d92a2bf8bf252daf2a58",
+      "metadata_sha256": "45644cc0f8b511ece82d6c46b676afbed852384be2d21b086e39c5a29c8c1b36"
+    },
+    {
+      "scenario_id": "ball-beam",
+      "seed": 42,
+      "checkpoint": "/workspace/data/ballbeam-guided-20260911/runs/seed-42/ball-beam/checkpoint_ep000062.json",
+      "source_schema": 2,
+      "source_engine_source_sha256": "2ae8d7d5aa5b81af084863a110c7cea6fe3dd19ac5c09aa9ed97fd9dcd2d8140",
+      "checkpoint_sha256": "8f8230d633645edc57e3591ffc0e40bc391a6202796bc75f6dc5ce8a1312d906",
+      "metadata_sha256": "aef537093eb607eb73ced25027890be055886e535ebd542666b9b12afba7489e"
+    },
+    {
+      "scenario_id": "ball-beam",
+      "seed": 123,
+      "checkpoint": "/workspace/data/ballbeam-guided-20260911/runs/seed-123/ball-beam/checkpoint_ep000062.json",
+      "source_schema": 2,
+      "source_engine_source_sha256": "2ae8d7d5aa5b81af084863a110c7cea6fe3dd19ac5c09aa9ed97fd9dcd2d8140",
+      "checkpoint_sha256": "53abb63a1704081a97f65189dcdc10f3fede945543fd2a7942fde99dd7505019",
+      "metadata_sha256": "f9a770bc650be2fa87f80de24bfe90412b440d363134da20e977fb4b38b6a631"
+    },
+    {
+      "scenario_id": "cartpole-balance",
+      "seed": 42,
+      "checkpoint": "/workspace/data/existing-learning-20260911/revision4/classic-checkpoints/cartpole-balance/checkpoint_ep000212.json",
+      "source_schema": 2,
+      "source_engine_source_sha256": "95cf91cf836a6b58739b45df077d7e49fab555a6411f425e219c34fb0a8d8dfe",
+      "checkpoint_sha256": "c1b669d91bc042c47ed7a9c7798f76ac3519038846aaa7526d5d391d448e6d77",
+      "metadata_sha256": "7d5f3ae0c5d67c38a8383729329645b7ec86907181a516dae17421fd4af529b2"
+    },
+    {
+      "scenario_id": "cartpole-balance",
+      "seed": 123,
+      "checkpoint": "/workspace/data/existing-learning-20260911/checkpoints/cartpole-balance/checkpoint_ep000251.json",
+      "source_schema": 2,
+      "source_engine_source_sha256": "2ac217ec836b9b35763104d7b63893105062e1e67da26102cee7e5ebfba462b1",
+      "checkpoint_sha256": "8cd29d846d2e7e4077c85dd4adf0ecb2c631d6a2010b9614f30f3a0320e14d5e",
+      "metadata_sha256": "22e311f2e4dc88ce82598a85934481b86a0738a38edffd72e0a8e931f84df179"
+    },
+    {
+      "scenario_id": "coin-collector",
+      "seed": 42,
+      "checkpoint": "/workspace/data/arcade-validation/runs-v1/coin-collector-seed42/coin-collector/checkpoint_ep000055.json",
+      "source_schema": 1,
+      "source_engine_source_sha256": "09fa25613d3527a9a4c565876a8d01abf54a040ce2ccbacc6df4d905e6a4933a",
+      "checkpoint_sha256": "b60fadf245231008b45b552b612848157f34b21023ac3ae72e317cdcecca0a10",
+      "metadata_sha256": "1fab40b9999c897341e352f1795393031e11c001fd339b450f22bc86a55e8e1f"
+    },
+    {
+      "scenario_id": "coin-collector",
+      "seed": 123,
+      "checkpoint": "/workspace/data/arcade-validation/runs-v1/coin-collector-seed123/coin-collector/checkpoint_ep000053.json",
+      "source_schema": 1,
+      "source_engine_source_sha256": "09fa25613d3527a9a4c565876a8d01abf54a040ce2ccbacc6df4d905e6a4933a",
+      "checkpoint_sha256": "cc0c33baa33975e28900ca6b3d7251f5ed0260a70b819b3e6e9a8835ab7df3c4",
+      "metadata_sha256": "e6b9bc3bb481deed83ab22dfba6430d9d335e89952f87d95bc35eda8c06ff51b"
+    },
+    {
+      "scenario_id": "drift-trial",
+      "seed": 42,
+      "checkpoint": "/workspace/data/guided-driving-arcade-20260911/drift-low-lr/checkpoints/drift-trial/archive/20260911T054816447769Z/checkpoint_ep000020.json",
+      "source_schema": 9,
+      "source_engine_source_sha256": "4fec11139a7089025fcf9a6c85eb57285bee01a712c960379fa257f465b6ce7b",
+      "checkpoint_sha256": "cde617ba33e4a45043b2ab4282a2c74da4deba45ca047780c4410d158eee5206",
+      "metadata_sha256": "a990c5d3c087c33852527b51b8108ef2be98840a6d26ee134df9c986e3f2413e"
+    },
+    {
+      "scenario_id": "drift-trial",
+      "seed": 123,
+      "checkpoint": "/workspace/data/guided-driving-arcade-20260911/drift-low-lr/checkpoints/drift-trial/checkpoint_ep000031.json",
+      "source_schema": 9,
+      "source_engine_source_sha256": "4fec11139a7089025fcf9a6c85eb57285bee01a712c960379fa257f465b6ce7b",
+      "checkpoint_sha256": "c3933d4122391d71625a240857774a3c438e087daf40818fad89c37081b7db57",
+      "metadata_sha256": "4adb9a7b60699f54cedcacebb98bde0d4476397c9d2b5fdfcf1380d5c93ef23a"
+    },
+    {
+      "scenario_id": "drone-hover",
+      "seed": 42,
+      "checkpoint": "/workspace/data/existing-learning-20260911/revision4/classic-checkpoints/drone-hover/checkpoint_ep000033.json",
+      "source_schema": 18,
+      "source_engine_source_sha256": "95cf91cf836a6b58739b45df077d7e49fab555a6411f425e219c34fb0a8d8dfe",
+      "checkpoint_sha256": "28b41af59a32b69ea4e02f4c37ad0ff573e21cedb03f923d369233ab94f736f7",
+      "metadata_sha256": "75db79e40289b99b0e82f9dc11d17d2ed1a80c56bbfd962d765585f204e1ba46"
+    },
+    {
+      "scenario_id": "drone-hover",
+      "seed": 123,
+      "checkpoint": "/workspace/data/existing-learning-20260911/checkpoints/drone-hover/checkpoint_ep000064.json",
+      "source_schema": 17,
+      "source_engine_source_sha256": "2ac217ec836b9b35763104d7b63893105062e1e67da26102cee7e5ebfba462b1",
+      "checkpoint_sha256": "e6b86823ac5a8507c430abb701991c4bb14aa79de0db3832b2f0bfaac17b5bfe",
+      "metadata_sha256": "93439705d75ff56668f1afb01cc64811723939f8740cc71008b57b8cf4c83d51",
+      "allow_source_schema_change": true
+    },
+    {
+      "scenario_id": "eco-gp",
+      "seed": 42,
+      "checkpoint": "/workspace/data/guided-driving-arcade-20260911/checkpoints/eco-gp/eco-gp/archive/20260911T054558244183Z/checkpoint_ep000011.json",
+      "source_schema": 8,
+      "source_engine_source_sha256": "26ab9c1025a572f438c2704825c40af8da66d68fba8facb9e1eebd38c23931bc",
+      "checkpoint_sha256": "e54eec273860ebb78b30e51b349cdee99d1e9a44d8f3aa806dd084742fcd6067",
+      "metadata_sha256": "823ac8b643080804fec909c24d588360e7b27ba07f7b690f33fd0fcd09357ca2"
+    },
+    {
+      "scenario_id": "eco-gp",
+      "seed": 123,
+      "checkpoint": "/workspace/data/guided-driving-arcade-20260911/checkpoints/eco-gp/eco-gp/checkpoint_ep000081.json",
+      "source_schema": 8,
+      "source_engine_source_sha256": "26ab9c1025a572f438c2704825c40af8da66d68fba8facb9e1eebd38c23931bc",
+      "checkpoint_sha256": "eab014e4b6edb73a2e84959d346fb5fbdbe634cf5acfe7ee6ada1c24dfd05e3a",
+      "metadata_sha256": "6c186b1232733bde9c6c6010a700db0465a63c5326f08d2d938078a89afbdd33"
+    },
+    {
+      "scenario_id": "flappy-flight",
+      "seed": 42,
+      "checkpoint": "/workspace/data/arcade-validation/runs-v1/flappy-flight-seed42/flappy-flight/checkpoint_ep000056.json",
+      "source_schema": 1,
+      "source_engine_source_sha256": "09fa25613d3527a9a4c565876a8d01abf54a040ce2ccbacc6df4d905e6a4933a",
+      "checkpoint_sha256": "402dd686d6dd7ea187d7722eb70de994c48504262387e514ea425f5a7105b8c9",
+      "metadata_sha256": "4045456b21b7df9942ea6658fbe0f81e45ac2465feccc97de65d0f93951394fd"
+    },
+    {
+      "scenario_id": "flappy-flight",
+      "seed": 123,
+      "checkpoint": "/workspace/data/arcade-validation/runs-v1/flappy-flight-seed123/flappy-flight/checkpoint_ep000056.json",
+      "source_schema": 1,
+      "source_engine_source_sha256": "09fa25613d3527a9a4c565876a8d01abf54a040ce2ccbacc6df4d905e6a4933a",
+      "checkpoint_sha256": "956bd32e624cef62057f3439a96f87789f7897ed3c86ce04046fc1ad170128f8",
+      "metadata_sha256": "3b0cac587584b997249457ca3fcb1317fbe5d0d344a9603a0e70de3c818b04ca"
+    },
+    {
+      "scenario_id": "glacier",
+      "seed": 42,
+      "checkpoint": "/workspace/data/existing-learning-20260911/revision2/remaining-checkpoints/glacier/archive/20260911T054442055585Z/checkpoint_ep000012.json",
+      "source_schema": 8,
+      "source_engine_source_sha256": "26ab9c1025a572f438c2704825c40af8da66d68fba8facb9e1eebd38c23931bc",
+      "checkpoint_sha256": "5061c6ddf45e0ba13c066e55f61fab270f95f5c8fa8ac57972ab14652f4d4a88",
+      "metadata_sha256": "fc761a0fd3ed03839dfbbefc3b16424a4fbf24a2c84941ce1e6d793905316ab3"
+    },
+    {
+      "scenario_id": "glacier",
+      "seed": 123,
+      "checkpoint": "/workspace/data/existing-learning-20260911/revision2/remaining-checkpoints/glacier/checkpoint_ep000010.json",
+      "source_schema": 8,
+      "source_engine_source_sha256": "26ab9c1025a572f438c2704825c40af8da66d68fba8facb9e1eebd38c23931bc",
+      "checkpoint_sha256": "414e5b00f29741162192a75a14da190cb8264394d2af4d0ccdb8f952566b951a",
+      "metadata_sha256": "d8ca49db737a3edffc02a19d8fbaf8bc9661f0689ce62a7d6eca6dde11224402"
+    },
+    {
+      "scenario_id": "grandville",
+      "seed": 42,
+      "checkpoint": "/workspace/data/existing-learning-20260911/revision2/remaining-checkpoints/grandville/archive/20260911T054130132381Z/checkpoint_ep000012.json",
+      "source_schema": 8,
+      "source_engine_source_sha256": "26ab9c1025a572f438c2704825c40af8da66d68fba8facb9e1eebd38c23931bc",
+      "checkpoint_sha256": "f93b519f745698c428b0e32b46a47e637dd32aee5b50353a628cff04c7053011",
+      "metadata_sha256": "c3d21c3b58fa8c90ca1e7a77d16ee659ba941e7d5142f5802dd608e5fa5fd303"
+    },
+    {
+      "scenario_id": "grandville",
+      "seed": 123,
+      "checkpoint": "/workspace/data/existing-learning-20260911/revision2/remaining-checkpoints/grandville/checkpoint_ep000012.json",
+      "source_schema": 8,
+      "source_engine_source_sha256": "26ab9c1025a572f438c2704825c40af8da66d68fba8facb9e1eebd38c23931bc",
+      "checkpoint_sha256": "4ec898f8451e2d9427adde4bdb08a607ee737797c81139d6d8bc3e54e1d2cd2c",
+      "metadata_sha256": "9743be6dd456b88c83d156a1135538318eeb3411f2b4d28b432ec3cc9edde5b2"
+    },
+    {
+      "scenario_id": "kart-sprint",
+      "seed": 42,
+      "checkpoint": "/workspace/data/guided-driving-arcade-20260911/checkpoints/kart-sprint/kart-sprint/archive/20260911T054023537300Z/checkpoint_ep000012.json",
+      "source_schema": 8,
+      "source_engine_source_sha256": "26ab9c1025a572f438c2704825c40af8da66d68fba8facb9e1eebd38c23931bc",
+      "checkpoint_sha256": "181f58f0f793c3da41c7f3949909f5b01c92747200e7ba2de1668dbb7d5e9765",
+      "metadata_sha256": "67030b3e55437cd78412f21a7ed5964109814879a18495f2acf84b83f07737cb"
+    },
+    {
+      "scenario_id": "kart-sprint",
+      "seed": 123,
+      "checkpoint": "/workspace/data/guided-driving-arcade-20260911/checkpoints/kart-sprint/kart-sprint/checkpoint_ep000021.json",
+      "source_schema": 8,
+      "source_engine_source_sha256": "26ab9c1025a572f438c2704825c40af8da66d68fba8facb9e1eebd38c23931bc",
+      "checkpoint_sha256": "6a6da65f6f2a13799d24484251c4cb179dca86818464ae6c9052e3a8f8be503a",
+      "metadata_sha256": "9df875a851fdde3f557d6f600af63685e229ad2f5413c8aa07d8203c8b579cf3"
+    },
+    {
+      "scenario_id": "lunar-lander",
+      "seed": 42,
+      "checkpoint": "/workspace/data/lander-learning-20260911/runs/seed-42/lunar-lander/checkpoint_ep000057.json",
+      "source_schema": 12,
+      "source_engine_source_sha256": "67d723932db8e5705521b87999a06337134400f49fb747e9893baeef28c73506",
+      "checkpoint_sha256": "653c25e662470fc9b221507a72c31ee15f3bb0274cf5384ccc02f5811dc3c6c4",
+      "metadata_sha256": "3285a862a3cd3304a741ee4a658fff34c817e5613b085db20aa75bc1575323d9"
+    },
+    {
+      "scenario_id": "lunar-lander",
+      "seed": 123,
+      "checkpoint": "/workspace/data/lander-learning-20260911/runs/seed-123/lunar-lander/checkpoint_ep000061.json",
+      "source_schema": 12,
+      "source_engine_source_sha256": "67d723932db8e5705521b87999a06337134400f49fb747e9893baeef28c73506",
+      "checkpoint_sha256": "44e01246818cbe9bf7e799293e6ba1858b8a99e4d3f0464806be4d2055e9399d",
+      "metadata_sha256": "53e6c9b7a0c903e1cb3a3ed16031a3f69b267e01a78bb395b257c28225a7927d"
+    },
+    {
+      "scenario_id": "mountain-car",
+      "seed": 42,
+      "checkpoint": "/workspace/data/existing-learning-20260911/revision1/checkpoints/mountain-car/archive/20260911T052424187292Z/checkpoint_ep000026.json",
+      "source_schema": 4,
+      "source_engine_source_sha256": "3f27dafe8cb388be44cc36d054cb76778953ac6d2376c36326655ead6b985751",
+      "checkpoint_sha256": "07f1eb75741f2b27277a195d72e99a741a83f8aa208b98f66663a003a1ce3137",
+      "metadata_sha256": "622c5cccebcfbe317ffc4fb66793a24d2c7f3dc997900163c866b3e11c2d5242"
+    },
+    {
+      "scenario_id": "mountain-car",
+      "seed": 123,
+      "checkpoint": "/workspace/data/existing-learning-20260911/revision1/checkpoints/mountain-car/checkpoint_ep000026.json",
+      "source_schema": 4,
+      "source_engine_source_sha256": "3f27dafe8cb388be44cc36d054cb76778953ac6d2376c36326655ead6b985751",
+      "checkpoint_sha256": "65b9f5c0d6497852c3f140b576df34ae323ed43719d60fa1e68e3f751e2bc95e",
+      "metadata_sha256": "d2440f87dc8d1724904eedb5d94f385c8e046c50227b03f9799e58ddfc23c07d"
+    },
+    {
+      "scenario_id": "orbital-docking",
+      "seed": 42,
+      "checkpoint": "/workspace/data/control-learning-20260911-v1/checkpoints/orbital-docking/archive/20260911T052253405324Z/checkpoint_ep000027.json",
+      "source_schema": 2,
+      "source_engine_source_sha256": "e3bf5151ce1bc1761c6d4c9c52f2529564943f7e241ece226ecad90603ddce5f",
+      "checkpoint_sha256": "4bd702d73e5ab5070cef475254f7174659891699e691856841289fec60463a1f",
+      "metadata_sha256": "e3b0f2c452191ab176d6e80118a48d307a7c28569b88f16729d7476d1e0f0f44"
+    },
+    {
+      "scenario_id": "orbital-docking",
+      "seed": 123,
+      "checkpoint": "/workspace/data/control-learning-20260911-v1/checkpoints/orbital-docking/checkpoint_ep000028.json",
+      "source_schema": 2,
+      "source_engine_source_sha256": "e3bf5151ce1bc1761c6d4c9c52f2529564943f7e241ece226ecad90603ddce5f",
+      "checkpoint_sha256": "443e958bf0a1f686e3cfa32bc23f3ae50b6a6d4555ee07015abe9e575cd44bbb",
+      "metadata_sha256": "f6069973e5390a17c75a806768080cf8ed3bd5074ee16aa7a86df616828d21b2"
+    },
+    {
+      "scenario_id": "paddle-rally",
+      "seed": 42,
+      "checkpoint": "/workspace/data/arcade-validation/runs-v1/paddle-rally-seed42/paddle-rally/checkpoint_ep000052.json",
+      "source_schema": 1,
+      "source_engine_source_sha256": "09fa25613d3527a9a4c565876a8d01abf54a040ce2ccbacc6df4d905e6a4933a",
+      "checkpoint_sha256": "a23ff7cac4960ae25f4b600aa780813a3b4c3a344949cb5af62f15a8e35f9923",
+      "metadata_sha256": "b53029a9970012526aeff583c34f730ec69022f072f25b878de8a69c68f8e4f1"
+    },
+    {
+      "scenario_id": "paddle-rally",
+      "seed": 123,
+      "checkpoint": "/workspace/data/arcade-validation/runs-v1/paddle-rally-seed123/paddle-rally/checkpoint_ep000052.json",
+      "source_schema": 1,
+      "source_engine_source_sha256": "09fa25613d3527a9a4c565876a8d01abf54a040ce2ccbacc6df4d905e6a4933a",
+      "checkpoint_sha256": "bbbaeac769f69c7c8c95d642879253c1ddabad98db28e4bdbd1af90799da20ac",
+      "metadata_sha256": "17b28f8301867f89d5c6fb5802c884968427fde3b25a368f873128e5bcc04c21"
+    },
+    {
+      "scenario_id": "pendulum-swingup",
+      "seed": 42,
+      "checkpoint": "/workspace/data/existing-learning-20260911/revision4/classic-checkpoints/pendulum-swingup/checkpoint_ep000264.json",
+      "source_schema": 3,
+      "source_engine_source_sha256": "95cf91cf836a6b58739b45df077d7e49fab555a6411f425e219c34fb0a8d8dfe",
+      "checkpoint_sha256": "e5076f1e1a5a74596601a99734a8258f56b6e1cc80ef2a1599a4a6476203658d",
+      "metadata_sha256": "a5b0334d72387e687677e0bf8af4af9982173233ce8c85d11ef6bc0fb5916035"
+    },
+    {
+      "scenario_id": "pendulum-swingup",
+      "seed": 123,
+      "checkpoint": "/workspace/data/existing-learning-20260911/checkpoints/pendulum-swingup/checkpoint_ep000402.json",
+      "source_schema": 2,
+      "source_engine_source_sha256": "2ac217ec836b9b35763104d7b63893105062e1e67da26102cee7e5ebfba462b1",
+      "checkpoint_sha256": "5d3fcf952b610d5d5451e05f173a4088b161fe4fc182047fee3b9ee2d0c6ca92",
+      "metadata_sha256": "563f83a51d4b8e688ce224d7f2026cc09269064ea35ea3416be5ae80d5242b9f",
+      "allow_source_schema_change": true
+    },
+    {
+      "scenario_id": "rally-ridge",
+      "seed": 42,
+      "checkpoint": "/workspace/data/guided-driving-arcade-20260911/checkpoints/rally-ridge/rally-ridge/archive/20260911T053910779298Z/checkpoint_ep000012.json",
+      "source_schema": 8,
+      "source_engine_source_sha256": "26ab9c1025a572f438c2704825c40af8da66d68fba8facb9e1eebd38c23931bc",
+      "checkpoint_sha256": "07678155c6320b067af5f89e7cd25ae9afdda84f1e4d3cfe2b05426a12362832",
+      "metadata_sha256": "4c1007691af73b76fd9bedb6d315fae876b113e543afc6d95f2070932e4fbdbe"
+    },
+    {
+      "scenario_id": "rally-ridge",
+      "seed": 123,
+      "checkpoint": "/workspace/data/guided-driving-arcade-20260911/checkpoints/rally-ridge/rally-ridge/checkpoint_ep000010.json",
+      "source_schema": 8,
+      "source_engine_source_sha256": "26ab9c1025a572f438c2704825c40af8da66d68fba8facb9e1eebd38c23931bc",
+      "checkpoint_sha256": "c46e73a9087e6c64089d43075559e8d9460db78ed52aed75179da67837bc7473",
+      "metadata_sha256": "5eb4fa490a25077eaf65e8a00d7464800b4942a8d9e9b1b5a100b81b859c7a6b"
+    },
+    {
+      "scenario_id": "robot-reach",
+      "seed": 42,
+      "checkpoint": "/workspace/data/robot-reach-corrective-study-20260911/runs/seed-42/robot-reach/checkpoint_ep000070.json",
+      "source_schema": 3,
+      "source_engine_source_sha256": "0cc1565b15ba8dc3ef3a2b34bbe5bd5771c7d3eb926f1bd96162a5bca8a43da7",
+      "checkpoint_sha256": "7b0de008439562adcce74b1ae4d174005ed1b279b281b6280240717e27c46cb6",
+      "metadata_sha256": "23effbfa3226a478461028fa975045800e7d1a255322d0f7515c72c66b9f927b"
+    },
+    {
+      "scenario_id": "robot-reach",
+      "seed": 123,
+      "checkpoint": "/workspace/data/robot-reach-corrective-study-20260911/runs/seed-123/robot-reach/checkpoint_ep000069.json",
+      "source_schema": 3,
+      "source_engine_source_sha256": "0cc1565b15ba8dc3ef3a2b34bbe5bd5771c7d3eb926f1bd96162a5bca8a43da7",
+      "checkpoint_sha256": "1f38d40fa2a4c605e5f356334f4b51dd2927225dbb19ba22a3054de6aefe8118",
+      "metadata_sha256": "090029a7e32aaba68d94ead975936f15790ebd32bddcfe436cd1241e9706ac1d"
+    },
+    {
+      "scenario_id": "robot-tracking",
+      "seed": 42,
+      "checkpoint": "/workspace/data/control-learning-20260911-v1/checkpoints/robot-tracking/archive/20260911T052606988639Z/checkpoint_ep000525.json",
+      "source_schema": 1,
+      "source_engine_source_sha256": "e3bf5151ce1bc1761c6d4c9c52f2529564943f7e241ece226ecad90603ddce5f",
+      "checkpoint_sha256": "244f295829c0dcbcfa0f6faa464ae7302569fd3e9ae583389d778cfe18d4dcc8",
+      "metadata_sha256": "0e12a3db289a21ddaaab58fb76ed85eded3c27dbca4055af50ecd4c929560c58"
+    },
+    {
+      "scenario_id": "robot-tracking",
+      "seed": 123,
+      "checkpoint": "/workspace/data/control-learning-20260911-v1/checkpoints/robot-tracking/checkpoint_ep000427.json",
+      "source_schema": 1,
+      "source_engine_source_sha256": "e3bf5151ce1bc1761c6d4c9c52f2529564943f7e241ece226ecad90603ddce5f",
+      "checkpoint_sha256": "6dbee525e4631893a966c243811d894372c067abd9d49b15e7920528b29c13d4",
+      "metadata_sha256": "d827d26629dd235f643facf36ab20939b9290d713dfe06bfccbe39914a6e8e89"
+    },
+    {
+      "scenario_id": "thunder-oval",
+      "seed": 42,
+      "checkpoint": "/workspace/data/existing-learning-20260911/revision2/remaining-checkpoints/thunder-oval/archive/20260911T054221204436Z/checkpoint_ep000010.json",
+      "source_schema": 8,
+      "source_engine_source_sha256": "26ab9c1025a572f438c2704825c40af8da66d68fba8facb9e1eebd38c23931bc",
+      "checkpoint_sha256": "02c079762203f0173c0a16acd5b4bc041849a5bd5ff1bfb5fd1d9c64abe86a66",
+      "metadata_sha256": "ba5e8751abbb6035c8616e2fd252a93b9e870a3d187649bc00b1ff373436ae57"
+    },
+    {
+      "scenario_id": "thunder-oval",
+      "seed": 123,
+      "checkpoint": "/workspace/data/existing-learning-20260911/revision2/remaining-checkpoints/thunder-oval/checkpoint_ep000012.json",
+      "source_schema": 8,
+      "source_engine_source_sha256": "26ab9c1025a572f438c2704825c40af8da66d68fba8facb9e1eebd38c23931bc",
+      "checkpoint_sha256": "41240c840ad6524458776f053f7ece7bc09d4bda6f880bb0ba59fca02d3836f5",
+      "metadata_sha256": "6343fee76075b35e6f504c76eb47af93060f8cd83d8759bf1b1f635c363035cc"
+    },
+    {
+      "scenario_id": "traffic-rush",
+      "seed": 42,
+      "checkpoint": "/workspace/data/existing-learning-20260911/revision4/classic-checkpoints/traffic-rush/checkpoint_ep000028.json",
+      "source_schema": 18,
+      "source_engine_source_sha256": "95cf91cf836a6b58739b45df077d7e49fab555a6411f425e219c34fb0a8d8dfe",
+      "checkpoint_sha256": "82132b5796e1d51a62e8bd748791539d298792619f08785bbb8118a6bb25b954",
+      "metadata_sha256": "86065f7715645eb3ef0f93ecc0db1123ee09155cb8dc8b5bcd43b92246c5c15f"
+    },
+    {
+      "scenario_id": "traffic-rush",
+      "seed": 123,
+      "checkpoint": "/workspace/data/existing-learning-20260911/checkpoints/traffic-rush/checkpoint_ep000063.json",
+      "source_schema": 18,
+      "source_engine_source_sha256": "2ac217ec836b9b35763104d7b63893105062e1e67da26102cee7e5ebfba462b1",
+      "checkpoint_sha256": "10319ec7d1df4b06fbffa23c4b6e09a8584840523ecac22489b4ee6ae5f60930",
+      "metadata_sha256": "72ebacd415cbe68d8e054b0cd291b6a0bb8921f2b7e7262e4096c045f17a7e1f"
+    },
+    {
+      "scenario_id": "velocita",
+      "seed": 42,
+      "checkpoint": "/workspace/data/existing-learning-20260911/revision2/remaining-checkpoints/velocita/archive/20260911T054033338853Z/checkpoint_ep000010.json",
+      "source_schema": 8,
+      "source_engine_source_sha256": "26ab9c1025a572f438c2704825c40af8da66d68fba8facb9e1eebd38c23931bc",
+      "checkpoint_sha256": "4257431e0342ce9225ec98de912a2c01bc5ca8b0e48637183868d7b7dbe68702",
+      "metadata_sha256": "ec75940b2dc23a15889db21c46b5be898b25bb98d0051d388c04dccb5e268c88"
+    },
+    {
+      "scenario_id": "velocita",
+      "seed": 123,
+      "checkpoint": "/workspace/data/existing-learning-20260911/revision2/remaining-checkpoints/velocita/checkpoint_ep000012.json",
+      "source_schema": 8,
+      "source_engine_source_sha256": "26ab9c1025a572f438c2704825c40af8da66d68fba8facb9e1eebd38c23931bc",
+      "checkpoint_sha256": "4f988eafb3c644fb09cd4f22cc7fde5ffbb42046a44fa97ed64c599ca20ea235",
+      "metadata_sha256": "d32e581b23630b65041d8c5b928136dbca928eca3d8f60704d9e8a818f86bee7"
+    }
+  ]
+}

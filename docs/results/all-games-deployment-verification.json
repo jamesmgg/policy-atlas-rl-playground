@@ -1,0 +1,31 @@
+{
+  "verified_at_utc": "2026-09-11T06:33:01.3676499Z",
+  "engine_source_sha256": "0cc1565b15ba8dc3ef3a2b34bbe5bd5771c7d3eb926f1bd96162a5bca8a43da7",
+  "tailnet_url": "http://100.72.181.81:8900",
+  "http_status": 200,
+  "scenario_count": 23,
+  "active_scenario": "pendulum-swingup",
+  "active_episode": 0,
+  "training": false,
+  "assets": [
+    "/assets/index-CwC3I85K.js",
+    "/assets/index-S0Glp3aL.css"
+  ],
+  "backend_unit_tests": 306,
+  "frontend_tests": 32,
+  "scenario_smoke_tests": 23,
+  "live_e2e": "passed in disposable checkpoints",
+  "installation": {
+    "installed_archives": 46,
+    "active_files_unchanged": 315,
+    "engine_source_sha256": "0cc1565b15ba8dc3ef3a2b34bbe5bd5771c7d3eb926f1bd96162a5bca8a43da7"
+  },
+  "archives": {
+    "qualified_archives_verified": 46,
+    "scenario_count": 23,
+    "engine_source_sha256": "0cc1565b15ba8dc3ef3a2b34bbe5bd5771c7d3eb926f1bd96162a5bca8a43da7",
+    "previous_pendulum_episode_500_retained": true,
+    "checkpoint_volume": "rl-simulator_rl-checkpoints"
+  },
+  "qualification_report": "all-games-final-qualification.json"
+}

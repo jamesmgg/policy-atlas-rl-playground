@@ -1,0 +1,3110 @@
+{
+  "lr_only_diagnostic": [
+    {
+      "initial_successes": 49,
+      "failures": [
+        {
+          "seed": 5500008,
+          "reward": -86.081,
+          "steps": 300,
+          "cause": "timeout",
+          "metric": 0.084,
+          "success": false,
+          "q": [
+            1.497218251885232,
+            1.26442625019313
+          ],
+          "target": [
+            -0.5812099498460993,
+            1.2025366505509916
+          ],
+          "velocity": [
+            -0.016297138574511778,
+            0.01222946583539122
+          ],
+          "action": [
+            -0.004421663470566273,
+            0.004076066892594099
+          ],
+          "teacher": [
+            -0.17553773522377014,
+            0.4600123167037964
+          ]
+        }
+      ],
+      "trained_successes": 49,
+      "episode": 54,
+      "engine": "41836839bdf7db6aaf10a9e2b25ff331ef7bedbbe293998997aae5acc9a52669",
+      "seed": 42
+    },
+    {
+      "initial_successes": 49,
+      "failures": [
+        {
+          "seed": 5500008,
+          "reward": -86.802,
+          "steps": 300,
+          "cause": "timeout",
+          "metric": 0.0796,
+          "success": false,
+          "q": [
+            1.478577774458819,
+            1.2753218379318552
+          ],
+          "target": [
+            -0.5812099498460993,
+            1.2025366505509916
+          ],
+          "velocity": [
+            -0.018719479421883692,
+            0.01728760146706828
+          ],
+          "action": [
+            -0.01469851192086935,
+            -0.015604071319103241
+          ],
+          "teacher": [
+            -0.11670949310064316,
+            0.42125579714775085
+          ]
+        }
+      ],
+      "trained_successes": 49,
+      "episode": 61,
+      "engine": "41836839bdf7db6aaf10a9e2b25ff331ef7bedbbe293998997aae5acc9a52669",
+      "seed": 123
+    }
+  ],
+  "baseline": {
+    "scenario_id": "robot-reach",
+    "episodes": 50,
+    "failures": [
+      {
+        "seed": 5200003,
+        "reward": -91.566,
+        "steps": 300,
+        "cause": "timeout",
+        "metric": 0.1175,
+        "success": false
+      },
+      {
+        "seed": 5200019,
+        "reward": -75.652,
+        "steps": 300,
+        "cause": "timeout",
+        "metric": 0.1283,
+        "success": false
+      },
+      {
+        "seed": 5200024,
+        "reward": -95.2,
+        "steps": 300,
+        "cause": "timeout",
+        "metric": 0.0884,
+        "success": false
+      },
+      {
+        "seed": 5200042,
+        "reward": -83.582,
+        "steps": 300,
+        "cause": "timeout",
+        "metric": 0.1613,
+        "success": false
+      }
+    ],
+    "seed": 123,
+    "successes": 46,
+    "origin": {
+      "checkpoint_path": "/workspace/data/control-learning-20260911-v1/checkpoints/robot-reach/checkpoint_ep000056.json",
+      "scenario_id": "robot-reach",
+      "scenario_binding": "operator-declared selected manifest entry",
+      "seed": 123,
+      "episode": 56,
+      "schema_version": 2,
+      "timestamp": "2026-09-11T00:23:30-05:00",
+      "engine_source_sha256": "e3bf5151ce1bc1761c6d4c9c52f2529564943f7e241ece226ecad90603ddce5f",
+      "checkpoint_sha256": "186850cb2a7e2d1a42a9a63fbd0b9f8feb6fda9aa6de2c2cbffcfbadab17bb83",
+      "metadata_sha256": "4642cbe3c8de6b02073eb49b4cc608bea233221252acab5866b88c2b4f98b833",
+      "sidecar_file_sha256": "041ee3507e9c4fa7c3e9774d26779f940f2720fd291068b03929e2a2710b884b",
+      "update_count": 2,
+      "total_steps": 4146,
+      "protocol": {
+        "algorithm": "demonstration-assisted PPO",
+        "version": 19,
+        "kl_stop_timing": "before_optimizer_step",
+        "cpu_threads": 1,
+        "rollout_steps": 2048,
+        "episode_aligned_rollouts": true,
+        "gamma": 0.995,
+        "gae_lambda": 0.95,
+        "learning_rate": 0.0003,
+        "clip_epsilon": 0.2,
+        "entropy_coefficient": 0.0,
+        "value_coefficient": 0.5,
+        "training_reward_scale": 0.01,
+        "value_loss_scale": "rollout return RMS",
+        "training_start_distribution": "unchanged full-task starts after disclosed reference demonstrations and DAgger initialization",
+        "task_horizon_steps": 300,
+        "task_horizon_seconds": 15,
+        "failure_clock_regularizer": null,
+        "course_reward_potential": null,
+        "training_curriculum": null,
+        "training_control": null,
+        "training_schedule": null,
+        "actor_warm_start": {
+          "contract": {
+            "id": "robot-reach-reference-dagger-v1",
+            "role": "actor DAgger warm start",
+            "pure_model_free_from_scratch": false,
+            "expert": {
+              "id": "robot-reach-analytic-reference-v1",
+              "description": "inverse kinematics plus damped joint PD",
+              "used_at_inference": false
+            },
+            "dataset": {
+              "seed_base": 820000,
+              "episodes": 80,
+              "seed_formula": "seed_base + episode_index",
+              "state_stride": 1,
+              "start_state": "unchanged seeded full-task starts; demonstrations excluded from evaluation seeds",
+              "observations": "pre-action environment observations",
+              "targets": "bounded expert actions"
+            },
+            "optimizer": {
+              "algorithm": "Adam",
+              "learning_rate": 0.001,
+              "batch_size": 1024,
+              "epochs_per_initial_fit": 120,
+              "epochs_per_dagger_fit": 80,
+              "loss": "mean squared bounded-action error",
+              "shuffle": false,
+              "initialization_seed": 42,
+              "trained_parameters": "shared torso, continuous mean head, and any binary head"
+            },
+            "ppo_fine_tuning": true,
+            "checkpoint_restore_overrides_warm_start": true,
+            "dagger": {
+              "rounds": 2,
+              "rollout_seed_base": 821000,
+              "round_seed_stride": 1000,
+              "episodes_per_round": 30,
+              "state_stride": 1,
+              "expert_role": "labels learned-policy rollout states only"
+            }
+          },
+          "realized": {
+            "samples": 8667,
+            "final_mse": 0.006317520514130592,
+            "dataset_sha256": "8c273134e3990542cbd643894fd86a4122d55cd0764daef8704abb2d78c2d612",
+            "initialization_seed": 42,
+            "dagger_rounds": [
+              {
+                "round": 1,
+                "samples_added": 2161,
+                "total_samples": 6700,
+                "final_mse": 0.0071243587881326675
+              },
+              {
+                "round": 2,
+                "samples_added": 1967,
+                "total_samples": 8667,
+                "final_mse": 0.006317520514130592
+              }
+            ]
+          }
+        },
+        "actor_initialization": {
+          "scope": "robot-reach-only",
+          "applies_on": "fresh_seeded_policy_construction",
+          "continuous_action_labels": [
+            "shoulder",
+            "elbow"
+          ],
+          "continuous_action_prior": [
+            0.0,
+            0.0
+          ],
+          "continuous_latent_bias": [
+            0.0,
+            0.0
+          ],
+          "continuous_log_std": [
+            -2.5,
+            -2.5
+          ],
+          "continuous_head_weight_std": 0.01,
+          "binary_action_labels": [],
+          "binary_probability_prior": [],
+          "binary_logit_bias": [],
+          "binary_head_weight_std": 0.01,
+          "deterministic_zero_observation_action": [
+            0.0,
+            0.0
+          ],
+          "checkpoint_restore_overrides_initialization": true
+        },
+        "update_epochs": 10,
+        "minibatch_size": 256,
+        "target_kl": 0.03,
+        "evaluation_episodes": 10,
+        "evaluation_suite": "policy-atlas-eval-v1-n10",
+        "evaluation_seed_base": 100000,
+        "deterministic_evaluation": true,
+        "engine_source_sha256": "e3bf5151ce1bc1761c6d4c9c52f2529564943f7e241ece226ecad90603ddce5f",
+        "reproducibility_scope": "RNG-exact continuation on the saved runtime; bitwise identity is not guaranteed across devices or dependency builds",
+        "device": "cpu",
+        "torch_version": "2.4.1+cu124"
+      }
+    }
+  },
+  "corrected": [
+    {
+      "engine": "0cc1565b15ba8dc3ef3a2b34bbe5bd5771c7d3eb926f1bd96162a5bca8a43da7",
+      "training_seed": 42,
+      "episode": 70,
+      "update_count": 2,
+      "total_steps": 4186,
+      "selection": {
+        "reward": -6.507708140415806,
+        "reward_std": 29.38225182458082,
+        "metric": 0.00677,
+        "metric_std": 0.0017146719802924406,
+        "failure_progress": null,
+        "episodes": 10,
+        "success_rate": 1.0,
+        "success_ci_low": 0.7224598312333834,
+        "success_ci_high": 1.0,
+        "evaluation_suite": "policy-atlas-eval-v1-n10",
+        "seed": 42,
+        "canonical_summary": {
+          "reward": -20.036,
+          "steps": 57,
+          "cause": "reached",
+          "metric": 0.0066,
+          "success": true
+        }
+      },
+      "qualification": {
+        "seed_base": 5600000,
+        "episodes": 50,
+        "successes": 50,
+        "trials": [
+          {
+            "seed": 5600000,
+            "reward": -37.807,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0081,
+            "success": true
+          },
+          {
+            "seed": 5600001,
+            "reward": -64.791,
+            "steps": 62,
+            "cause": "reached",
+            "metric": 0.0069,
+            "success": true
+          },
+          {
+            "seed": 5600002,
+            "reward": 24.945,
+            "steps": 47,
+            "cause": "reached",
+            "metric": 0.0105,
+            "success": true
+          },
+          {
+            "seed": 5600003,
+            "reward": 0.918,
+            "steps": 53,
+            "cause": "reached",
+            "metric": 0.0036,
+            "success": true
+          },
+          {
+            "seed": 5600004,
+            "reward": -9.036,
+            "steps": 55,
+            "cause": "reached",
+            "metric": 0.0052,
+            "success": true
+          },
+          {
+            "seed": 5600005,
+            "reward": -1.607,
+            "steps": 55,
+            "cause": "reached",
+            "metric": 0.0054,
+            "success": true
+          },
+          {
+            "seed": 5600006,
+            "reward": -39.624,
+            "steps": 59,
+            "cause": "reached",
+            "metric": 0.0065,
+            "success": true
+          },
+          {
+            "seed": 5600007,
+            "reward": -15.045,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0053,
+            "success": true
+          },
+          {
+            "seed": 5600008,
+            "reward": -52.565,
+            "steps": 62,
+            "cause": "reached",
+            "metric": 0.0044,
+            "success": true
+          },
+          {
+            "seed": 5600009,
+            "reward": 6.398,
+            "steps": 52,
+            "cause": "reached",
+            "metric": 0.0056,
+            "success": true
+          },
+          {
+            "seed": 5600010,
+            "reward": 11.42,
+            "steps": 53,
+            "cause": "reached",
+            "metric": 0.0119,
+            "success": true
+          },
+          {
+            "seed": 5600011,
+            "reward": -59.502,
+            "steps": 62,
+            "cause": "reached",
+            "metric": 0.0051,
+            "success": true
+          },
+          {
+            "seed": 5600012,
+            "reward": -8.258,
+            "steps": 56,
+            "cause": "reached",
+            "metric": 0.0058,
+            "success": true
+          },
+          {
+            "seed": 5600013,
+            "reward": -22.284,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0045,
+            "success": true
+          },
+          {
+            "seed": 5600014,
+            "reward": -20.966,
+            "steps": 58,
+            "cause": "reached",
+            "metric": 0.0022,
+            "success": true
+          },
+          {
+            "seed": 5600015,
+            "reward": -15.545,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0057,
+            "success": true
+          },
+          {
+            "seed": 5600016,
+            "reward": 2.773,
+            "steps": 53,
+            "cause": "reached",
+            "metric": 0.0059,
+            "success": true
+          },
+          {
+            "seed": 5600017,
+            "reward": 10.65,
+            "steps": 52,
+            "cause": "reached",
+            "metric": 0.0041,
+            "success": true
+          },
+          {
+            "seed": 5600018,
+            "reward": -4.058,
+            "steps": 56,
+            "cause": "reached",
+            "metric": 0.0052,
+            "success": true
+          },
+          {
+            "seed": 5600019,
+            "reward": -8.215,
+            "steps": 56,
+            "cause": "reached",
+            "metric": 0.0078,
+            "success": true
+          },
+          {
+            "seed": 5600020,
+            "reward": -14.993,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0067,
+            "success": true
+          },
+          {
+            "seed": 5600021,
+            "reward": -34.205,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0066,
+            "success": true
+          },
+          {
+            "seed": 5600022,
+            "reward": -46.456,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0075,
+            "success": true
+          },
+          {
+            "seed": 5600023,
+            "reward": 8.726,
+            "steps": 52,
+            "cause": "reached",
+            "metric": 0.0053,
+            "success": true
+          },
+          {
+            "seed": 5600024,
+            "reward": -17.25,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0047,
+            "success": true
+          },
+          {
+            "seed": 5600025,
+            "reward": -19.1,
+            "steps": 59,
+            "cause": "reached",
+            "metric": 0.005,
+            "success": true
+          },
+          {
+            "seed": 5600026,
+            "reward": 15.057,
+            "steps": 50,
+            "cause": "reached",
+            "metric": 0.0059,
+            "success": true
+          },
+          {
+            "seed": 5600027,
+            "reward": -14.44,
+            "steps": 56,
+            "cause": "reached",
+            "metric": 0.0075,
+            "success": true
+          },
+          {
+            "seed": 5600028,
+            "reward": -36.818,
+            "steps": 59,
+            "cause": "reached",
+            "metric": 0.0051,
+            "success": true
+          },
+          {
+            "seed": 5600029,
+            "reward": -49.983,
+            "steps": 61,
+            "cause": "reached",
+            "metric": 0.0037,
+            "success": true
+          },
+          {
+            "seed": 5600030,
+            "reward": -8.994,
+            "steps": 56,
+            "cause": "reached",
+            "metric": 0.005,
+            "success": true
+          },
+          {
+            "seed": 5600031,
+            "reward": -16.41,
+            "steps": 56,
+            "cause": "reached",
+            "metric": 0.0062,
+            "success": true
+          },
+          {
+            "seed": 5600032,
+            "reward": 2.556,
+            "steps": 54,
+            "cause": "reached",
+            "metric": 0.0088,
+            "success": true
+          },
+          {
+            "seed": 5600033,
+            "reward": -73.367,
+            "steps": 64,
+            "cause": "reached",
+            "metric": 0.0053,
+            "success": true
+          },
+          {
+            "seed": 5600034,
+            "reward": 17.832,
+            "steps": 50,
+            "cause": "reached",
+            "metric": 0.0072,
+            "success": true
+          },
+          {
+            "seed": 5600035,
+            "reward": -58.458,
+            "steps": 61,
+            "cause": "reached",
+            "metric": 0.007,
+            "success": true
+          },
+          {
+            "seed": 5600036,
+            "reward": -37.193,
+            "steps": 59,
+            "cause": "reached",
+            "metric": 0.0079,
+            "success": true
+          },
+          {
+            "seed": 5600037,
+            "reward": 1.346,
+            "steps": 54,
+            "cause": "reached",
+            "metric": 0.0033,
+            "success": true
+          },
+          {
+            "seed": 5600038,
+            "reward": -3.843,
+            "steps": 54,
+            "cause": "reached",
+            "metric": 0.0048,
+            "success": true
+          },
+          {
+            "seed": 5600039,
+            "reward": -45.555,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0035,
+            "success": true
+          },
+          {
+            "seed": 5600040,
+            "reward": -87.055,
+            "steps": 64,
+            "cause": "reached",
+            "metric": 0.0062,
+            "success": true
+          },
+          {
+            "seed": 5600041,
+            "reward": 8.393,
+            "steps": 51,
+            "cause": "reached",
+            "metric": 0.0041,
+            "success": true
+          },
+          {
+            "seed": 5600042,
+            "reward": -75.543,
+            "steps": 62,
+            "cause": "reached",
+            "metric": 0.0072,
+            "success": true
+          },
+          {
+            "seed": 5600043,
+            "reward": -73.321,
+            "steps": 63,
+            "cause": "reached",
+            "metric": 0.0055,
+            "success": true
+          },
+          {
+            "seed": 5600044,
+            "reward": 10.748,
+            "steps": 52,
+            "cause": "reached",
+            "metric": 0.0059,
+            "success": true
+          },
+          {
+            "seed": 5600045,
+            "reward": 10.033,
+            "steps": 53,
+            "cause": "reached",
+            "metric": 0.0067,
+            "success": true
+          },
+          {
+            "seed": 5600046,
+            "reward": -1.574,
+            "steps": 56,
+            "cause": "reached",
+            "metric": 0.0059,
+            "success": true
+          },
+          {
+            "seed": 5600047,
+            "reward": -30.253,
+            "steps": 58,
+            "cause": "reached",
+            "metric": 0.0061,
+            "success": true
+          },
+          {
+            "seed": 5600048,
+            "reward": 4.896,
+            "steps": 53,
+            "cause": "reached",
+            "metric": 0.0053,
+            "success": true
+          },
+          {
+            "seed": 5600049,
+            "reward": -38.572,
+            "steps": 59,
+            "cause": "reached",
+            "metric": 0.0033,
+            "success": true
+          }
+        ]
+      },
+      "regression_5200000": {
+        "seed_base": 5200000,
+        "episodes": 50,
+        "successes": 50,
+        "trials": [
+          {
+            "seed": 5200000,
+            "reward": 19.853,
+            "steps": 49,
+            "cause": "reached",
+            "metric": 0.0062,
+            "success": true
+          },
+          {
+            "seed": 5200001,
+            "reward": 8.37,
+            "steps": 53,
+            "cause": "reached",
+            "metric": 0.0073,
+            "success": true
+          },
+          {
+            "seed": 5200002,
+            "reward": 3.666,
+            "steps": 54,
+            "cause": "reached",
+            "metric": 0.0077,
+            "success": true
+          },
+          {
+            "seed": 5200003,
+            "reward": -53.904,
+            "steps": 61,
+            "cause": "reached",
+            "metric": 0.0057,
+            "success": true
+          },
+          {
+            "seed": 5200004,
+            "reward": 12.871,
+            "steps": 52,
+            "cause": "reached",
+            "metric": 0.0099,
+            "success": true
+          },
+          {
+            "seed": 5200005,
+            "reward": -34.058,
+            "steps": 59,
+            "cause": "reached",
+            "metric": 0.0048,
+            "success": true
+          },
+          {
+            "seed": 5200006,
+            "reward": 2.31,
+            "steps": 54,
+            "cause": "reached",
+            "metric": 0.0058,
+            "success": true
+          },
+          {
+            "seed": 5200007,
+            "reward": -54.517,
+            "steps": 61,
+            "cause": "reached",
+            "metric": 0.0068,
+            "success": true
+          },
+          {
+            "seed": 5200008,
+            "reward": -2.308,
+            "steps": 55,
+            "cause": "reached",
+            "metric": 0.004,
+            "success": true
+          },
+          {
+            "seed": 5200009,
+            "reward": -4.884,
+            "steps": 54,
+            "cause": "reached",
+            "metric": 0.0059,
+            "success": true
+          },
+          {
+            "seed": 5200010,
+            "reward": 19.865,
+            "steps": 50,
+            "cause": "reached",
+            "metric": 0.0077,
+            "success": true
+          },
+          {
+            "seed": 5200011,
+            "reward": -2.118,
+            "steps": 55,
+            "cause": "reached",
+            "metric": 0.0057,
+            "success": true
+          },
+          {
+            "seed": 5200012,
+            "reward": -28.3,
+            "steps": 58,
+            "cause": "reached",
+            "metric": 0.0031,
+            "success": true
+          },
+          {
+            "seed": 5200013,
+            "reward": -76.505,
+            "steps": 63,
+            "cause": "reached",
+            "metric": 0.0059,
+            "success": true
+          },
+          {
+            "seed": 5200014,
+            "reward": -54.312,
+            "steps": 61,
+            "cause": "reached",
+            "metric": 0.0078,
+            "success": true
+          },
+          {
+            "seed": 5200015,
+            "reward": -8.349,
+            "steps": 56,
+            "cause": "reached",
+            "metric": 0.0058,
+            "success": true
+          },
+          {
+            "seed": 5200016,
+            "reward": 9.454,
+            "steps": 52,
+            "cause": "reached",
+            "metric": 0.0046,
+            "success": true
+          },
+          {
+            "seed": 5200017,
+            "reward": -42.703,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.005,
+            "success": true
+          },
+          {
+            "seed": 5200018,
+            "reward": -16.794,
+            "steps": 56,
+            "cause": "reached",
+            "metric": 0.0064,
+            "success": true
+          },
+          {
+            "seed": 5200019,
+            "reward": -40.606,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0068,
+            "success": true
+          },
+          {
+            "seed": 5200020,
+            "reward": -29.398,
+            "steps": 58,
+            "cause": "reached",
+            "metric": 0.0066,
+            "success": true
+          },
+          {
+            "seed": 5200021,
+            "reward": -70.396,
+            "steps": 62,
+            "cause": "reached",
+            "metric": 0.0077,
+            "success": true
+          },
+          {
+            "seed": 5200022,
+            "reward": -9.148,
+            "steps": 56,
+            "cause": "reached",
+            "metric": 0.0049,
+            "success": true
+          },
+          {
+            "seed": 5200023,
+            "reward": -21.569,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0065,
+            "success": true
+          },
+          {
+            "seed": 5200024,
+            "reward": -58.635,
+            "steps": 62,
+            "cause": "reached",
+            "metric": 0.0054,
+            "success": true
+          },
+          {
+            "seed": 5200025,
+            "reward": 1.661,
+            "steps": 54,
+            "cause": "reached",
+            "metric": 0.0056,
+            "success": true
+          },
+          {
+            "seed": 5200026,
+            "reward": -35.844,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0069,
+            "success": true
+          },
+          {
+            "seed": 5200027,
+            "reward": -20.117,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.005,
+            "success": true
+          },
+          {
+            "seed": 5200028,
+            "reward": 2.696,
+            "steps": 54,
+            "cause": "reached",
+            "metric": 0.0048,
+            "success": true
+          },
+          {
+            "seed": 5200029,
+            "reward": -39.202,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0057,
+            "success": true
+          },
+          {
+            "seed": 5200030,
+            "reward": -2.605,
+            "steps": 56,
+            "cause": "reached",
+            "metric": 0.0075,
+            "success": true
+          },
+          {
+            "seed": 5200031,
+            "reward": -5.973,
+            "steps": 55,
+            "cause": "reached",
+            "metric": 0.0053,
+            "success": true
+          },
+          {
+            "seed": 5200032,
+            "reward": -13.268,
+            "steps": 56,
+            "cause": "reached",
+            "metric": 0.0057,
+            "success": true
+          },
+          {
+            "seed": 5200033,
+            "reward": -21.258,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0027,
+            "success": true
+          },
+          {
+            "seed": 5200034,
+            "reward": 12.302,
+            "steps": 52,
+            "cause": "reached",
+            "metric": 0.0079,
+            "success": true
+          },
+          {
+            "seed": 5200035,
+            "reward": 5.526,
+            "steps": 53,
+            "cause": "reached",
+            "metric": 0.0053,
+            "success": true
+          },
+          {
+            "seed": 5200036,
+            "reward": -52.732,
+            "steps": 61,
+            "cause": "reached",
+            "metric": 0.0058,
+            "success": true
+          },
+          {
+            "seed": 5200037,
+            "reward": -65.668,
+            "steps": 61,
+            "cause": "reached",
+            "metric": 0.0058,
+            "success": true
+          },
+          {
+            "seed": 5200038,
+            "reward": 7.757,
+            "steps": 52,
+            "cause": "reached",
+            "metric": 0.005,
+            "success": true
+          },
+          {
+            "seed": 5200039,
+            "reward": -15.152,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0057,
+            "success": true
+          },
+          {
+            "seed": 5200040,
+            "reward": -54.616,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0057,
+            "success": true
+          },
+          {
+            "seed": 5200041,
+            "reward": -50.23,
+            "steps": 61,
+            "cause": "reached",
+            "metric": 0.0051,
+            "success": true
+          },
+          {
+            "seed": 5200042,
+            "reward": -48.166,
+            "steps": 62,
+            "cause": "reached",
+            "metric": 0.0171,
+            "success": true
+          },
+          {
+            "seed": 5200043,
+            "reward": 11.659,
+            "steps": 50,
+            "cause": "reached",
+            "metric": 0.0041,
+            "success": true
+          },
+          {
+            "seed": 5200044,
+            "reward": -24.468,
+            "steps": 58,
+            "cause": "reached",
+            "metric": 0.0077,
+            "success": true
+          },
+          {
+            "seed": 5200045,
+            "reward": -44.758,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0059,
+            "success": true
+          },
+          {
+            "seed": 5200046,
+            "reward": 1.232,
+            "steps": 54,
+            "cause": "reached",
+            "metric": 0.0067,
+            "success": true
+          },
+          {
+            "seed": 5200047,
+            "reward": -49.752,
+            "steps": 62,
+            "cause": "reached",
+            "metric": 0.0059,
+            "success": true
+          },
+          {
+            "seed": 5200048,
+            "reward": -16.814,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0064,
+            "success": true
+          },
+          {
+            "seed": 5200049,
+            "reward": -22.071,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0057,
+            "success": true
+          }
+        ]
+      },
+      "regression_5500000": {
+        "seed_base": 5500000,
+        "episodes": 50,
+        "successes": 50,
+        "trials": [
+          {
+            "seed": 5500000,
+            "reward": -14.907,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0059,
+            "success": true
+          },
+          {
+            "seed": 5500001,
+            "reward": 22.937,
+            "steps": 48,
+            "cause": "reached",
+            "metric": 0.007,
+            "success": true
+          },
+          {
+            "seed": 5500002,
+            "reward": 4.489,
+            "steps": 53,
+            "cause": "reached",
+            "metric": 0.0056,
+            "success": true
+          },
+          {
+            "seed": 5500003,
+            "reward": -0.02,
+            "steps": 53,
+            "cause": "reached",
+            "metric": 0.0037,
+            "success": true
+          },
+          {
+            "seed": 5500004,
+            "reward": 19.645,
+            "steps": 50,
+            "cause": "reached",
+            "metric": 0.01,
+            "success": true
+          },
+          {
+            "seed": 5500005,
+            "reward": 20.976,
+            "steps": 48,
+            "cause": "reached",
+            "metric": 0.0055,
+            "success": true
+          },
+          {
+            "seed": 5500006,
+            "reward": -41.07,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0031,
+            "success": true
+          },
+          {
+            "seed": 5500007,
+            "reward": -35.953,
+            "steps": 59,
+            "cause": "reached",
+            "metric": 0.0059,
+            "success": true
+          },
+          {
+            "seed": 5500008,
+            "reward": -54.334,
+            "steps": 62,
+            "cause": "reached",
+            "metric": 0.0056,
+            "success": true
+          },
+          {
+            "seed": 5500009,
+            "reward": 9.277,
+            "steps": 54,
+            "cause": "reached",
+            "metric": 0.0114,
+            "success": true
+          },
+          {
+            "seed": 5500010,
+            "reward": -30.663,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0023,
+            "success": true
+          },
+          {
+            "seed": 5500011,
+            "reward": -24.597,
+            "steps": 58,
+            "cause": "reached",
+            "metric": 0.0067,
+            "success": true
+          },
+          {
+            "seed": 5500012,
+            "reward": 0.049,
+            "steps": 55,
+            "cause": "reached",
+            "metric": 0.0049,
+            "success": true
+          },
+          {
+            "seed": 5500013,
+            "reward": -18.495,
+            "steps": 58,
+            "cause": "reached",
+            "metric": 0.0053,
+            "success": true
+          },
+          {
+            "seed": 5500014,
+            "reward": -12.625,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0037,
+            "success": true
+          },
+          {
+            "seed": 5500015,
+            "reward": -18.232,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0053,
+            "success": true
+          },
+          {
+            "seed": 5500016,
+            "reward": -25.907,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0049,
+            "success": true
+          },
+          {
+            "seed": 5500017,
+            "reward": -23.345,
+            "steps": 58,
+            "cause": "reached",
+            "metric": 0.0041,
+            "success": true
+          },
+          {
+            "seed": 5500018,
+            "reward": -51.736,
+            "steps": 61,
+            "cause": "reached",
+            "metric": 0.0068,
+            "success": true
+          },
+          {
+            "seed": 5500019,
+            "reward": 3.655,
+            "steps": 53,
+            "cause": "reached",
+            "metric": 0.0067,
+            "success": true
+          },
+          {
+            "seed": 5500020,
+            "reward": -49.131,
+            "steps": 61,
+            "cause": "reached",
+            "metric": 0.0059,
+            "success": true
+          },
+          {
+            "seed": 5500021,
+            "reward": -64.687,
+            "steps": 62,
+            "cause": "reached",
+            "metric": 0.005,
+            "success": true
+          },
+          {
+            "seed": 5500022,
+            "reward": -89.095,
+            "steps": 64,
+            "cause": "reached",
+            "metric": 0.0076,
+            "success": true
+          },
+          {
+            "seed": 5500023,
+            "reward": -55.157,
+            "steps": 62,
+            "cause": "reached",
+            "metric": 0.006,
+            "success": true
+          },
+          {
+            "seed": 5500024,
+            "reward": 3.757,
+            "steps": 53,
+            "cause": "reached",
+            "metric": 0.0041,
+            "success": true
+          },
+          {
+            "seed": 5500025,
+            "reward": -34.454,
+            "steps": 59,
+            "cause": "reached",
+            "metric": 0.0047,
+            "success": true
+          },
+          {
+            "seed": 5500026,
+            "reward": -36.71,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0067,
+            "success": true
+          },
+          {
+            "seed": 5500027,
+            "reward": 17.315,
+            "steps": 50,
+            "cause": "reached",
+            "metric": 0.0072,
+            "success": true
+          },
+          {
+            "seed": 5500028,
+            "reward": -17.607,
+            "steps": 58,
+            "cause": "reached",
+            "metric": 0.0043,
+            "success": true
+          },
+          {
+            "seed": 5500029,
+            "reward": -79.301,
+            "steps": 62,
+            "cause": "reached",
+            "metric": 0.0067,
+            "success": true
+          },
+          {
+            "seed": 5500030,
+            "reward": 7.804,
+            "steps": 52,
+            "cause": "reached",
+            "metric": 0.0039,
+            "success": true
+          },
+          {
+            "seed": 5500031,
+            "reward": -46.878,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0067,
+            "success": true
+          },
+          {
+            "seed": 5500032,
+            "reward": 11.786,
+            "steps": 51,
+            "cause": "reached",
+            "metric": 0.0035,
+            "success": true
+          },
+          {
+            "seed": 5500033,
+            "reward": -16.108,
+            "steps": 56,
+            "cause": "reached",
+            "metric": 0.0053,
+            "success": true
+          },
+          {
+            "seed": 5500034,
+            "reward": 14.163,
+            "steps": 50,
+            "cause": "reached",
+            "metric": 0.004,
+            "success": true
+          },
+          {
+            "seed": 5500035,
+            "reward": 2.516,
+            "steps": 54,
+            "cause": "reached",
+            "metric": 0.0059,
+            "success": true
+          },
+          {
+            "seed": 5500036,
+            "reward": -46.307,
+            "steps": 59,
+            "cause": "reached",
+            "metric": 0.0063,
+            "success": true
+          },
+          {
+            "seed": 5500037,
+            "reward": 12.718,
+            "steps": 51,
+            "cause": "reached",
+            "metric": 0.0049,
+            "success": true
+          },
+          {
+            "seed": 5500038,
+            "reward": -3.056,
+            "steps": 55,
+            "cause": "reached",
+            "metric": 0.0062,
+            "success": true
+          },
+          {
+            "seed": 5500039,
+            "reward": 12.407,
+            "steps": 53,
+            "cause": "reached",
+            "metric": 0.0101,
+            "success": true
+          },
+          {
+            "seed": 5500040,
+            "reward": 5.504,
+            "steps": 53,
+            "cause": "reached",
+            "metric": 0.0067,
+            "success": true
+          },
+          {
+            "seed": 5500041,
+            "reward": -79.632,
+            "steps": 63,
+            "cause": "reached",
+            "metric": 0.0059,
+            "success": true
+          },
+          {
+            "seed": 5500042,
+            "reward": -1.62,
+            "steps": 54,
+            "cause": "reached",
+            "metric": 0.0033,
+            "success": true
+          },
+          {
+            "seed": 5500043,
+            "reward": -33.113,
+            "steps": 59,
+            "cause": "reached",
+            "metric": 0.0037,
+            "success": true
+          },
+          {
+            "seed": 5500044,
+            "reward": -37.29,
+            "steps": 59,
+            "cause": "reached",
+            "metric": 0.0056,
+            "success": true
+          },
+          {
+            "seed": 5500045,
+            "reward": 3.848,
+            "steps": 52,
+            "cause": "reached",
+            "metric": 0.0034,
+            "success": true
+          },
+          {
+            "seed": 5500046,
+            "reward": 8.507,
+            "steps": 52,
+            "cause": "reached",
+            "metric": 0.0053,
+            "success": true
+          },
+          {
+            "seed": 5500047,
+            "reward": 5.526,
+            "steps": 54,
+            "cause": "reached",
+            "metric": 0.0079,
+            "success": true
+          },
+          {
+            "seed": 5500048,
+            "reward": 17.168,
+            "steps": 50,
+            "cause": "reached",
+            "metric": 0.0044,
+            "success": true
+          },
+          {
+            "seed": 5500049,
+            "reward": -3.577,
+            "steps": 55,
+            "cause": "reached",
+            "metric": 0.0065,
+            "success": true
+          }
+        ]
+      },
+      "checkpoints": [
+        {
+          "episode": 70,
+          "timestamp": "2026-09-11T01:11:51-05:00",
+          "mean_reward": -15.36,
+          "eval_reward": -6.51,
+          "eval_metric": 0.00677,
+          "eval_reward_std": 29.382,
+          "eval_metric_std": 0.002,
+          "eval_failure_progress": null,
+          "eval_episodes": 10,
+          "success_rate": 1.0,
+          "success_ci_low": 0.7225,
+          "success_ci_high": 1.0,
+          "evaluation_suite": "policy-atlas-eval-v1-n10",
+          "seed": 42,
+          "update_count": 2,
+          "total_steps": 4186,
+          "schema_version": 3,
+          "obs_dim": 14,
+          "n_continuous": 2,
+          "n_binary": 0,
+          "protocol": {
+            "algorithm": "demonstration-assisted PPO",
+            "version": 20,
+            "inherited_policy_origin": null,
+            "pause_on_success": true,
+            "success_stop_rule": "saved checkpoint passes all >=10 fixed test starts and canonical replay",
+            "kl_stop_timing": "before_optimizer_step",
+            "cpu_threads": 1,
+            "rollout_steps": 2048,
+            "episode_aligned_rollouts": true,
+            "gamma": 0.995,
+            "gae_lambda": 0.95,
+            "learning_rate": 3e-05,
+            "clip_epsilon": 0.2,
+            "entropy_coefficient": 0.0,
+            "value_coefficient": 0.5,
+            "training_reward_scale": 0.01,
+            "value_loss_scale": "rollout return RMS",
+            "training_start_distribution": "unchanged full-task starts after disclosed reference demonstrations and DAgger initialization",
+            "task_horizon_steps": 300,
+            "task_horizon_seconds": 15,
+            "failure_clock_regularizer": null,
+            "course_reward_potential": null,
+            "training_curriculum": null,
+            "training_control": null,
+            "training_schedule": null,
+            "actor_warm_start": {
+              "contract": {
+                "id": "robot-reach-reference-dagger-v2",
+                "role": "actor DAgger warm start",
+                "pure_model_free_from_scratch": false,
+                "expert": {
+                  "id": "robot-reach-analytic-reference-v1",
+                  "description": "inverse kinematics plus damped joint PD",
+                  "used_at_inference": false
+                },
+                "dataset": {
+                  "seed_base": 820000,
+                  "episodes": 80,
+                  "seed_formula": "seed_base + episode_index",
+                  "state_stride": 1,
+                  "start_state": "unchanged seeded full-task starts plus 48 near-goal examples per target: joint perturbations ±0.2 rad, velocities ±0.4 rad/s, sampled valid dwell/clock states; one fixed permutation per dataset seed; demonstration seeds excluded from evaluation",
+                  "observations": "pre-action environment observations",
+                  "targets": "bounded expert actions"
+                },
+                "optimizer": {
+                  "algorithm": "Adam",
+                  "learning_rate": 0.001,
+                  "batch_size": 1024,
+                  "epochs_per_initial_fit": 120,
+                  "epochs_per_dagger_fit": 80,
+                  "loss": "mean squared bounded-action error",
+                  "shuffle": false,
+                  "initialization_seed": 42,
+                  "trained_parameters": "shared torso, continuous mean head, and any binary head"
+                },
+                "ppo_fine_tuning": true,
+                "checkpoint_restore_overrides_warm_start": true,
+                "dagger": {
+                  "rounds": 2,
+                  "rollout_seed_base": 821000,
+                  "round_seed_stride": 1000,
+                  "episodes_per_round": 30,
+                  "state_stride": 1,
+                  "expert_role": "labels learned-policy rollout states only"
+                }
+              },
+              "realized": {
+                "samples": 14634,
+                "final_mse": 0.0023364245425909758,
+                "dataset_sha256": "91a1ccd7477c77b5cdb12fa1ae19f2c93104e320bea7e42d85303666851903be",
+                "initialization_seed": 42,
+                "dagger_rounds": [
+                  {
+                    "round": 1,
+                    "samples_added": 3114,
+                    "total_samples": 11493,
+                    "final_mse": 0.0018767676083371043
+                  },
+                  {
+                    "round": 2,
+                    "samples_added": 3141,
+                    "total_samples": 14634,
+                    "final_mse": 0.0023364245425909758
+                  }
+                ]
+              }
+            },
+            "actor_initialization": {
+              "scope": "robot-reach-only",
+              "applies_on": "fresh_seeded_policy_construction",
+              "continuous_action_labels": [
+                "shoulder",
+                "elbow"
+              ],
+              "continuous_action_prior": [
+                0.0,
+                0.0
+              ],
+              "continuous_latent_bias": [
+                0.0,
+                0.0
+              ],
+              "continuous_log_std": [
+                -2.5,
+                -2.5
+              ],
+              "continuous_head_weight_std": 0.01,
+              "binary_action_labels": [],
+              "binary_probability_prior": [],
+              "binary_logit_bias": [],
+              "binary_head_weight_std": 0.01,
+              "deterministic_zero_observation_action": [
+                0.0,
+                0.0
+              ],
+              "checkpoint_restore_overrides_initialization": true
+            },
+            "update_epochs": 10,
+            "minibatch_size": 256,
+            "target_kl": 0.03,
+            "evaluation_episodes": 10,
+            "evaluation_suite": "policy-atlas-eval-v1-n10",
+            "evaluation_seed_base": 100000,
+            "deterministic_evaluation": true,
+            "engine_source_sha256": "0cc1565b15ba8dc3ef3a2b34bbe5bd5771c7d3eb926f1bd96162a5bca8a43da7",
+            "reproducibility_scope": "RNG-exact continuation on the saved runtime; bitwise identity is not guaranteed across devices or dependency builds",
+            "device": "cpu",
+            "torch_version": "2.4.1+cu124"
+          },
+          "training_diagnostics": {
+            "policy_loss": -0.00209,
+            "value_loss": 0.08712,
+            "entropy": -3.09914,
+            "approx_kl": 0.01309,
+            "clip_frac": 0.17185,
+            "value_scale": 1.0,
+            "value_clip_frac": 0.0,
+            "optimizer_steps": 37,
+            "kl_early_stopped": 1,
+            "explained_variance": 0.43423,
+            "value_bias": 0.44603,
+            "action_std_mean": 0.08209,
+            "action_std_min": 0.08204,
+            "action_std_max": 0.08213,
+            "action_std_0": 0.08213,
+            "action_std_1": 0.08204,
+            "continuous_action_mean_0": 0.15328,
+            "continuous_action_mean_1": -0.02144
+          },
+          "metadata_sha256": "23effbfa3226a478461028fa975045800e7d1a255322d0f7515c72c66b9f927b",
+          "checkpoint_sha256": "7b0de008439562adcce74b1ae4d174005ed1b279b281b6280240717e27c46cb6"
+        }
+      ]
+    },
+    {
+      "engine": "0cc1565b15ba8dc3ef3a2b34bbe5bd5771c7d3eb926f1bd96162a5bca8a43da7",
+      "training_seed": 123,
+      "episode": 69,
+      "update_count": 2,
+      "total_steps": 4152,
+      "selection": {
+        "reward": -6.648213047281343,
+        "reward_std": 29.52185499896999,
+        "metric": 0.012740000000000001,
+        "metric_std": 0.0010772186407596186,
+        "failure_progress": null,
+        "episodes": 10,
+        "success_rate": 1.0,
+        "success_ci_low": 0.7224598312333834,
+        "success_ci_high": 1.0,
+        "evaluation_suite": "policy-atlas-eval-v1-n10",
+        "seed": 123,
+        "canonical_summary": {
+          "reward": -20.451,
+          "steps": 58,
+          "cause": "reached",
+          "metric": 0.0148,
+          "success": true
+        }
+      },
+      "qualification": {
+        "seed_base": 5600000,
+        "episodes": 50,
+        "successes": 50,
+        "trials": [
+          {
+            "seed": 5600000,
+            "reward": -38.203,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0127,
+            "success": true
+          },
+          {
+            "seed": 5600001,
+            "reward": -65.644,
+            "steps": 62,
+            "cause": "reached",
+            "metric": 0.0143,
+            "success": true
+          },
+          {
+            "seed": 5600002,
+            "reward": 24.982,
+            "steps": 47,
+            "cause": "reached",
+            "metric": 0.0085,
+            "success": true
+          },
+          {
+            "seed": 5600003,
+            "reward": 0.854,
+            "steps": 53,
+            "cause": "reached",
+            "metric": 0.0105,
+            "success": true
+          },
+          {
+            "seed": 5600004,
+            "reward": -9.466,
+            "steps": 56,
+            "cause": "reached",
+            "metric": 0.0137,
+            "success": true
+          },
+          {
+            "seed": 5600005,
+            "reward": -1.853,
+            "steps": 55,
+            "cause": "reached",
+            "metric": 0.0146,
+            "success": true
+          },
+          {
+            "seed": 5600006,
+            "reward": -40.247,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0148,
+            "success": true
+          },
+          {
+            "seed": 5600007,
+            "reward": -15.156,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.013,
+            "success": true
+          },
+          {
+            "seed": 5600008,
+            "reward": -52.878,
+            "steps": 62,
+            "cause": "reached",
+            "metric": 0.0139,
+            "success": true
+          },
+          {
+            "seed": 5600009,
+            "reward": 6.287,
+            "steps": 52,
+            "cause": "reached",
+            "metric": 0.0109,
+            "success": true
+          },
+          {
+            "seed": 5600010,
+            "reward": 11.441,
+            "steps": 53,
+            "cause": "reached",
+            "metric": 0.0113,
+            "success": true
+          },
+          {
+            "seed": 5600011,
+            "reward": -59.757,
+            "steps": 63,
+            "cause": "reached",
+            "metric": 0.013,
+            "success": true
+          },
+          {
+            "seed": 5600012,
+            "reward": -8.575,
+            "steps": 56,
+            "cause": "reached",
+            "metric": 0.0149,
+            "success": true
+          },
+          {
+            "seed": 5600013,
+            "reward": -22.489,
+            "steps": 58,
+            "cause": "reached",
+            "metric": 0.0133,
+            "success": true
+          },
+          {
+            "seed": 5600014,
+            "reward": -21.038,
+            "steps": 58,
+            "cause": "reached",
+            "metric": 0.0116,
+            "success": true
+          },
+          {
+            "seed": 5600015,
+            "reward": -15.836,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0138,
+            "success": true
+          },
+          {
+            "seed": 5600016,
+            "reward": 2.615,
+            "steps": 54,
+            "cause": "reached",
+            "metric": 0.0103,
+            "success": true
+          },
+          {
+            "seed": 5600017,
+            "reward": 10.57,
+            "steps": 52,
+            "cause": "reached",
+            "metric": 0.0103,
+            "success": true
+          },
+          {
+            "seed": 5600018,
+            "reward": -4.303,
+            "steps": 56,
+            "cause": "reached",
+            "metric": 0.0149,
+            "success": true
+          },
+          {
+            "seed": 5600019,
+            "reward": -8.421,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0145,
+            "success": true
+          },
+          {
+            "seed": 5600020,
+            "reward": -15.264,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0142,
+            "success": true
+          },
+          {
+            "seed": 5600021,
+            "reward": -34.651,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0149,
+            "success": true
+          },
+          {
+            "seed": 5600022,
+            "reward": -47.05,
+            "steps": 61,
+            "cause": "reached",
+            "metric": 0.0146,
+            "success": true
+          },
+          {
+            "seed": 5600023,
+            "reward": 8.652,
+            "steps": 52,
+            "cause": "reached",
+            "metric": 0.0136,
+            "success": true
+          },
+          {
+            "seed": 5600024,
+            "reward": -17.443,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0132,
+            "success": true
+          },
+          {
+            "seed": 5600025,
+            "reward": -19.129,
+            "steps": 59,
+            "cause": "reached",
+            "metric": 0.0101,
+            "success": true
+          },
+          {
+            "seed": 5600026,
+            "reward": 15.008,
+            "steps": 50,
+            "cause": "reached",
+            "metric": 0.0096,
+            "success": true
+          },
+          {
+            "seed": 5600027,
+            "reward": -14.482,
+            "steps": 56,
+            "cause": "reached",
+            "metric": 0.0137,
+            "success": true
+          },
+          {
+            "seed": 5600028,
+            "reward": -37.144,
+            "steps": 59,
+            "cause": "reached",
+            "metric": 0.0136,
+            "success": true
+          },
+          {
+            "seed": 5600029,
+            "reward": -50.031,
+            "steps": 61,
+            "cause": "reached",
+            "metric": 0.0123,
+            "success": true
+          },
+          {
+            "seed": 5600030,
+            "reward": -9.327,
+            "steps": 56,
+            "cause": "reached",
+            "metric": 0.0146,
+            "success": true
+          },
+          {
+            "seed": 5600031,
+            "reward": -16.831,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0149,
+            "success": true
+          },
+          {
+            "seed": 5600032,
+            "reward": 2.488,
+            "steps": 54,
+            "cause": "reached",
+            "metric": 0.0112,
+            "success": true
+          },
+          {
+            "seed": 5600033,
+            "reward": -73.512,
+            "steps": 64,
+            "cause": "reached",
+            "metric": 0.0115,
+            "success": true
+          },
+          {
+            "seed": 5600034,
+            "reward": 17.806,
+            "steps": 51,
+            "cause": "reached",
+            "metric": 0.0137,
+            "success": true
+          },
+          {
+            "seed": 5600035,
+            "reward": -59.202,
+            "steps": 62,
+            "cause": "reached",
+            "metric": 0.0156,
+            "success": true
+          },
+          {
+            "seed": 5600036,
+            "reward": -37.846,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0137,
+            "success": true
+          },
+          {
+            "seed": 5600037,
+            "reward": 1.273,
+            "steps": 54,
+            "cause": "reached",
+            "metric": 0.0121,
+            "success": true
+          },
+          {
+            "seed": 5600038,
+            "reward": -3.994,
+            "steps": 54,
+            "cause": "reached",
+            "metric": 0.0102,
+            "success": true
+          },
+          {
+            "seed": 5600039,
+            "reward": -45.832,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0126,
+            "success": true
+          },
+          {
+            "seed": 5600040,
+            "reward": -87.694,
+            "steps": 65,
+            "cause": "reached",
+            "metric": 0.0146,
+            "success": true
+          },
+          {
+            "seed": 5600041,
+            "reward": 8.357,
+            "steps": 51,
+            "cause": "reached",
+            "metric": 0.0104,
+            "success": true
+          },
+          {
+            "seed": 5600042,
+            "reward": -76.554,
+            "steps": 63,
+            "cause": "reached",
+            "metric": 0.0151,
+            "success": true
+          },
+          {
+            "seed": 5600043,
+            "reward": -73.435,
+            "steps": 63,
+            "cause": "reached",
+            "metric": 0.0117,
+            "success": true
+          },
+          {
+            "seed": 5600044,
+            "reward": 10.654,
+            "steps": 52,
+            "cause": "reached",
+            "metric": 0.0104,
+            "success": true
+          },
+          {
+            "seed": 5600045,
+            "reward": 9.945,
+            "steps": 53,
+            "cause": "reached",
+            "metric": 0.0143,
+            "success": true
+          },
+          {
+            "seed": 5600046,
+            "reward": -1.663,
+            "steps": 56,
+            "cause": "reached",
+            "metric": 0.0147,
+            "success": true
+          },
+          {
+            "seed": 5600047,
+            "reward": -30.785,
+            "steps": 59,
+            "cause": "reached",
+            "metric": 0.0153,
+            "success": true
+          },
+          {
+            "seed": 5600048,
+            "reward": 4.755,
+            "steps": 54,
+            "cause": "reached",
+            "metric": 0.0102,
+            "success": true
+          },
+          {
+            "seed": 5600049,
+            "reward": -38.751,
+            "steps": 59,
+            "cause": "reached",
+            "metric": 0.0123,
+            "success": true
+          }
+        ]
+      },
+      "regression_5200000": {
+        "seed_base": 5200000,
+        "episodes": 50,
+        "successes": 50,
+        "trials": [
+          {
+            "seed": 5200000,
+            "reward": 19.823,
+            "steps": 49,
+            "cause": "reached",
+            "metric": 0.0107,
+            "success": true
+          },
+          {
+            "seed": 5200001,
+            "reward": 8.306,
+            "steps": 54,
+            "cause": "reached",
+            "metric": 0.0142,
+            "success": true
+          },
+          {
+            "seed": 5200002,
+            "reward": 3.473,
+            "steps": 54,
+            "cause": "reached",
+            "metric": 0.014,
+            "success": true
+          },
+          {
+            "seed": 5200003,
+            "reward": -53.967,
+            "steps": 61,
+            "cause": "reached",
+            "metric": 0.0123,
+            "success": true
+          },
+          {
+            "seed": 5200004,
+            "reward": 12.873,
+            "steps": 52,
+            "cause": "reached",
+            "metric": 0.0114,
+            "success": true
+          },
+          {
+            "seed": 5200005,
+            "reward": -34.4,
+            "steps": 59,
+            "cause": "reached",
+            "metric": 0.0131,
+            "success": true
+          },
+          {
+            "seed": 5200006,
+            "reward": 2.139,
+            "steps": 54,
+            "cause": "reached",
+            "metric": 0.0116,
+            "success": true
+          },
+          {
+            "seed": 5200007,
+            "reward": -55.32,
+            "steps": 61,
+            "cause": "reached",
+            "metric": 0.0154,
+            "success": true
+          },
+          {
+            "seed": 5200008,
+            "reward": -2.44,
+            "steps": 56,
+            "cause": "reached",
+            "metric": 0.0132,
+            "success": true
+          },
+          {
+            "seed": 5200009,
+            "reward": -5.128,
+            "steps": 55,
+            "cause": "reached",
+            "metric": 0.0132,
+            "success": true
+          },
+          {
+            "seed": 5200010,
+            "reward": 19.873,
+            "steps": 50,
+            "cause": "reached",
+            "metric": 0.0123,
+            "success": true
+          },
+          {
+            "seed": 5200011,
+            "reward": -2.305,
+            "steps": 55,
+            "cause": "reached",
+            "metric": 0.0146,
+            "success": true
+          },
+          {
+            "seed": 5200012,
+            "reward": -28.42,
+            "steps": 58,
+            "cause": "reached",
+            "metric": 0.0122,
+            "success": true
+          },
+          {
+            "seed": 5200013,
+            "reward": -77.063,
+            "steps": 63,
+            "cause": "reached",
+            "metric": 0.0143,
+            "success": true
+          },
+          {
+            "seed": 5200014,
+            "reward": -54.957,
+            "steps": 61,
+            "cause": "reached",
+            "metric": 0.0137,
+            "success": true
+          },
+          {
+            "seed": 5200015,
+            "reward": -8.619,
+            "steps": 56,
+            "cause": "reached",
+            "metric": 0.0146,
+            "success": true
+          },
+          {
+            "seed": 5200016,
+            "reward": 9.397,
+            "steps": 52,
+            "cause": "reached",
+            "metric": 0.0122,
+            "success": true
+          },
+          {
+            "seed": 5200017,
+            "reward": -43.083,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0135,
+            "success": true
+          },
+          {
+            "seed": 5200018,
+            "reward": -17.314,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.014,
+            "success": true
+          },
+          {
+            "seed": 5200019,
+            "reward": -40.528,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0073,
+            "success": true
+          },
+          {
+            "seed": 5200020,
+            "reward": -30.043,
+            "steps": 58,
+            "cause": "reached",
+            "metric": 0.0145,
+            "success": true
+          },
+          {
+            "seed": 5200021,
+            "reward": -71.317,
+            "steps": 63,
+            "cause": "reached",
+            "metric": 0.0137,
+            "success": true
+          },
+          {
+            "seed": 5200022,
+            "reward": -9.301,
+            "steps": 56,
+            "cause": "reached",
+            "metric": 0.0133,
+            "success": true
+          },
+          {
+            "seed": 5200023,
+            "reward": -21.973,
+            "steps": 58,
+            "cause": "reached",
+            "metric": 0.0151,
+            "success": true
+          },
+          {
+            "seed": 5200024,
+            "reward": -58.674,
+            "steps": 62,
+            "cause": "reached",
+            "metric": 0.0124,
+            "success": true
+          },
+          {
+            "seed": 5200025,
+            "reward": 1.596,
+            "steps": 55,
+            "cause": "reached",
+            "metric": 0.0127,
+            "success": true
+          },
+          {
+            "seed": 5200026,
+            "reward": -36.215,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0146,
+            "success": true
+          },
+          {
+            "seed": 5200027,
+            "reward": -20.672,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0139,
+            "success": true
+          },
+          {
+            "seed": 5200028,
+            "reward": 2.55,
+            "steps": 55,
+            "cause": "reached",
+            "metric": 0.0142,
+            "success": true
+          },
+          {
+            "seed": 5200029,
+            "reward": -39.551,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0138,
+            "success": true
+          },
+          {
+            "seed": 5200030,
+            "reward": -2.806,
+            "steps": 56,
+            "cause": "reached",
+            "metric": 0.0148,
+            "success": true
+          },
+          {
+            "seed": 5200031,
+            "reward": -6.183,
+            "steps": 55,
+            "cause": "reached",
+            "metric": 0.0141,
+            "success": true
+          },
+          {
+            "seed": 5200032,
+            "reward": -13.495,
+            "steps": 56,
+            "cause": "reached",
+            "metric": 0.0146,
+            "success": true
+          },
+          {
+            "seed": 5200033,
+            "reward": -21.348,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0117,
+            "success": true
+          },
+          {
+            "seed": 5200034,
+            "reward": 12.23,
+            "steps": 53,
+            "cause": "reached",
+            "metric": 0.0151,
+            "success": true
+          },
+          {
+            "seed": 5200035,
+            "reward": 5.365,
+            "steps": 54,
+            "cause": "reached",
+            "metric": 0.0136,
+            "success": true
+          },
+          {
+            "seed": 5200036,
+            "reward": -52.901,
+            "steps": 61,
+            "cause": "reached",
+            "metric": 0.0131,
+            "success": true
+          },
+          {
+            "seed": 5200037,
+            "reward": -66.694,
+            "steps": 62,
+            "cause": "reached",
+            "metric": 0.0167,
+            "success": true
+          },
+          {
+            "seed": 5200038,
+            "reward": 7.663,
+            "steps": 52,
+            "cause": "reached",
+            "metric": 0.0096,
+            "success": true
+          },
+          {
+            "seed": 5200039,
+            "reward": -15.529,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0148,
+            "success": true
+          },
+          {
+            "seed": 5200040,
+            "reward": -55.515,
+            "steps": 61,
+            "cause": "reached",
+            "metric": 0.0161,
+            "success": true
+          },
+          {
+            "seed": 5200041,
+            "reward": -50.622,
+            "steps": 62,
+            "cause": "reached",
+            "metric": 0.0137,
+            "success": true
+          },
+          {
+            "seed": 5200042,
+            "reward": -48.064,
+            "steps": 62,
+            "cause": "reached",
+            "metric": 0.008,
+            "success": true
+          },
+          {
+            "seed": 5200043,
+            "reward": 11.629,
+            "steps": 50,
+            "cause": "reached",
+            "metric": 0.0096,
+            "success": true
+          },
+          {
+            "seed": 5200044,
+            "reward": -24.999,
+            "steps": 58,
+            "cause": "reached",
+            "metric": 0.0142,
+            "success": true
+          },
+          {
+            "seed": 5200045,
+            "reward": -45.204,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0145,
+            "success": true
+          },
+          {
+            "seed": 5200046,
+            "reward": 1.052,
+            "steps": 54,
+            "cause": "reached",
+            "metric": 0.0111,
+            "success": true
+          },
+          {
+            "seed": 5200047,
+            "reward": -50.014,
+            "steps": 62,
+            "cause": "reached",
+            "metric": 0.0145,
+            "success": true
+          },
+          {
+            "seed": 5200048,
+            "reward": -17.25,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0142,
+            "success": true
+          },
+          {
+            "seed": 5200049,
+            "reward": -22.651,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0141,
+            "success": true
+          }
+        ]
+      },
+      "regression_5500000": {
+        "seed_base": 5500000,
+        "episodes": 50,
+        "successes": 50,
+        "trials": [
+          {
+            "seed": 5500000,
+            "reward": -15.255,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0147,
+            "success": true
+          },
+          {
+            "seed": 5500001,
+            "reward": 22.953,
+            "steps": 48,
+            "cause": "reached",
+            "metric": 0.0117,
+            "success": true
+          },
+          {
+            "seed": 5500002,
+            "reward": 4.332,
+            "steps": 53,
+            "cause": "reached",
+            "metric": 0.0127,
+            "success": true
+          },
+          {
+            "seed": 5500003,
+            "reward": -0.08,
+            "steps": 53,
+            "cause": "reached",
+            "metric": 0.0128,
+            "success": true
+          },
+          {
+            "seed": 5500004,
+            "reward": 19.68,
+            "steps": 50,
+            "cause": "reached",
+            "metric": 0.011,
+            "success": true
+          },
+          {
+            "seed": 5500005,
+            "reward": 20.958,
+            "steps": 48,
+            "cause": "reached",
+            "metric": 0.0077,
+            "success": true
+          },
+          {
+            "seed": 5500006,
+            "reward": -41.262,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0129,
+            "success": true
+          },
+          {
+            "seed": 5500007,
+            "reward": -36.594,
+            "steps": 59,
+            "cause": "reached",
+            "metric": 0.0157,
+            "success": true
+          },
+          {
+            "seed": 5500008,
+            "reward": -54.34,
+            "steps": 62,
+            "cause": "reached",
+            "metric": 0.012,
+            "success": true
+          },
+          {
+            "seed": 5500009,
+            "reward": 9.296,
+            "steps": 54,
+            "cause": "reached",
+            "metric": 0.0106,
+            "success": true
+          },
+          {
+            "seed": 5500010,
+            "reward": -30.817,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0114,
+            "success": true
+          },
+          {
+            "seed": 5500011,
+            "reward": -24.971,
+            "steps": 58,
+            "cause": "reached",
+            "metric": 0.0142,
+            "success": true
+          },
+          {
+            "seed": 5500012,
+            "reward": -0.138,
+            "steps": 55,
+            "cause": "reached",
+            "metric": 0.0146,
+            "success": true
+          },
+          {
+            "seed": 5500013,
+            "reward": -18.889,
+            "steps": 58,
+            "cause": "reached",
+            "metric": 0.0146,
+            "success": true
+          },
+          {
+            "seed": 5500014,
+            "reward": -12.787,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0129,
+            "success": true
+          },
+          {
+            "seed": 5500015,
+            "reward": -18.647,
+            "steps": 58,
+            "cause": "reached",
+            "metric": 0.0145,
+            "success": true
+          },
+          {
+            "seed": 5500016,
+            "reward": -26.113,
+            "steps": 58,
+            "cause": "reached",
+            "metric": 0.0131,
+            "success": true
+          },
+          {
+            "seed": 5500017,
+            "reward": -23.319,
+            "steps": 58,
+            "cause": "reached",
+            "metric": 0.0091,
+            "success": true
+          },
+          {
+            "seed": 5500018,
+            "reward": -52.277,
+            "steps": 62,
+            "cause": "reached",
+            "metric": 0.0144,
+            "success": true
+          },
+          {
+            "seed": 5500019,
+            "reward": 3.52,
+            "steps": 53,
+            "cause": "reached",
+            "metric": 0.009,
+            "success": true
+          },
+          {
+            "seed": 5500020,
+            "reward": -49.59,
+            "steps": 62,
+            "cause": "reached",
+            "metric": 0.0147,
+            "success": true
+          },
+          {
+            "seed": 5500021,
+            "reward": -65.145,
+            "steps": 62,
+            "cause": "reached",
+            "metric": 0.0136,
+            "success": true
+          },
+          {
+            "seed": 5500022,
+            "reward": -90.077,
+            "steps": 64,
+            "cause": "reached",
+            "metric": 0.0131,
+            "success": true
+          },
+          {
+            "seed": 5500023,
+            "reward": -55.546,
+            "steps": 62,
+            "cause": "reached",
+            "metric": 0.0146,
+            "success": true
+          },
+          {
+            "seed": 5500024,
+            "reward": 3.652,
+            "steps": 53,
+            "cause": "reached",
+            "metric": 0.0103,
+            "success": true
+          },
+          {
+            "seed": 5500025,
+            "reward": -34.394,
+            "steps": 59,
+            "cause": "reached",
+            "metric": 0.0083,
+            "success": true
+          },
+          {
+            "seed": 5500026,
+            "reward": -36.637,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0064,
+            "success": true
+          },
+          {
+            "seed": 5500027,
+            "reward": 17.28,
+            "steps": 51,
+            "cause": "reached",
+            "metric": 0.014,
+            "success": true
+          },
+          {
+            "seed": 5500028,
+            "reward": -17.825,
+            "steps": 58,
+            "cause": "reached",
+            "metric": 0.0132,
+            "success": true
+          },
+          {
+            "seed": 5500029,
+            "reward": -80.508,
+            "steps": 63,
+            "cause": "reached",
+            "metric": 0.0157,
+            "success": true
+          },
+          {
+            "seed": 5500030,
+            "reward": 7.758,
+            "steps": 52,
+            "cause": "reached",
+            "metric": 0.0103,
+            "success": true
+          },
+          {
+            "seed": 5500031,
+            "reward": -47.549,
+            "steps": 61,
+            "cause": "reached",
+            "metric": 0.0158,
+            "success": true
+          },
+          {
+            "seed": 5500032,
+            "reward": 11.741,
+            "steps": 51,
+            "cause": "reached",
+            "metric": 0.0106,
+            "success": true
+          },
+          {
+            "seed": 5500033,
+            "reward": -16.474,
+            "steps": 57,
+            "cause": "reached",
+            "metric": 0.0144,
+            "success": true
+          },
+          {
+            "seed": 5500034,
+            "reward": 14.12,
+            "steps": 51,
+            "cause": "reached",
+            "metric": 0.0089,
+            "success": true
+          },
+          {
+            "seed": 5500035,
+            "reward": 2.318,
+            "steps": 54,
+            "cause": "reached",
+            "metric": 0.0142,
+            "success": true
+          },
+          {
+            "seed": 5500036,
+            "reward": -47.159,
+            "steps": 60,
+            "cause": "reached",
+            "metric": 0.0148,
+            "success": true
+          },
+          {
+            "seed": 5500037,
+            "reward": 12.655,
+            "steps": 51,
+            "cause": "reached",
+            "metric": 0.0129,
+            "success": true
+          },
+          {
+            "seed": 5500038,
+            "reward": -3.252,
+            "steps": 56,
+            "cause": "reached",
+            "metric": 0.0143,
+            "success": true
+          },
+          {
+            "seed": 5500039,
+            "reward": 12.436,
+            "steps": 53,
+            "cause": "reached",
+            "metric": 0.0103,
+            "success": true
+          },
+          {
+            "seed": 5500040,
+            "reward": 5.372,
+            "steps": 53,
+            "cause": "reached",
+            "metric": 0.0102,
+            "success": true
+          },
+          {
+            "seed": 5500041,
+            "reward": -80.226,
+            "steps": 64,
+            "cause": "reached",
+            "metric": 0.0143,
+            "success": true
+          },
+          {
+            "seed": 5500042,
+            "reward": -1.678,
+            "steps": 54,
+            "cause": "reached",
+            "metric": 0.0121,
+            "success": true
+          },
+          {
+            "seed": 5500043,
+            "reward": -33.274,
+            "steps": 59,
+            "cause": "reached",
+            "metric": 0.0124,
+            "success": true
+          },
+          {
+            "seed": 5500044,
+            "reward": -37.398,
+            "steps": 59,
+            "cause": "reached",
+            "metric": 0.0146,
+            "success": true
+          },
+          {
+            "seed": 5500045,
+            "reward": 3.764,
+            "steps": 53,
+            "cause": "reached",
+            "metric": 0.0064,
+            "success": true
+          },
+          {
+            "seed": 5500046,
+            "reward": 8.435,
+            "steps": 52,
+            "cause": "reached",
+            "metric": 0.0138,
+            "success": true
+          },
+          {
+            "seed": 5500047,
+            "reward": 5.439,
+            "steps": 55,
+            "cause": "reached",
+            "metric": 0.0152,
+            "success": true
+          },
+          {
+            "seed": 5500048,
+            "reward": 17.121,
+            "steps": 50,
+            "cause": "reached",
+            "metric": 0.0114,
+            "success": true
+          },
+          {
+            "seed": 5500049,
+            "reward": -3.612,
+            "steps": 56,
+            "cause": "reached",
+            "metric": 0.0127,
+            "success": true
+          }
+        ]
+      },
+      "checkpoints": [
+        {
+          "episode": 69,
+          "timestamp": "2026-09-11T01:11:53-05:00",
+          "mean_reward": -17.34,
+          "eval_reward": -6.65,
+          "eval_metric": 0.012740000000000001,
+          "eval_reward_std": 29.522,
+          "eval_metric_std": 0.001,
+          "eval_failure_progress": null,
+          "eval_episodes": 10,
+          "success_rate": 1.0,
+          "success_ci_low": 0.7225,
+          "success_ci_high": 1.0,
+          "evaluation_suite": "policy-atlas-eval-v1-n10",
+          "seed": 123,
+          "update_count": 2,
+          "total_steps": 4152,
+          "schema_version": 3,
+          "obs_dim": 14,
+          "n_continuous": 2,
+          "n_binary": 0,
+          "protocol": {
+            "algorithm": "demonstration-assisted PPO",
+            "version": 20,
+            "inherited_policy_origin": null,
+            "pause_on_success": true,
+            "success_stop_rule": "saved checkpoint passes all >=10 fixed test starts and canonical replay",
+            "kl_stop_timing": "before_optimizer_step",
+            "cpu_threads": 1,
+            "rollout_steps": 2048,
+            "episode_aligned_rollouts": true,
+            "gamma": 0.995,
+            "gae_lambda": 0.95,
+            "learning_rate": 3e-05,
+            "clip_epsilon": 0.2,
+            "entropy_coefficient": 0.0,
+            "value_coefficient": 0.5,
+            "training_reward_scale": 0.01,
+            "value_loss_scale": "rollout return RMS",
+            "training_start_distribution": "unchanged full-task starts after disclosed reference demonstrations and DAgger initialization",
+            "task_horizon_steps": 300,
+            "task_horizon_seconds": 15,
+            "failure_clock_regularizer": null,
+            "course_reward_potential": null,
+            "training_curriculum": null,
+            "training_control": null,
+            "training_schedule": null,
+            "actor_warm_start": {
+              "contract": {
+                "id": "robot-reach-reference-dagger-v2",
+                "role": "actor DAgger warm start",
+                "pure_model_free_from_scratch": false,
+                "expert": {
+                  "id": "robot-reach-analytic-reference-v1",
+                  "description": "inverse kinematics plus damped joint PD",
+                  "used_at_inference": false
+                },
+                "dataset": {
+                  "seed_base": 820000,
+                  "episodes": 80,
+                  "seed_formula": "seed_base + episode_index",
+                  "state_stride": 1,
+                  "start_state": "unchanged seeded full-task starts plus 48 near-goal examples per target: joint perturbations ±0.2 rad, velocities ±0.4 rad/s, sampled valid dwell/clock states; one fixed permutation per dataset seed; demonstration seeds excluded from evaluation",
+                  "observations": "pre-action environment observations",
+                  "targets": "bounded expert actions"
+                },
+                "optimizer": {
+                  "algorithm": "Adam",
+                  "learning_rate": 0.001,
+                  "batch_size": 1024,
+                  "epochs_per_initial_fit": 120,
+                  "epochs_per_dagger_fit": 80,
+                  "loss": "mean squared bounded-action error",
+                  "shuffle": false,
+                  "initialization_seed": 42,
+                  "trained_parameters": "shared torso, continuous mean head, and any binary head"
+                },
+                "ppo_fine_tuning": true,
+                "checkpoint_restore_overrides_warm_start": true,
+                "dagger": {
+                  "rounds": 2,
+                  "rollout_seed_base": 821000,
+                  "round_seed_stride": 1000,
+                  "episodes_per_round": 30,
+                  "state_stride": 1,
+                  "expert_role": "labels learned-policy rollout states only"
+                }
+              },
+              "realized": {
+                "samples": 14634,
+                "final_mse": 0.0023364245425909758,
+                "dataset_sha256": "91a1ccd7477c77b5cdb12fa1ae19f2c93104e320bea7e42d85303666851903be",
+                "initialization_seed": 42,
+                "dagger_rounds": [
+                  {
+                    "round": 1,
+                    "samples_added": 3114,
+                    "total_samples": 11493,
+                    "final_mse": 0.0018767676083371043
+                  },
+                  {
+                    "round": 2,
+                    "samples_added": 3141,
+                    "total_samples": 14634,
+                    "final_mse": 0.0023364245425909758
+                  }
+                ]
+              }
+            },
+            "actor_initialization": {
+              "scope": "robot-reach-only",
+              "applies_on": "fresh_seeded_policy_construction",
+              "continuous_action_labels": [
+                "shoulder",
+                "elbow"
+              ],
+              "continuous_action_prior": [
+                0.0,
+                0.0
+              ],
+              "continuous_latent_bias": [
+                0.0,
+                0.0
+              ],
+              "continuous_log_std": [
+                -2.5,
+                -2.5
+              ],
+              "continuous_head_weight_std": 0.01,
+              "binary_action_labels": [],
+              "binary_probability_prior": [],
+              "binary_logit_bias": [],
+              "binary_head_weight_std": 0.01,
+              "deterministic_zero_observation_action": [
+                0.0,
+                0.0
+              ],
+              "checkpoint_restore_overrides_initialization": true
+            },
+            "update_epochs": 10,
+            "minibatch_size": 256,
+            "target_kl": 0.03,
+            "evaluation_episodes": 10,
+            "evaluation_suite": "policy-atlas-eval-v1-n10",
+            "evaluation_seed_base": 100000,
+            "deterministic_evaluation": true,
+            "engine_source_sha256": "0cc1565b15ba8dc3ef3a2b34bbe5bd5771c7d3eb926f1bd96162a5bca8a43da7",
+            "reproducibility_scope": "RNG-exact continuation on the saved runtime; bitwise identity is not guaranteed across devices or dependency builds",
+            "device": "cpu",
+            "torch_version": "2.4.1+cu124"
+          },
+          "training_diagnostics": {
+            "policy_loss": 0.0145,
+            "value_loss": 0.27147,
+            "entropy": -3.19596,
+            "approx_kl": 0.01853,
+            "clip_frac": 0.22526,
+            "value_scale": 1.0,
+            "value_clip_frac": 0.0,
+            "optimizer_steps": 2,
+            "kl_early_stopped": 1,
+            "explained_variance": -2.36646,
+            "value_bias": -0.27906,
+            "action_std_mean": 0.08209,
+            "action_std_min": 0.08208,
+            "action_std_max": 0.08209,
+            "action_std_0": 0.08208,
+            "action_std_1": 0.08209,
+            "continuous_action_mean_0": 0.16096,
+            "continuous_action_mean_1": -0.02813
+          },
+          "metadata_sha256": "090029a7e32aaba68d94ead975936f15790ebd32bddcfe436cd1241e9706ac1d",
+          "checkpoint_sha256": "1f38d40fa2a4c605e5f356334f4b51dd2927225dbb19ba22a3054de6aefe8118"
+        }
+      ]
+    }
+  ]
+}

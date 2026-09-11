@@ -1,0 +1,2239 @@
+{
+  "protocol": "mountain-car-learning-fix-v1",
+  "baseline": {
+    "training_seed": 123,
+    "state": "interrupted",
+    "original_episode_budget": 2000,
+    "observed_progress": {
+      "earliest_solve": null,
+      "episode": 522,
+      "scenario_id": "mountain-car",
+      "seed": 123,
+      "total_steps": 521478,
+      "training": true,
+      "updates": 173
+    },
+    "reason": "All ten fixed-start evaluations failed through episode501; early stopped at522 to diagnose sparse-reward failure, not a full2000episode conclusion",
+    "fixed_checkpoint_trace": [
+      {
+        "episode": 51,
+        "fixed_success_rate": 0.0,
+        "fixed_reward": -0.15,
+        "engine": "2ac217ec836b9b35763104d7b63893105062e1e67da26102cee7e5ebfba462b1",
+        "checkpoint_sha256": "b76ca8f4156a753fdd2a5ee1106b2b73fd9b465871bb18a0a4fcb37cbb08b482"
+      },
+      {
+        "episode": 102,
+        "fixed_success_rate": 0.0,
+        "fixed_reward": -0.01,
+        "engine": "2ac217ec836b9b35763104d7b63893105062e1e67da26102cee7e5ebfba462b1",
+        "checkpoint_sha256": "424e5c9bd37898bf9d1b579c0d66f9ff91cd7856548ba7cd6231f0f6300639ac"
+      },
+      {
+        "episode": 150,
+        "fixed_success_rate": 0.0,
+        "fixed_reward": -0.05,
+        "engine": "2ac217ec836b9b35763104d7b63893105062e1e67da26102cee7e5ebfba462b1",
+        "checkpoint_sha256": "990763ca1ca7219c9f6e179ffac7ce17d918aa18baa4cb6d52ccb29aed9375b3"
+      },
+      {
+        "episode": 201,
+        "fixed_success_rate": 0.0,
+        "fixed_reward": -0.0,
+        "engine": "2ac217ec836b9b35763104d7b63893105062e1e67da26102cee7e5ebfba462b1",
+        "checkpoint_sha256": "2c28939ddc6c442b12802920823c763b8ead868141055fa1b361616eb5676fb1"
+      },
+      {
+        "episode": 252,
+        "fixed_success_rate": 0.0,
+        "fixed_reward": -0.01,
+        "engine": "2ac217ec836b9b35763104d7b63893105062e1e67da26102cee7e5ebfba462b1",
+        "checkpoint_sha256": "1acae4ff3948bf51c3ca0503ebbe9202958481596a69849325f42e4fe2b08809"
+      },
+      {
+        "episode": 300,
+        "fixed_success_rate": 0.0,
+        "fixed_reward": -0.01,
+        "engine": "2ac217ec836b9b35763104d7b63893105062e1e67da26102cee7e5ebfba462b1",
+        "checkpoint_sha256": "f4db9a1f83ca5970688f11413de82ccf6f77881c51a5c0b440c180a5c6e5dfbf"
+      },
+      {
+        "episode": 351,
+        "fixed_success_rate": 0.0,
+        "fixed_reward": -0.01,
+        "engine": "2ac217ec836b9b35763104d7b63893105062e1e67da26102cee7e5ebfba462b1",
+        "checkpoint_sha256": "216fbb275f8ab36b1cd9a3c96846bcc5246990a01a380bd75cd4c87c8605dfd8"
+      },
+      {
+        "episode": 402,
+        "fixed_success_rate": 0.0,
+        "fixed_reward": -0.01,
+        "engine": "2ac217ec836b9b35763104d7b63893105062e1e67da26102cee7e5ebfba462b1",
+        "checkpoint_sha256": "c17d975508e78bfd65cc5badecbb1fd6fcd019fbfb7d3a126f548ea96f64eccf"
+      },
+      {
+        "episode": 450,
+        "fixed_success_rate": 0.0,
+        "fixed_reward": -0.05,
+        "engine": "2ac217ec836b9b35763104d7b63893105062e1e67da26102cee7e5ebfba462b1",
+        "checkpoint_sha256": "5a56eadd59aa1ed545b07be1d2ff5bc144685acc5789ac7894df4de7f140d17e"
+      },
+      {
+        "episode": 501,
+        "fixed_success_rate": 0.0,
+        "fixed_reward": -0.02,
+        "engine": "2ac217ec836b9b35763104d7b63893105062e1e67da26102cee7e5ebfba462b1",
+        "checkpoint_sha256": "8c120c6a7833438def6233ae682ae4ebf1f4d5b3b8d4f16f098a413c7397900c"
+      },
+      {
+        "episode": 528,
+        "fixed_success_rate": 0.0,
+        "fixed_reward": -0.03,
+        "engine": "2ac217ec836b9b35763104d7b63893105062e1e67da26102cee7e5ebfba462b1",
+        "checkpoint_sha256": "ddb370ad2114aadb649ea4805b5d0eec7813ed8b5634e0810748c83793cb0283"
+      }
+    ]
+  },
+  "assisted_ppo": {
+    "protocol": "same BenchmarkRunner selection and holdout through direct isolated trainer API",
+    "runs": [
+      {
+        "scenario_id": "mountain-car",
+        "seed": 42,
+        "state": "solved",
+        "max_episodes": 250,
+        "completed_episodes": 52,
+        "total_steps": 4132,
+        "updates": 2,
+        "checkpoint_every_n": 25,
+        "stop_on_solve": true,
+        "solve_criteria": {
+          "definition": "Selection chooses the first checkpoint in a streak of 1 consecutive qualifying checkpoint. A qualifier must match the run protocol and meet the configured fixed-suite success-rate, Wilson-bound, and suite-size thresholds. Independent holdout evidence is evaluated only after selection.",
+          "min_success_rate": 0.9,
+          "min_ci_low": 0.7,
+          "min_eval_episodes": 10,
+          "confirmations": 1
+        },
+        "engine_source_sha256": "3f27dafe8cb388be44cc36d054cb76778953ac6d2376c36326655ead6b985751",
+        "evaluation_suite": "policy-atlas-eval-v1-n10",
+        "earliest_solve": {
+          "earliest_episode": 26,
+          "confirmed_episode": 26,
+          "checkpoint": {
+            "episode": 26,
+            "total_steps": 2063,
+            "updates": 1,
+            "seed": 42,
+            "evaluation_suite": "policy-atlas-eval-v1-n10",
+            "evaluation_episodes": 10,
+            "success_rate": 1.0,
+            "success_ci_low": 0.7225,
+            "success_ci_high": 1.0,
+            "eval_reward": 92.13,
+            "eval_reward_std": 0.221,
+            "metric": 7.8668999999999984,
+            "metric_std": 0.221,
+            "failure_progress": null,
+            "training_diagnostics": {
+              "policy_loss": -0.0,
+              "value_loss": 0.49024,
+              "entropy": -8.56064,
+              "approx_kl": 0.49985,
+              "clip_frac": 0.29492,
+              "value_scale": 1.0,
+              "value_clip_frac": 0.0,
+              "optimizer_steps": 1,
+              "kl_early_stopped": 1,
+              "explained_variance": -2.40213,
+              "value_bias": -0.04546,
+              "action_std_mean": 0.13538,
+              "action_std_min": 0.13538,
+              "action_std_max": 0.13538,
+              "action_std_0": 0.13538,
+              "continuous_action_mean_0": -0.12552
+            },
+            "schema_version": 4,
+            "obs_dim": 3,
+            "n_continuous": 1,
+            "n_binary": 0,
+            "metadata_sha256": "622c5cccebcfbe317ffc4fb66793a24d2c7f3dc997900163c866b3e11c2d5242",
+            "checkpoint_sha256": "07f1eb75741f2b27277a195d72e99a741a83f8aa208b98f66663a003a1ce3137",
+            "protocol": {
+              "algorithm": "demonstration-assisted PPO",
+              "version": 19,
+              "kl_stop_timing": "before_optimizer_step",
+              "cpu_threads": 1,
+              "rollout_steps": 2048,
+              "episode_aligned_rollouts": true,
+              "gamma": 0.995,
+              "gae_lambda": 0.95,
+              "learning_rate": 0.0003,
+              "clip_epsilon": 0.2,
+              "entropy_coefficient": 0.0,
+              "value_coefficient": 0.5,
+              "training_reward_scale": 0.01,
+              "value_loss_scale": "rollout return RMS",
+              "training_start_distribution": "scenario default starts",
+              "task_horizon_steps": 999,
+              "task_horizon_seconds": null,
+              "failure_clock_regularizer": null,
+              "course_reward_potential": null,
+              "training_curriculum": null,
+              "training_control": null,
+              "training_schedule": null,
+              "actor_warm_start": {
+                "contract": {
+                  "id": "mountain-car-momentum-demonstrations-v1",
+                  "role": "actor behavior-cloning warm start",
+                  "pure_model_free_from_scratch": false,
+                  "expert": {
+                    "id": "mountain-car-momentum-sign-v1",
+                    "description": "training-only momentum pumping: full positive motor command for positive velocity, full negative command otherwise; the neural actor acts alone during PPO and evaluation",
+                    "used_at_inference": false
+                  },
+                  "dataset": {
+                    "seed_base": 4100000,
+                    "episodes": 80,
+                    "seed_formula": "seed_base + episode_index",
+                    "state_stride": 1,
+                    "start_state": "ordinary jittered canonical valley starts; demonstrations use seeds disjoint from selection and validation",
+                    "observations": "pre-action environment observations",
+                    "targets": "bounded expert actions"
+                  },
+                  "optimizer": {
+                    "algorithm": "Adam",
+                    "learning_rate": 0.001,
+                    "batch_size": 1024,
+                    "epochs_per_initial_fit": 60,
+                    "epochs_per_dagger_fit": 60,
+                    "loss": {
+                      "motor_force_mse_weight": 1.0
+                    },
+                    "shuffle": false,
+                    "initialization_seed": 42,
+                    "trained_parameters": "shared torso, continuous mean head, and any binary head"
+                  },
+                  "ppo_fine_tuning": true,
+                  "checkpoint_restore_overrides_warm_start": true
+                },
+                "realized": {
+                  "samples": 6355,
+                  "final_mse": 0.016890060156583786,
+                  "dataset_sha256": "3214b99f56d75e0361e2e6aeb5d6cc04c8d48ca6160d43ead647391fffe648a6",
+                  "initialization_seed": 42
+                }
+              },
+              "actor_initialization": {
+                "scope": "mountain_car_demonstration_assisted_ppo",
+                "applies_on": "fresh_seeded_policy_construction",
+                "continuous_action_labels": [
+                  "motor_force"
+                ],
+                "continuous_action_prior": [
+                  0.0
+                ],
+                "continuous_latent_bias": [
+                  0.0
+                ],
+                "continuous_log_std": [
+                  -2.0
+                ],
+                "continuous_head_weight_std": 0.01,
+                "binary_action_labels": [],
+                "binary_probability_prior": [],
+                "binary_logit_bias": [],
+                "binary_head_weight_std": 0.01,
+                "deterministic_zero_observation_action": [
+                  0.0
+                ],
+                "checkpoint_restore_overrides_initialization": true
+              },
+              "update_epochs": 10,
+              "minibatch_size": 256,
+              "target_kl": 0.03,
+              "evaluation_episodes": 10,
+              "evaluation_suite": "policy-atlas-eval-v1-n10",
+              "evaluation_seed_base": 100000,
+              "deterministic_evaluation": true,
+              "engine_source_sha256": "3f27dafe8cb388be44cc36d054cb76778953ac6d2376c36326655ead6b985751",
+              "reproducibility_scope": "RNG-exact continuation on the saved runtime; bitwise identity is not guaranteed across devices or dependency builds",
+              "device": "cpu",
+              "torch_version": "2.4.1+cu124"
+            },
+            "engine_source_sha256": "3f27dafe8cb388be44cc36d054cb76778953ac6d2376c36326655ead6b985751"
+          }
+        },
+        "selection": {
+          "protocol_role": "checkpoint_selection",
+          "reason": "earliest_confirmed_solve",
+          "suite": "policy-atlas-eval-v1-n10",
+          "seed_base": 100000,
+          "checkpoint": {
+            "episode": 26,
+            "total_steps": 2063,
+            "updates": 1,
+            "seed": 42,
+            "evaluation_suite": "policy-atlas-eval-v1-n10",
+            "evaluation_episodes": 10,
+            "success_rate": 1.0,
+            "success_ci_low": 0.7225,
+            "success_ci_high": 1.0,
+            "eval_reward": 92.13,
+            "eval_reward_std": 0.221,
+            "metric": 7.8668999999999984,
+            "metric_std": 0.221,
+            "failure_progress": null,
+            "training_diagnostics": {
+              "policy_loss": -0.0,
+              "value_loss": 0.49024,
+              "entropy": -8.56064,
+              "approx_kl": 0.49985,
+              "clip_frac": 0.29492,
+              "value_scale": 1.0,
+              "value_clip_frac": 0.0,
+              "optimizer_steps": 1,
+              "kl_early_stopped": 1,
+              "explained_variance": -2.40213,
+              "value_bias": -0.04546,
+              "action_std_mean": 0.13538,
+              "action_std_min": 0.13538,
+              "action_std_max": 0.13538,
+              "action_std_0": 0.13538,
+              "continuous_action_mean_0": -0.12552
+            },
+            "schema_version": 4,
+            "obs_dim": 3,
+            "n_continuous": 1,
+            "n_binary": 0,
+            "metadata_sha256": "622c5cccebcfbe317ffc4fb66793a24d2c7f3dc997900163c866b3e11c2d5242",
+            "checkpoint_sha256": "07f1eb75741f2b27277a195d72e99a741a83f8aa208b98f66663a003a1ce3137",
+            "protocol": {
+              "algorithm": "demonstration-assisted PPO",
+              "version": 19,
+              "kl_stop_timing": "before_optimizer_step",
+              "cpu_threads": 1,
+              "rollout_steps": 2048,
+              "episode_aligned_rollouts": true,
+              "gamma": 0.995,
+              "gae_lambda": 0.95,
+              "learning_rate": 0.0003,
+              "clip_epsilon": 0.2,
+              "entropy_coefficient": 0.0,
+              "value_coefficient": 0.5,
+              "training_reward_scale": 0.01,
+              "value_loss_scale": "rollout return RMS",
+              "training_start_distribution": "scenario default starts",
+              "task_horizon_steps": 999,
+              "task_horizon_seconds": null,
+              "failure_clock_regularizer": null,
+              "course_reward_potential": null,
+              "training_curriculum": null,
+              "training_control": null,
+              "training_schedule": null,
+              "actor_warm_start": {
+                "contract": {
+                  "id": "mountain-car-momentum-demonstrations-v1",
+                  "role": "actor behavior-cloning warm start",
+                  "pure_model_free_from_scratch": false,
+                  "expert": {
+                    "id": "mountain-car-momentum-sign-v1",
+                    "description": "training-only momentum pumping: full positive motor command for positive velocity, full negative command otherwise; the neural actor acts alone during PPO and evaluation",
+                    "used_at_inference": false
+                  },
+                  "dataset": {
+                    "seed_base": 4100000,
+                    "episodes": 80,
+                    "seed_formula": "seed_base + episode_index",
+                    "state_stride": 1,
+                    "start_state": "ordinary jittered canonical valley starts; demonstrations use seeds disjoint from selection and validation",
+                    "observations": "pre-action environment observations",
+                    "targets": "bounded expert actions"
+                  },
+                  "optimizer": {
+                    "algorithm": "Adam",
+                    "learning_rate": 0.001,
+                    "batch_size": 1024,
+                    "epochs_per_initial_fit": 60,
+                    "epochs_per_dagger_fit": 60,
+                    "loss": {
+                      "motor_force_mse_weight": 1.0
+                    },
+                    "shuffle": false,
+                    "initialization_seed": 42,
+                    "trained_parameters": "shared torso, continuous mean head, and any binary head"
+                  },
+                  "ppo_fine_tuning": true,
+                  "checkpoint_restore_overrides_warm_start": true
+                },
+                "realized": {
+                  "samples": 6355,
+                  "final_mse": 0.016890060156583786,
+                  "dataset_sha256": "3214b99f56d75e0361e2e6aeb5d6cc04c8d48ca6160d43ead647391fffe648a6",
+                  "initialization_seed": 42
+                }
+              },
+              "actor_initialization": {
+                "scope": "mountain_car_demonstration_assisted_ppo",
+                "applies_on": "fresh_seeded_policy_construction",
+                "continuous_action_labels": [
+                  "motor_force"
+                ],
+                "continuous_action_prior": [
+                  0.0
+                ],
+                "continuous_latent_bias": [
+                  0.0
+                ],
+                "continuous_log_std": [
+                  -2.0
+                ],
+                "continuous_head_weight_std": 0.01,
+                "binary_action_labels": [],
+                "binary_probability_prior": [],
+                "binary_logit_bias": [],
+                "binary_head_weight_std": 0.01,
+                "deterministic_zero_observation_action": [
+                  0.0
+                ],
+                "checkpoint_restore_overrides_initialization": true
+              },
+              "update_epochs": 10,
+              "minibatch_size": 256,
+              "target_kl": 0.03,
+              "evaluation_episodes": 10,
+              "evaluation_suite": "policy-atlas-eval-v1-n10",
+              "evaluation_seed_base": 100000,
+              "deterministic_evaluation": true,
+              "engine_source_sha256": "3f27dafe8cb388be44cc36d054cb76778953ac6d2376c36326655ead6b985751",
+              "reproducibility_scope": "RNG-exact continuation on the saved runtime; bitwise identity is not guaranteed across devices or dependency builds",
+              "device": "cpu",
+              "torch_version": "2.4.1+cu124"
+            },
+            "engine_source_sha256": "3f27dafe8cb388be44cc36d054cb76778953ac6d2376c36326655ead6b985751"
+          }
+        },
+        "final_checkpoint": {
+          "episode": 52,
+          "total_steps": 4132,
+          "updates": 2,
+          "seed": 42,
+          "evaluation_suite": "policy-atlas-eval-v1-n10",
+          "evaluation_episodes": 10,
+          "success_rate": 1.0,
+          "success_ci_low": 0.7225,
+          "success_ci_high": 1.0,
+          "eval_reward": 92.13,
+          "eval_reward_std": 0.199,
+          "metric": 7.872999999999999,
+          "metric_std": 0.199,
+          "failure_progress": null,
+          "training_diagnostics": {
+            "policy_loss": 0.0,
+            "value_loss": 0.44918,
+            "entropy": -9.0608,
+            "approx_kl": 0.03493,
+            "clip_frac": 0.26172,
+            "value_scale": 1.0,
+            "value_clip_frac": 0.0,
+            "optimizer_steps": 1,
+            "kl_early_stopped": 1,
+            "explained_variance": -2.42466,
+            "value_bias": -0.03842,
+            "action_std_mean": 0.13542,
+            "action_std_min": 0.13542,
+            "action_std_max": 0.13542,
+            "action_std_0": 0.13542,
+            "continuous_action_mean_0": -0.13726
+          },
+          "schema_version": 4,
+          "obs_dim": 3,
+          "n_continuous": 1,
+          "n_binary": 0,
+          "metadata_sha256": "29fbe6cb1372ea367bed5bee1ddf7d6e24abf9710f10d49b5b4ac6edad83c3b5",
+          "checkpoint_sha256": "91c3a73761f7b551489ed17762c52433d6bf43ba8ef69dffc8264f2fe213069f",
+          "protocol": {
+            "algorithm": "demonstration-assisted PPO",
+            "version": 19,
+            "kl_stop_timing": "before_optimizer_step",
+            "cpu_threads": 1,
+            "rollout_steps": 2048,
+            "episode_aligned_rollouts": true,
+            "gamma": 0.995,
+            "gae_lambda": 0.95,
+            "learning_rate": 0.0003,
+            "clip_epsilon": 0.2,
+            "entropy_coefficient": 0.0,
+            "value_coefficient": 0.5,
+            "training_reward_scale": 0.01,
+            "value_loss_scale": "rollout return RMS",
+            "training_start_distribution": "scenario default starts",
+            "task_horizon_steps": 999,
+            "task_horizon_seconds": null,
+            "failure_clock_regularizer": null,
+            "course_reward_potential": null,
+            "training_curriculum": null,
+            "training_control": null,
+            "training_schedule": null,
+            "actor_warm_start": {
+              "contract": {
+                "id": "mountain-car-momentum-demonstrations-v1",
+                "role": "actor behavior-cloning warm start",
+                "pure_model_free_from_scratch": false,
+                "expert": {
+                  "id": "mountain-car-momentum-sign-v1",
+                  "description": "training-only momentum pumping: full positive motor command for positive velocity, full negative command otherwise; the neural actor acts alone during PPO and evaluation",
+                  "used_at_inference": false
+                },
+                "dataset": {
+                  "seed_base": 4100000,
+                  "episodes": 80,
+                  "seed_formula": "seed_base + episode_index",
+                  "state_stride": 1,
+                  "start_state": "ordinary jittered canonical valley starts; demonstrations use seeds disjoint from selection and validation",
+                  "observations": "pre-action environment observations",
+                  "targets": "bounded expert actions"
+                },
+                "optimizer": {
+                  "algorithm": "Adam",
+                  "learning_rate": 0.001,
+                  "batch_size": 1024,
+                  "epochs_per_initial_fit": 60,
+                  "epochs_per_dagger_fit": 60,
+                  "loss": {
+                    "motor_force_mse_weight": 1.0
+                  },
+                  "shuffle": false,
+                  "initialization_seed": 42,
+                  "trained_parameters": "shared torso, continuous mean head, and any binary head"
+                },
+                "ppo_fine_tuning": true,
+                "checkpoint_restore_overrides_warm_start": true
+              },
+              "realized": {
+                "samples": 6355,
+                "final_mse": 0.016890060156583786,
+                "dataset_sha256": "3214b99f56d75e0361e2e6aeb5d6cc04c8d48ca6160d43ead647391fffe648a6",
+                "initialization_seed": 42
+              }
+            },
+            "actor_initialization": {
+              "scope": "mountain_car_demonstration_assisted_ppo",
+              "applies_on": "fresh_seeded_policy_construction",
+              "continuous_action_labels": [
+                "motor_force"
+              ],
+              "continuous_action_prior": [
+                0.0
+              ],
+              "continuous_latent_bias": [
+                0.0
+              ],
+              "continuous_log_std": [
+                -2.0
+              ],
+              "continuous_head_weight_std": 0.01,
+              "binary_action_labels": [],
+              "binary_probability_prior": [],
+              "binary_logit_bias": [],
+              "binary_head_weight_std": 0.01,
+              "deterministic_zero_observation_action": [
+                0.0
+              ],
+              "checkpoint_restore_overrides_initialization": true
+            },
+            "update_epochs": 10,
+            "minibatch_size": 256,
+            "target_kl": 0.03,
+            "evaluation_episodes": 10,
+            "evaluation_suite": "policy-atlas-eval-v1-n10",
+            "evaluation_seed_base": 100000,
+            "deterministic_evaluation": true,
+            "engine_source_sha256": "3f27dafe8cb388be44cc36d054cb76778953ac6d2376c36326655ead6b985751",
+            "reproducibility_scope": "RNG-exact continuation on the saved runtime; bitwise identity is not guaranteed across devices or dependency builds",
+            "device": "cpu",
+            "torch_version": "2.4.1+cu124"
+          },
+          "engine_source_sha256": "3f27dafe8cb388be44cc36d054cb76778953ac6d2376c36326655ead6b985751"
+        },
+        "checkpoint_trace": [
+          {
+            "episode": 26,
+            "total_steps": 2063,
+            "updates": 1,
+            "mean_training_reward": 92.26,
+            "success_rate": 1.0,
+            "success_ci_low": 0.7225,
+            "success_ci_high": 1.0,
+            "eval_reward": 92.13,
+            "eval_reward_std": 0.221,
+            "metric": 7.8668999999999984,
+            "metric_std": 0.221,
+            "failure_progress": null,
+            "training_diagnostics": {
+              "policy_loss": -0.0,
+              "value_loss": 0.49024,
+              "entropy": -8.56064,
+              "approx_kl": 0.49985,
+              "clip_frac": 0.29492,
+              "value_scale": 1.0,
+              "value_clip_frac": 0.0,
+              "optimizer_steps": 1,
+              "kl_early_stopped": 1,
+              "explained_variance": -2.40213,
+              "value_bias": -0.04546,
+              "action_std_mean": 0.13538,
+              "action_std_min": 0.13538,
+              "action_std_max": 0.13538,
+              "action_std_0": 0.13538,
+              "continuous_action_mean_0": -0.12552
+            },
+            "metadata_sha256": "622c5cccebcfbe317ffc4fb66793a24d2c7f3dc997900163c866b3e11c2d5242",
+            "checkpoint_sha256": "07f1eb75741f2b27277a195d72e99a741a83f8aa208b98f66663a003a1ce3137"
+          },
+          {
+            "episode": 52,
+            "total_steps": 4132,
+            "updates": 2,
+            "mean_training_reward": 92.23,
+            "success_rate": 1.0,
+            "success_ci_low": 0.7225,
+            "success_ci_high": 1.0,
+            "eval_reward": 92.13,
+            "eval_reward_std": 0.199,
+            "metric": 7.872999999999999,
+            "metric_std": 0.199,
+            "failure_progress": null,
+            "training_diagnostics": {
+              "policy_loss": 0.0,
+              "value_loss": 0.44918,
+              "entropy": -9.0608,
+              "approx_kl": 0.03493,
+              "clip_frac": 0.26172,
+              "value_scale": 1.0,
+              "value_clip_frac": 0.0,
+              "optimizer_steps": 1,
+              "kl_early_stopped": 1,
+              "explained_variance": -2.42466,
+              "value_bias": -0.03842,
+              "action_std_mean": 0.13542,
+              "action_std_min": 0.13542,
+              "action_std_max": 0.13542,
+              "action_std_0": 0.13542,
+              "continuous_action_mean_0": -0.13726
+            },
+            "metadata_sha256": "29fbe6cb1372ea367bed5bee1ddf7d6e24abf9710f10d49b5b4ac6edad83c3b5",
+            "checkpoint_sha256": "91c3a73761f7b551489ed17762c52433d6bf43ba8ef69dffc8264f2fe213069f"
+          }
+        ],
+        "checkpoints_observed": 2,
+        "checkpoints_seen_total": 2,
+        "started_at": "2026-09-11T00:24:20-05:00",
+        "finished_at": "2026-09-11T00:24:23-05:00",
+        "holdout": {
+          "state": "complete",
+          "requested_episodes": 50,
+          "requested_seed_base": 4400000,
+          "requested_seed_end": 4400049,
+          "selected_checkpoint_episode": 26,
+          "selected_checkpoint_sha256": "07f1eb75741f2b27277a195d72e99a741a83f8aa208b98f66663a003a1ce3137",
+          "selection_reason": "earliest_confirmed_solve",
+          "selection_suite": "policy-atlas-eval-v1-n10",
+          "protocol_role": "post_selection_holdout",
+          "influences_selection": false,
+          "suite": "policy-atlas-holdout-v1-n50-seeds4400000-4400049",
+          "episodes": 50,
+          "seed_base": 4400000,
+          "seed_end": 4400049,
+          "selection_seed_base": 100000,
+          "selection_seed_end": 100009,
+          "seed_range_disjoint_from_selection": true,
+          "seed_range_disjoint_from_training_curriculum": true,
+          "training_curriculum_seed_ranges": [],
+          "deterministic_policy": true,
+          "engine_source_sha256": "3f27dafe8cb388be44cc36d054cb76778953ac6d2376c36326655ead6b985751",
+          "reward_mean": 92.23325821694553,
+          "reward_std": 0.16597482963556295,
+          "metric": 7.76664,
+          "metric_std": 0.16598900686491252,
+          "failure_progress": null,
+          "failure_progress_std": null,
+          "successes": 50,
+          "success_rate": 1.0,
+          "success_ci_low": 0.9286499658256813,
+          "success_ci_high": 1.0,
+          "trials": [
+            {
+              "index": 0,
+              "seed": 4400000,
+              "reward": 92.2638665072464,
+              "metric": 7.736,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 1,
+              "seed": 4400001,
+              "reward": 91.82644255632009,
+              "metric": 8.174,
+              "failure_progress": null,
+              "success": true,
+              "steps": 83,
+              "cause": "summit"
+            },
+            {
+              "index": 2,
+              "seed": 4400002,
+              "reward": 92.23950303287234,
+              "metric": 7.76,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 3,
+              "seed": 4400003,
+              "reward": 91.82651550198946,
+              "metric": 8.173,
+              "failure_progress": null,
+              "success": true,
+              "steps": 83,
+              "cause": "summit"
+            },
+            {
+              "index": 4,
+              "seed": 4400004,
+              "reward": 92.2651401714386,
+              "metric": 7.735,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 5,
+              "seed": 4400005,
+              "reward": 92.34560475589278,
+              "metric": 7.654,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 6,
+              "seed": 4400006,
+              "reward": 92.36491551352603,
+              "metric": 7.635,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 7,
+              "seed": 4400007,
+              "reward": 92.34551131584021,
+              "metric": 7.654,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 8,
+              "seed": 4400008,
+              "reward": 92.27364901363457,
+              "metric": 7.726,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 9,
+              "seed": 4400009,
+              "reward": 92.14910478413971,
+              "metric": 7.851,
+              "failure_progress": null,
+              "success": true,
+              "steps": 80,
+              "cause": "summit"
+            },
+            {
+              "index": 10,
+              "seed": 4400010,
+              "reward": 92.24561830560926,
+              "metric": 7.754,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 11,
+              "seed": 4400011,
+              "reward": 92.34961045866123,
+              "metric": 7.65,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 12,
+              "seed": 4400012,
+              "reward": 92.27256415900317,
+              "metric": 7.727,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 13,
+              "seed": 4400013,
+              "reward": 92.2604742617237,
+              "metric": 7.74,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 14,
+              "seed": 4400014,
+              "reward": 92.37324451735574,
+              "metric": 7.627,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 15,
+              "seed": 4400015,
+              "reward": 92.06017535652867,
+              "metric": 7.94,
+              "failure_progress": null,
+              "success": true,
+              "steps": 81,
+              "cause": "summit"
+            },
+            {
+              "index": 16,
+              "seed": 4400016,
+              "reward": 92.22497983216184,
+              "metric": 7.775,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 17,
+              "seed": 4400017,
+              "reward": 91.86067474024382,
+              "metric": 8.139,
+              "failure_progress": null,
+              "success": true,
+              "steps": 83,
+              "cause": "summit"
+            },
+            {
+              "index": 18,
+              "seed": 4400018,
+              "reward": 92.34862044513962,
+              "metric": 7.651,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 19,
+              "seed": 4400019,
+              "reward": 92.42451259734078,
+              "metric": 7.575,
+              "failure_progress": null,
+              "success": true,
+              "steps": 77,
+              "cause": "summit"
+            },
+            {
+              "index": 20,
+              "seed": 4400020,
+              "reward": 92.26013391245291,
+              "metric": 7.74,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 21,
+              "seed": 4400021,
+              "reward": 91.92561264578649,
+              "metric": 8.074,
+              "failure_progress": null,
+              "success": true,
+              "steps": 82,
+              "cause": "summit"
+            },
+            {
+              "index": 22,
+              "seed": 4400022,
+              "reward": 92.28646116956871,
+              "metric": 7.714,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 23,
+              "seed": 4400023,
+              "reward": 92.26499325171366,
+              "metric": 7.735,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 24,
+              "seed": 4400024,
+              "reward": 92.34552296211083,
+              "metric": 7.654,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 25,
+              "seed": 4400025,
+              "reward": 92.32479218841674,
+              "metric": 7.675,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 26,
+              "seed": 4400026,
+              "reward": 92.3717149913403,
+              "metric": 7.628,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 27,
+              "seed": 4400027,
+              "reward": 92.04624371553851,
+              "metric": 7.954,
+              "failure_progress": null,
+              "success": true,
+              "steps": 81,
+              "cause": "summit"
+            },
+            {
+              "index": 28,
+              "seed": 4400028,
+              "reward": 92.05403449133121,
+              "metric": 7.946,
+              "failure_progress": null,
+              "success": true,
+              "steps": 81,
+              "cause": "summit"
+            },
+            {
+              "index": 29,
+              "seed": 4400029,
+              "reward": 92.26764890487998,
+              "metric": 7.732,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 30,
+              "seed": 4400030,
+              "reward": 92.32469140924186,
+              "metric": 7.675,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 31,
+              "seed": 4400031,
+              "reward": 92.35218951190413,
+              "metric": 7.648,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 32,
+              "seed": 4400032,
+              "reward": 92.2617337085089,
+              "metric": 7.738,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 33,
+              "seed": 4400033,
+              "reward": 92.22481650258938,
+              "metric": 7.775,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 34,
+              "seed": 4400034,
+              "reward": 92.62419152633744,
+              "metric": 7.376,
+              "failure_progress": null,
+              "success": true,
+              "steps": 75,
+              "cause": "summit"
+            },
+            {
+              "index": 35,
+              "seed": 4400035,
+              "reward": 92.34897314248202,
+              "metric": 7.651,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 36,
+              "seed": 4400036,
+              "reward": 92.36751178006996,
+              "metric": 7.632,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 37,
+              "seed": 4400037,
+              "reward": 92.34689464244019,
+              "metric": 7.653,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 38,
+              "seed": 4400038,
+              "reward": 92.25847426384146,
+              "metric": 7.742,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 39,
+              "seed": 4400039,
+              "reward": 92.125092132228,
+              "metric": 7.875,
+              "failure_progress": null,
+              "success": true,
+              "steps": 80,
+              "cause": "summit"
+            },
+            {
+              "index": 40,
+              "seed": 4400040,
+              "reward": 92.27357040988011,
+              "metric": 7.726,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 41,
+              "seed": 4400041,
+              "reward": 92.26515702540406,
+              "metric": 7.735,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 42,
+              "seed": 4400042,
+              "reward": 92.26338167274066,
+              "metric": 7.737,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 43,
+              "seed": 4400043,
+              "reward": 92.36551267416488,
+              "metric": 7.634,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 44,
+              "seed": 4400044,
+              "reward": 92.37192034747403,
+              "metric": 7.628,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 45,
+              "seed": 4400045,
+              "reward": 91.94597996802607,
+              "metric": 8.054,
+              "failure_progress": null,
+              "success": true,
+              "steps": 82,
+              "cause": "summit"
+            },
+            {
+              "index": 46,
+              "seed": 4400046,
+              "reward": 92.13889935659482,
+              "metric": 7.861,
+              "failure_progress": null,
+              "success": true,
+              "steps": 80,
+              "cause": "summit"
+            },
+            {
+              "index": 47,
+              "seed": 4400047,
+              "reward": 91.82658367715332,
+              "metric": 8.173,
+              "failure_progress": null,
+              "success": true,
+              "steps": 83,
+              "cause": "summit"
+            },
+            {
+              "index": 48,
+              "seed": 4400048,
+              "reward": 92.24137223675675,
+              "metric": 7.759,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 49,
+              "seed": 4400049,
+              "reward": 92.26807879963077,
+              "metric": 7.732,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            }
+          ]
+        }
+      },
+      {
+        "scenario_id": "mountain-car",
+        "seed": 123,
+        "state": "solved",
+        "max_episodes": 250,
+        "completed_episodes": 52,
+        "total_steps": 4151,
+        "updates": 2,
+        "checkpoint_every_n": 25,
+        "stop_on_solve": true,
+        "solve_criteria": {
+          "definition": "Selection chooses the first checkpoint in a streak of 1 consecutive qualifying checkpoint. A qualifier must match the run protocol and meet the configured fixed-suite success-rate, Wilson-bound, and suite-size thresholds. Independent holdout evidence is evaluated only after selection.",
+          "min_success_rate": 0.9,
+          "min_ci_low": 0.7,
+          "min_eval_episodes": 10,
+          "confirmations": 1
+        },
+        "engine_source_sha256": "3f27dafe8cb388be44cc36d054cb76778953ac6d2376c36326655ead6b985751",
+        "evaluation_suite": "policy-atlas-eval-v1-n10",
+        "earliest_solve": {
+          "earliest_episode": 26,
+          "confirmed_episode": 26,
+          "checkpoint": {
+            "episode": 26,
+            "total_steps": 2064,
+            "updates": 1,
+            "seed": 123,
+            "evaluation_suite": "policy-atlas-eval-v1-n10",
+            "evaluation_episodes": 10,
+            "success_rate": 1.0,
+            "success_ci_low": 0.7225,
+            "success_ci_high": 1.0,
+            "eval_reward": 92.14,
+            "eval_reward_std": 0.222,
+            "metric": 7.8601,
+            "metric_std": 0.222,
+            "failure_progress": null,
+            "training_diagnostics": {
+              "policy_loss": -0.0,
+              "value_loss": 0.99162,
+              "entropy": -8.77332,
+              "approx_kl": 0.27285,
+              "clip_frac": 0.22656,
+              "value_scale": 1.0,
+              "value_clip_frac": 0.0,
+              "optimizer_steps": 1,
+              "kl_early_stopped": 1,
+              "explained_variance": -1.74374,
+              "value_bias": 0.07652,
+              "action_std_mean": 0.13529,
+              "action_std_min": 0.13529,
+              "action_std_max": 0.13529,
+              "action_std_0": 0.13529,
+              "continuous_action_mean_0": -0.12206
+            },
+            "schema_version": 4,
+            "obs_dim": 3,
+            "n_continuous": 1,
+            "n_binary": 0,
+            "metadata_sha256": "d2440f87dc8d1724904eedb5d94f385c8e046c50227b03f9799e58ddfc23c07d",
+            "checkpoint_sha256": "65b9f5c0d6497852c3f140b576df34ae323ed43719d60fa1e68e3f751e2bc95e",
+            "protocol": {
+              "algorithm": "demonstration-assisted PPO",
+              "version": 19,
+              "kl_stop_timing": "before_optimizer_step",
+              "cpu_threads": 1,
+              "rollout_steps": 2048,
+              "episode_aligned_rollouts": true,
+              "gamma": 0.995,
+              "gae_lambda": 0.95,
+              "learning_rate": 0.0003,
+              "clip_epsilon": 0.2,
+              "entropy_coefficient": 0.0,
+              "value_coefficient": 0.5,
+              "training_reward_scale": 0.01,
+              "value_loss_scale": "rollout return RMS",
+              "training_start_distribution": "scenario default starts",
+              "task_horizon_steps": 999,
+              "task_horizon_seconds": null,
+              "failure_clock_regularizer": null,
+              "course_reward_potential": null,
+              "training_curriculum": null,
+              "training_control": null,
+              "training_schedule": null,
+              "actor_warm_start": {
+                "contract": {
+                  "id": "mountain-car-momentum-demonstrations-v1",
+                  "role": "actor behavior-cloning warm start",
+                  "pure_model_free_from_scratch": false,
+                  "expert": {
+                    "id": "mountain-car-momentum-sign-v1",
+                    "description": "training-only momentum pumping: full positive motor command for positive velocity, full negative command otherwise; the neural actor acts alone during PPO and evaluation",
+                    "used_at_inference": false
+                  },
+                  "dataset": {
+                    "seed_base": 4100000,
+                    "episodes": 80,
+                    "seed_formula": "seed_base + episode_index",
+                    "state_stride": 1,
+                    "start_state": "ordinary jittered canonical valley starts; demonstrations use seeds disjoint from selection and validation",
+                    "observations": "pre-action environment observations",
+                    "targets": "bounded expert actions"
+                  },
+                  "optimizer": {
+                    "algorithm": "Adam",
+                    "learning_rate": 0.001,
+                    "batch_size": 1024,
+                    "epochs_per_initial_fit": 60,
+                    "epochs_per_dagger_fit": 60,
+                    "loss": {
+                      "motor_force_mse_weight": 1.0
+                    },
+                    "shuffle": false,
+                    "initialization_seed": 42,
+                    "trained_parameters": "shared torso, continuous mean head, and any binary head"
+                  },
+                  "ppo_fine_tuning": true,
+                  "checkpoint_restore_overrides_warm_start": true
+                },
+                "realized": {
+                  "samples": 6355,
+                  "final_mse": 0.016890060156583786,
+                  "dataset_sha256": "3214b99f56d75e0361e2e6aeb5d6cc04c8d48ca6160d43ead647391fffe648a6",
+                  "initialization_seed": 42
+                }
+              },
+              "actor_initialization": {
+                "scope": "mountain_car_demonstration_assisted_ppo",
+                "applies_on": "fresh_seeded_policy_construction",
+                "continuous_action_labels": [
+                  "motor_force"
+                ],
+                "continuous_action_prior": [
+                  0.0
+                ],
+                "continuous_latent_bias": [
+                  0.0
+                ],
+                "continuous_log_std": [
+                  -2.0
+                ],
+                "continuous_head_weight_std": 0.01,
+                "binary_action_labels": [],
+                "binary_probability_prior": [],
+                "binary_logit_bias": [],
+                "binary_head_weight_std": 0.01,
+                "deterministic_zero_observation_action": [
+                  0.0
+                ],
+                "checkpoint_restore_overrides_initialization": true
+              },
+              "update_epochs": 10,
+              "minibatch_size": 256,
+              "target_kl": 0.03,
+              "evaluation_episodes": 10,
+              "evaluation_suite": "policy-atlas-eval-v1-n10",
+              "evaluation_seed_base": 100000,
+              "deterministic_evaluation": true,
+              "engine_source_sha256": "3f27dafe8cb388be44cc36d054cb76778953ac6d2376c36326655ead6b985751",
+              "reproducibility_scope": "RNG-exact continuation on the saved runtime; bitwise identity is not guaranteed across devices or dependency builds",
+              "device": "cpu",
+              "torch_version": "2.4.1+cu124"
+            },
+            "engine_source_sha256": "3f27dafe8cb388be44cc36d054cb76778953ac6d2376c36326655ead6b985751"
+          }
+        },
+        "selection": {
+          "protocol_role": "checkpoint_selection",
+          "reason": "earliest_confirmed_solve",
+          "suite": "policy-atlas-eval-v1-n10",
+          "seed_base": 100000,
+          "checkpoint": {
+            "episode": 26,
+            "total_steps": 2064,
+            "updates": 1,
+            "seed": 123,
+            "evaluation_suite": "policy-atlas-eval-v1-n10",
+            "evaluation_episodes": 10,
+            "success_rate": 1.0,
+            "success_ci_low": 0.7225,
+            "success_ci_high": 1.0,
+            "eval_reward": 92.14,
+            "eval_reward_std": 0.222,
+            "metric": 7.8601,
+            "metric_std": 0.222,
+            "failure_progress": null,
+            "training_diagnostics": {
+              "policy_loss": -0.0,
+              "value_loss": 0.99162,
+              "entropy": -8.77332,
+              "approx_kl": 0.27285,
+              "clip_frac": 0.22656,
+              "value_scale": 1.0,
+              "value_clip_frac": 0.0,
+              "optimizer_steps": 1,
+              "kl_early_stopped": 1,
+              "explained_variance": -1.74374,
+              "value_bias": 0.07652,
+              "action_std_mean": 0.13529,
+              "action_std_min": 0.13529,
+              "action_std_max": 0.13529,
+              "action_std_0": 0.13529,
+              "continuous_action_mean_0": -0.12206
+            },
+            "schema_version": 4,
+            "obs_dim": 3,
+            "n_continuous": 1,
+            "n_binary": 0,
+            "metadata_sha256": "d2440f87dc8d1724904eedb5d94f385c8e046c50227b03f9799e58ddfc23c07d",
+            "checkpoint_sha256": "65b9f5c0d6497852c3f140b576df34ae323ed43719d60fa1e68e3f751e2bc95e",
+            "protocol": {
+              "algorithm": "demonstration-assisted PPO",
+              "version": 19,
+              "kl_stop_timing": "before_optimizer_step",
+              "cpu_threads": 1,
+              "rollout_steps": 2048,
+              "episode_aligned_rollouts": true,
+              "gamma": 0.995,
+              "gae_lambda": 0.95,
+              "learning_rate": 0.0003,
+              "clip_epsilon": 0.2,
+              "entropy_coefficient": 0.0,
+              "value_coefficient": 0.5,
+              "training_reward_scale": 0.01,
+              "value_loss_scale": "rollout return RMS",
+              "training_start_distribution": "scenario default starts",
+              "task_horizon_steps": 999,
+              "task_horizon_seconds": null,
+              "failure_clock_regularizer": null,
+              "course_reward_potential": null,
+              "training_curriculum": null,
+              "training_control": null,
+              "training_schedule": null,
+              "actor_warm_start": {
+                "contract": {
+                  "id": "mountain-car-momentum-demonstrations-v1",
+                  "role": "actor behavior-cloning warm start",
+                  "pure_model_free_from_scratch": false,
+                  "expert": {
+                    "id": "mountain-car-momentum-sign-v1",
+                    "description": "training-only momentum pumping: full positive motor command for positive velocity, full negative command otherwise; the neural actor acts alone during PPO and evaluation",
+                    "used_at_inference": false
+                  },
+                  "dataset": {
+                    "seed_base": 4100000,
+                    "episodes": 80,
+                    "seed_formula": "seed_base + episode_index",
+                    "state_stride": 1,
+                    "start_state": "ordinary jittered canonical valley starts; demonstrations use seeds disjoint from selection and validation",
+                    "observations": "pre-action environment observations",
+                    "targets": "bounded expert actions"
+                  },
+                  "optimizer": {
+                    "algorithm": "Adam",
+                    "learning_rate": 0.001,
+                    "batch_size": 1024,
+                    "epochs_per_initial_fit": 60,
+                    "epochs_per_dagger_fit": 60,
+                    "loss": {
+                      "motor_force_mse_weight": 1.0
+                    },
+                    "shuffle": false,
+                    "initialization_seed": 42,
+                    "trained_parameters": "shared torso, continuous mean head, and any binary head"
+                  },
+                  "ppo_fine_tuning": true,
+                  "checkpoint_restore_overrides_warm_start": true
+                },
+                "realized": {
+                  "samples": 6355,
+                  "final_mse": 0.016890060156583786,
+                  "dataset_sha256": "3214b99f56d75e0361e2e6aeb5d6cc04c8d48ca6160d43ead647391fffe648a6",
+                  "initialization_seed": 42
+                }
+              },
+              "actor_initialization": {
+                "scope": "mountain_car_demonstration_assisted_ppo",
+                "applies_on": "fresh_seeded_policy_construction",
+                "continuous_action_labels": [
+                  "motor_force"
+                ],
+                "continuous_action_prior": [
+                  0.0
+                ],
+                "continuous_latent_bias": [
+                  0.0
+                ],
+                "continuous_log_std": [
+                  -2.0
+                ],
+                "continuous_head_weight_std": 0.01,
+                "binary_action_labels": [],
+                "binary_probability_prior": [],
+                "binary_logit_bias": [],
+                "binary_head_weight_std": 0.01,
+                "deterministic_zero_observation_action": [
+                  0.0
+                ],
+                "checkpoint_restore_overrides_initialization": true
+              },
+              "update_epochs": 10,
+              "minibatch_size": 256,
+              "target_kl": 0.03,
+              "evaluation_episodes": 10,
+              "evaluation_suite": "policy-atlas-eval-v1-n10",
+              "evaluation_seed_base": 100000,
+              "deterministic_evaluation": true,
+              "engine_source_sha256": "3f27dafe8cb388be44cc36d054cb76778953ac6d2376c36326655ead6b985751",
+              "reproducibility_scope": "RNG-exact continuation on the saved runtime; bitwise identity is not guaranteed across devices or dependency builds",
+              "device": "cpu",
+              "torch_version": "2.4.1+cu124"
+            },
+            "engine_source_sha256": "3f27dafe8cb388be44cc36d054cb76778953ac6d2376c36326655ead6b985751"
+          }
+        },
+        "final_checkpoint": {
+          "episode": 52,
+          "total_steps": 4151,
+          "updates": 2,
+          "seed": 123,
+          "evaluation_suite": "policy-atlas-eval-v1-n10",
+          "evaluation_episodes": 10,
+          "success_rate": 1.0,
+          "success_ci_low": 0.7225,
+          "success_ci_high": 1.0,
+          "eval_reward": 92.11,
+          "eval_reward_std": 0.191,
+          "metric": 7.885900000000001,
+          "metric_std": 0.191,
+          "failure_progress": null,
+          "training_diagnostics": {
+            "policy_loss": -0.0,
+            "value_loss": 1.02407,
+            "entropy": -8.70393,
+            "approx_kl": 0.17684,
+            "clip_frac": 0.10742,
+            "value_scale": 1.0,
+            "value_clip_frac": 0.0,
+            "optimizer_steps": 1,
+            "kl_early_stopped": 1,
+            "explained_variance": -1.65424,
+            "value_bias": 0.10055,
+            "action_std_mean": 0.13526,
+            "action_std_min": 0.13526,
+            "action_std_max": 0.13526,
+            "action_std_0": 0.13526,
+            "continuous_action_mean_0": -0.15779
+          },
+          "schema_version": 4,
+          "obs_dim": 3,
+          "n_continuous": 1,
+          "n_binary": 0,
+          "metadata_sha256": "3e39cfa0ea7231651d95c02518f6087c82443cdb9c3f4fb6859acc3f25df15ce",
+          "checkpoint_sha256": "61bc34240e2f5ac999903184b6276aabcb3859f4554cbc9cdfd875d5b8a0bde0",
+          "protocol": {
+            "algorithm": "demonstration-assisted PPO",
+            "version": 19,
+            "kl_stop_timing": "before_optimizer_step",
+            "cpu_threads": 1,
+            "rollout_steps": 2048,
+            "episode_aligned_rollouts": true,
+            "gamma": 0.995,
+            "gae_lambda": 0.95,
+            "learning_rate": 0.0003,
+            "clip_epsilon": 0.2,
+            "entropy_coefficient": 0.0,
+            "value_coefficient": 0.5,
+            "training_reward_scale": 0.01,
+            "value_loss_scale": "rollout return RMS",
+            "training_start_distribution": "scenario default starts",
+            "task_horizon_steps": 999,
+            "task_horizon_seconds": null,
+            "failure_clock_regularizer": null,
+            "course_reward_potential": null,
+            "training_curriculum": null,
+            "training_control": null,
+            "training_schedule": null,
+            "actor_warm_start": {
+              "contract": {
+                "id": "mountain-car-momentum-demonstrations-v1",
+                "role": "actor behavior-cloning warm start",
+                "pure_model_free_from_scratch": false,
+                "expert": {
+                  "id": "mountain-car-momentum-sign-v1",
+                  "description": "training-only momentum pumping: full positive motor command for positive velocity, full negative command otherwise; the neural actor acts alone during PPO and evaluation",
+                  "used_at_inference": false
+                },
+                "dataset": {
+                  "seed_base": 4100000,
+                  "episodes": 80,
+                  "seed_formula": "seed_base + episode_index",
+                  "state_stride": 1,
+                  "start_state": "ordinary jittered canonical valley starts; demonstrations use seeds disjoint from selection and validation",
+                  "observations": "pre-action environment observations",
+                  "targets": "bounded expert actions"
+                },
+                "optimizer": {
+                  "algorithm": "Adam",
+                  "learning_rate": 0.001,
+                  "batch_size": 1024,
+                  "epochs_per_initial_fit": 60,
+                  "epochs_per_dagger_fit": 60,
+                  "loss": {
+                    "motor_force_mse_weight": 1.0
+                  },
+                  "shuffle": false,
+                  "initialization_seed": 42,
+                  "trained_parameters": "shared torso, continuous mean head, and any binary head"
+                },
+                "ppo_fine_tuning": true,
+                "checkpoint_restore_overrides_warm_start": true
+              },
+              "realized": {
+                "samples": 6355,
+                "final_mse": 0.016890060156583786,
+                "dataset_sha256": "3214b99f56d75e0361e2e6aeb5d6cc04c8d48ca6160d43ead647391fffe648a6",
+                "initialization_seed": 42
+              }
+            },
+            "actor_initialization": {
+              "scope": "mountain_car_demonstration_assisted_ppo",
+              "applies_on": "fresh_seeded_policy_construction",
+              "continuous_action_labels": [
+                "motor_force"
+              ],
+              "continuous_action_prior": [
+                0.0
+              ],
+              "continuous_latent_bias": [
+                0.0
+              ],
+              "continuous_log_std": [
+                -2.0
+              ],
+              "continuous_head_weight_std": 0.01,
+              "binary_action_labels": [],
+              "binary_probability_prior": [],
+              "binary_logit_bias": [],
+              "binary_head_weight_std": 0.01,
+              "deterministic_zero_observation_action": [
+                0.0
+              ],
+              "checkpoint_restore_overrides_initialization": true
+            },
+            "update_epochs": 10,
+            "minibatch_size": 256,
+            "target_kl": 0.03,
+            "evaluation_episodes": 10,
+            "evaluation_suite": "policy-atlas-eval-v1-n10",
+            "evaluation_seed_base": 100000,
+            "deterministic_evaluation": true,
+            "engine_source_sha256": "3f27dafe8cb388be44cc36d054cb76778953ac6d2376c36326655ead6b985751",
+            "reproducibility_scope": "RNG-exact continuation on the saved runtime; bitwise identity is not guaranteed across devices or dependency builds",
+            "device": "cpu",
+            "torch_version": "2.4.1+cu124"
+          },
+          "engine_source_sha256": "3f27dafe8cb388be44cc36d054cb76778953ac6d2376c36326655ead6b985751"
+        },
+        "checkpoint_trace": [
+          {
+            "episode": 26,
+            "total_steps": 2064,
+            "updates": 1,
+            "mean_training_reward": 92.29,
+            "success_rate": 1.0,
+            "success_ci_low": 0.7225,
+            "success_ci_high": 1.0,
+            "eval_reward": 92.14,
+            "eval_reward_std": 0.222,
+            "metric": 7.8601,
+            "metric_std": 0.222,
+            "failure_progress": null,
+            "training_diagnostics": {
+              "policy_loss": -0.0,
+              "value_loss": 0.99162,
+              "entropy": -8.77332,
+              "approx_kl": 0.27285,
+              "clip_frac": 0.22656,
+              "value_scale": 1.0,
+              "value_clip_frac": 0.0,
+              "optimizer_steps": 1,
+              "kl_early_stopped": 1,
+              "explained_variance": -1.74374,
+              "value_bias": 0.07652,
+              "action_std_mean": 0.13529,
+              "action_std_min": 0.13529,
+              "action_std_max": 0.13529,
+              "action_std_0": 0.13529,
+              "continuous_action_mean_0": -0.12206
+            },
+            "metadata_sha256": "d2440f87dc8d1724904eedb5d94f385c8e046c50227b03f9799e58ddfc23c07d",
+            "checkpoint_sha256": "65b9f5c0d6497852c3f140b576df34ae323ed43719d60fa1e68e3f751e2bc95e"
+          },
+          {
+            "episode": 52,
+            "total_steps": 4151,
+            "updates": 2,
+            "mean_training_reward": 92.2,
+            "success_rate": 1.0,
+            "success_ci_low": 0.7225,
+            "success_ci_high": 1.0,
+            "eval_reward": 92.11,
+            "eval_reward_std": 0.191,
+            "metric": 7.885900000000001,
+            "metric_std": 0.191,
+            "failure_progress": null,
+            "training_diagnostics": {
+              "policy_loss": -0.0,
+              "value_loss": 1.02407,
+              "entropy": -8.70393,
+              "approx_kl": 0.17684,
+              "clip_frac": 0.10742,
+              "value_scale": 1.0,
+              "value_clip_frac": 0.0,
+              "optimizer_steps": 1,
+              "kl_early_stopped": 1,
+              "explained_variance": -1.65424,
+              "value_bias": 0.10055,
+              "action_std_mean": 0.13526,
+              "action_std_min": 0.13526,
+              "action_std_max": 0.13526,
+              "action_std_0": 0.13526,
+              "continuous_action_mean_0": -0.15779
+            },
+            "metadata_sha256": "3e39cfa0ea7231651d95c02518f6087c82443cdb9c3f4fb6859acc3f25df15ce",
+            "checkpoint_sha256": "61bc34240e2f5ac999903184b6276aabcb3859f4554cbc9cdfd875d5b8a0bde0"
+          }
+        ],
+        "checkpoints_observed": 2,
+        "checkpoints_seen_total": 2,
+        "started_at": "2026-09-11T00:24:24-05:00",
+        "finished_at": "2026-09-11T00:24:27-05:00",
+        "holdout": {
+          "state": "complete",
+          "requested_episodes": 50,
+          "requested_seed_base": 4400000,
+          "requested_seed_end": 4400049,
+          "selected_checkpoint_episode": 26,
+          "selected_checkpoint_sha256": "65b9f5c0d6497852c3f140b576df34ae323ed43719d60fa1e68e3f751e2bc95e",
+          "selection_reason": "earliest_confirmed_solve",
+          "selection_suite": "policy-atlas-eval-v1-n10",
+          "protocol_role": "post_selection_holdout",
+          "influences_selection": false,
+          "suite": "policy-atlas-holdout-v1-n50-seeds4400000-4400049",
+          "episodes": 50,
+          "seed_base": 4400000,
+          "seed_end": 4400049,
+          "selection_seed_base": 100000,
+          "selection_seed_end": 100009,
+          "seed_range_disjoint_from_selection": true,
+          "seed_range_disjoint_from_training_curriculum": true,
+          "training_curriculum_seed_ranges": [],
+          "deterministic_policy": true,
+          "engine_source_sha256": "3f27dafe8cb388be44cc36d054cb76778953ac6d2376c36326655ead6b985751",
+          "reward_mean": 92.2408346701119,
+          "reward_std": 0.16339035722610679,
+          "metric": 7.75916,
+          "metric_std": 0.16334299617675682,
+          "failure_progress": null,
+          "failure_progress_std": null,
+          "successes": 50,
+          "success_rate": 1.0,
+          "success_ci_low": 0.9286499658256813,
+          "success_ci_high": 1.0,
+          "trials": [
+            {
+              "index": 0,
+              "seed": 4400000,
+              "reward": 92.27195490705692,
+              "metric": 7.728,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 1,
+              "seed": 4400001,
+              "reward": 91.82847037851697,
+              "metric": 8.172,
+              "failure_progress": null,
+              "success": true,
+              "steps": 83,
+              "cause": "summit"
+            },
+            {
+              "index": 2,
+              "seed": 4400002,
+              "reward": 92.24848983374143,
+              "metric": 7.752,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 3,
+              "seed": 4400003,
+              "reward": 91.82856205326144,
+              "metric": 8.171,
+              "failure_progress": null,
+              "success": true,
+              "steps": 83,
+              "cause": "summit"
+            },
+            {
+              "index": 4,
+              "seed": 4400004,
+              "reward": 92.27698368480193,
+              "metric": 7.723,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 5,
+              "seed": 4400005,
+              "reward": 92.35513820076463,
+              "metric": 7.645,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 6,
+              "seed": 4400006,
+              "reward": 92.37614435524368,
+              "metric": 7.624,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 7,
+              "seed": 4400007,
+              "reward": 92.35395032627414,
+              "metric": 7.646,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 8,
+              "seed": 4400008,
+              "reward": 92.2870589661158,
+              "metric": 7.713,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 9,
+              "seed": 4400009,
+              "reward": 92.15144950640354,
+              "metric": 7.849,
+              "failure_progress": null,
+              "success": true,
+              "steps": 80,
+              "cause": "summit"
+            },
+            {
+              "index": 10,
+              "seed": 4400010,
+              "reward": 92.25727563778132,
+              "metric": 7.743,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 11,
+              "seed": 4400011,
+              "reward": 92.36118072967427,
+              "metric": 7.639,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 12,
+              "seed": 4400012,
+              "reward": 92.28587048342436,
+              "metric": 7.714,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 13,
+              "seed": 4400013,
+              "reward": 92.26722611241941,
+              "metric": 7.733,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 14,
+              "seed": 4400014,
+              "reward": 92.38048696371679,
+              "metric": 7.62,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 15,
+              "seed": 4400015,
+              "reward": 92.06679824035012,
+              "metric": 7.933,
+              "failure_progress": null,
+              "success": true,
+              "steps": 81,
+              "cause": "summit"
+            },
+            {
+              "index": 16,
+              "seed": 4400016,
+              "reward": 92.22677415016231,
+              "metric": 7.773,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 17,
+              "seed": 4400017,
+              "reward": 91.86178585569712,
+              "metric": 8.138,
+              "failure_progress": null,
+              "success": true,
+              "steps": 83,
+              "cause": "summit"
+            },
+            {
+              "index": 18,
+              "seed": 4400018,
+              "reward": 92.35994934944512,
+              "metric": 7.64,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 19,
+              "seed": 4400019,
+              "reward": 92.42629949024125,
+              "metric": 7.574,
+              "failure_progress": null,
+              "success": true,
+              "steps": 77,
+              "cause": "summit"
+            },
+            {
+              "index": 20,
+              "seed": 4400020,
+              "reward": 92.26423739044814,
+              "metric": 7.736,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 21,
+              "seed": 4400021,
+              "reward": 91.92744436831582,
+              "metric": 8.073,
+              "failure_progress": null,
+              "success": true,
+              "steps": 82,
+              "cause": "summit"
+            },
+            {
+              "index": 22,
+              "seed": 4400022,
+              "reward": 92.30037412666171,
+              "metric": 7.7,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 23,
+              "seed": 4400023,
+              "reward": 92.27677997240221,
+              "metric": 7.723,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 24,
+              "seed": 4400024,
+              "reward": 92.35487269491524,
+              "metric": 7.645,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 25,
+              "seed": 4400025,
+              "reward": 92.32659070830283,
+              "metric": 7.673,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 26,
+              "seed": 4400026,
+              "reward": 92.38080108095696,
+              "metric": 7.619,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 27,
+              "seed": 4400027,
+              "reward": 92.04886318775186,
+              "metric": 7.951,
+              "failure_progress": null,
+              "success": true,
+              "steps": 81,
+              "cause": "summit"
+            },
+            {
+              "index": 28,
+              "seed": 4400028,
+              "reward": 92.05562729756319,
+              "metric": 7.944,
+              "failure_progress": null,
+              "success": true,
+              "steps": 81,
+              "cause": "summit"
+            },
+            {
+              "index": 29,
+              "seed": 4400029,
+              "reward": 92.28020895990868,
+              "metric": 7.72,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 30,
+              "seed": 4400030,
+              "reward": 92.32647116067426,
+              "metric": 7.674,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 31,
+              "seed": 4400031,
+              "reward": 92.35685953762487,
+              "metric": 7.643,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 32,
+              "seed": 4400032,
+              "reward": 92.27063405922907,
+              "metric": 7.729,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 33,
+              "seed": 4400033,
+              "reward": 92.22658012018186,
+              "metric": 7.773,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 34,
+              "seed": 4400034,
+              "reward": 92.52589993196091,
+              "metric": 7.474,
+              "failure_progress": null,
+              "success": true,
+              "steps": 76,
+              "cause": "summit"
+            },
+            {
+              "index": 35,
+              "seed": 4400035,
+              "reward": 92.3603961314727,
+              "metric": 7.64,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 36,
+              "seed": 4400036,
+              "reward": 92.3781510166448,
+              "metric": 7.622,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 37,
+              "seed": 4400037,
+              "reward": 92.35756348070545,
+              "metric": 7.642,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 38,
+              "seed": 4400038,
+              "reward": 92.26709665125037,
+              "metric": 7.733,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 39,
+              "seed": 4400039,
+              "reward": 92.12687035854267,
+              "metric": 7.873,
+              "failure_progress": null,
+              "success": true,
+              "steps": 80,
+              "cause": "summit"
+            },
+            {
+              "index": 40,
+              "seed": 4400040,
+              "reward": 92.286973343699,
+              "metric": 7.713,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 41,
+              "seed": 4400041,
+              "reward": 92.2770068505601,
+              "metric": 7.723,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 42,
+              "seed": 4400042,
+              "reward": 92.27428658805424,
+              "metric": 7.726,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 43,
+              "seed": 4400043,
+              "reward": 92.37662201817712,
+              "metric": 7.623,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 44,
+              "seed": 4400044,
+              "reward": 92.38089073353179,
+              "metric": 7.619,
+              "failure_progress": null,
+              "success": true,
+              "steps": 78,
+              "cause": "summit"
+            },
+            {
+              "index": 45,
+              "seed": 4400045,
+              "reward": 91.95052156139468,
+              "metric": 8.049,
+              "failure_progress": null,
+              "success": true,
+              "steps": 82,
+              "cause": "summit"
+            },
+            {
+              "index": 46,
+              "seed": 4400046,
+              "reward": 92.24922042048632,
+              "metric": 7.751,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 47,
+              "seed": 4400047,
+              "reward": 91.82864766687709,
+              "metric": 8.171,
+              "failure_progress": null,
+              "success": true,
+              "steps": 83,
+              "cause": "summit"
+            },
+            {
+              "index": 48,
+              "seed": 4400048,
+              "reward": 92.25266317440826,
+              "metric": 7.747,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            },
+            {
+              "index": 49,
+              "seed": 4400049,
+              "reward": 92.28072968779995,
+              "metric": 7.719,
+              "failure_progress": null,
+              "success": true,
+              "steps": 79,
+              "cause": "summit"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "caveat": "Two PPO seeds share the disclosed deterministic supervised initializer; holdout evidence is separate from selection but not a full cross-initializer study"
+}

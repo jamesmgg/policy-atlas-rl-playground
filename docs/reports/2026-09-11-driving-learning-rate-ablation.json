@@ -1,0 +1,114 @@
+{
+  "role": "learning-rate ablation with explicit runtime optimizer override",
+  "engine": "26ab9c1025a572f438c2704825c40af8da66d68fba8facb9e1eebd38c23931bc",
+  "runs": [
+    {
+      "learning_rate_override": 3e-05,
+      "seed": 42,
+      "clone_fixed_success": 1.0,
+      "checkpoints": [
+        {
+          "episode": 10,
+          "success_rate": 1.0
+        },
+        {
+          "episode": 20,
+          "success_rate": 1.0
+        },
+        {
+          "episode": 33,
+          "success_rate": 1.0
+        },
+        {
+          "episode": 40,
+          "success_rate": 1.0
+        },
+        {
+          "episode": 50,
+          "success_rate": 1.0
+        }
+      ]
+    },
+    {
+      "learning_rate_override": 3e-05,
+      "seed": 123,
+      "clone_fixed_success": 1.0,
+      "checkpoints": [
+        {
+          "episode": 10,
+          "success_rate": 1.0
+        },
+        {
+          "episode": 20,
+          "success_rate": 1.0
+        },
+        {
+          "episode": 32,
+          "success_rate": 1.0
+        },
+        {
+          "episode": 41,
+          "success_rate": 1.0
+        },
+        {
+          "episode": 50,
+          "success_rate": 1.0
+        }
+      ]
+    },
+    {
+      "learning_rate_override": 3e-06,
+      "seed": 42,
+      "clone_fixed_success": 1.0,
+      "checkpoints": [
+        {
+          "episode": 10,
+          "success_rate": 1.0
+        },
+        {
+          "episode": 20,
+          "success_rate": 1.0
+        },
+        {
+          "episode": 32,
+          "success_rate": 1.0
+        },
+        {
+          "episode": 40,
+          "success_rate": 1.0
+        },
+        {
+          "episode": 50,
+          "success_rate": 1.0
+        }
+      ]
+    },
+    {
+      "learning_rate_override": 3e-06,
+      "seed": 123,
+      "clone_fixed_success": 1.0,
+      "checkpoints": [
+        {
+          "episode": 11,
+          "success_rate": 1.0
+        },
+        {
+          "episode": 21,
+          "success_rate": 1.0
+        },
+        {
+          "episode": 31,
+          "success_rate": 1.0
+        },
+        {
+          "episode": 41,
+          "success_rate": 1.0
+        },
+        {
+          "episode": 50,
+          "success_rate": 1.0
+        }
+      ]
+    }
+  ]
+}
