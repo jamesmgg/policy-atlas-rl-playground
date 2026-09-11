@@ -210,7 +210,7 @@ test("the active experiment is visualization first with diagnostics collapsed", 
   );
   const simulator = source.indexOf("<SceneCanvas />");
   const topRuns = source.indexOf("<Leaderboard />");
-  const diagnostics = source.indexOf('<details className="technical-drawer">');
+  const diagnostics = source.indexOf('<details className="technical-drawer"');
 
   assert.ok(simulator >= 0, "the live simulator must remain on the experiment page");
   assert.ok(topRuns > simulator, "top runs must immediately follow the visualization");
@@ -313,7 +313,7 @@ test("mobile users get direct setup anchors without interrupting the experiment 
 
   const simulator = page.indexOf("<SceneCanvas />");
   const topRuns = page.indexOf("<Leaderboard />");
-  const diagnostics = page.indexOf('<details className="technical-drawer">');
+  const diagnostics = page.indexOf('<details className="technical-drawer"');
   const quickNav = page.indexOf('className="mobile-setup-dock"');
   assert.ok(simulator < topRuns && topRuns < diagnostics && diagnostics < quickNav);
   assert.match(page, /aria-label="Quick setup navigation"/);

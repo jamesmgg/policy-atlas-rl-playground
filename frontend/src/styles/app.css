@@ -31,6 +31,21 @@
 
 * { box-sizing: border-box; }
 
+.reference-disclosure { margin: 0; padding: 10px 20px; color: var(--reward); background: var(--reward-soft); font-size: 13px; }
+.evaluation-panel { margin-top: 20px; }
+.evaluation-context { color: var(--muted); font-size: 13px; margin: 12px 0 0; }
+.evaluation-table-wrap { overflow-x: auto; margin-top: 18px; }
+.evaluation-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.evaluation-table th, .evaluation-table td { padding: 12px 10px; border-bottom: 1px solid var(--line-soft); text-align: right; white-space: nowrap; }
+.evaluation-table th:first-child { text-align: left; }
+.evaluation-table thead th { color: var(--muted); font-weight: 400; }
+.evaluation-table td { font-family: var(--font-data); font-size: 12px; }
+.evaluation-table tr[data-controller="policy"] { color: var(--instrument); }
+.evaluation-table tr[data-controller="reference"] { color: var(--reward); }
+.model-notes { color: var(--ink-soft); font-size: 13px; }
+.model-notes h3 { font-size: 13px; }
+.model-notes ul { padding-left: 20px; }
+
 html {
   min-width: 320px;
   background: var(--lab-fog);

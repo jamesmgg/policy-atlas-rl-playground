@@ -28,6 +28,7 @@ const COLORS = {
 
 interface TrailPoint { x: number; y: number; drift: number }
 interface LapBanner { text: string; pb: boolean; until: number }
+interface ReferenceReplay { scenario_id: string; dt: number; frames: FrameMsg[] }
 
 function drawCar(
   ctx: CanvasRenderingContext2D, x: number, y: number, heading: number,
@@ -60,6 +61,57 @@ function drawGenericObject(
   ctx.save();
   ctx.globalAlpha = alpha;
   switch (obj.shape) {
+    case "station": {
+      ctx.translate(obj.x, obj.y);
+      ctx.fillStyle = "#547aab";
+      ctx.fillRect(-42, -24, 22, 48); ctx.fillRect(20, -24, 22, 48);
+      ctx.strokeStyle = "#9cbde3"; ctx.lineWidth = 1;
+      for (let y = -16; y <= 16; y += 8) {
+        ctx.beginPath(); ctx.moveTo(-42, y); ctx.lineTo(42, y); ctx.stroke();
+      }
+      ctx.fillStyle = "#ccd8dc"; ctx.fillRect(-12, -18, 24, 36);
+      ctx.strokeStyle = "#78b9ad"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(0, 0, 7, 0, Math.PI * 2); ctx.stroke();
+      break;
+    }
+    case "spacecraft": {
+      ctx.translate(obj.x, obj.y); ctx.rotate(obj.rot ?? 0);
+      ctx.fillStyle = alpha < 1 ? COLORS.ghost : COLORS.car;
+      ctx.beginPath(); ctx.moveTo(15, 0); ctx.lineTo(-9, -9); ctx.lineTo(-6, 0);
+      ctx.lineTo(-9, 9); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#dcebf6"; ctx.fillRect(-5, -19, 5, 10); ctx.fillRect(-5, 9, 5, 10);
+      break;
+    }
+    case "robotarm": {
+      const q1 = obj.rot ?? 0, q2 = obj.joint2 ?? 0;
+      const ex = 450 + 160 * Math.cos(q1), ey = 390 - 160 * Math.sin(q1);
+      const tx = ex + 120 * Math.cos(q1 + q2), ty = ey - 120 * Math.sin(q1 + q2);
+      ctx.lineCap = "round"; ctx.lineWidth = 17;
+      ctx.strokeStyle = alpha < 1 ? COLORS.ghost : "#839bab";
+      ctx.beginPath(); ctx.moveTo(450, 390); ctx.lineTo(ex, ey); ctx.stroke();
+      ctx.strokeStyle = alpha < 1 ? COLORS.ghost : COLORS.car;
+      ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(tx, ty); ctx.stroke();
+      for (const [x, y, r] of [[450, 390, 18], [ex, ey, 12], [tx, ty, 8]]) {
+        ctx.fillStyle = "#dce9e8"; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#203944"; ctx.beginPath(); ctx.arc(x, y, r / 2, 0, Math.PI * 2); ctx.fill();
+      }
+      break;
+    }
+    case "ballbeam": {
+      ctx.save(); ctx.translate(500, 420); ctx.rotate(obj.rot ?? 0);
+      ctx.fillStyle = alpha < 1 ? COLORS.ghost : "#8ca5b3";
+      ctx.fillRect(-330, 0, 660, 8);
+      ctx.strokeStyle = "#38505c"; ctx.lineWidth = 1;
+      for (let x = -300; x <= 300; x += 30) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 8); ctx.stroke();
+      }
+      ctx.restore();
+      ctx.fillStyle = alpha < 1 ? COLORS.ghost : COLORS.car;
+      ctx.beginPath(); ctx.arc(obj.x, obj.y, 12, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#ffe0ad";
+      ctx.beginPath(); ctx.arc(obj.x - 3, obj.y - 4, 3, 0, Math.PI * 2); ctx.fill();
+      break;
+    }
     case "lander": {
       ctx.translate(obj.x, obj.y);
       ctx.rotate(obj.rot ?? 0);
@@ -182,6 +234,48 @@ export default function SceneCanvas() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenAvailable, setFullscreenAvailable] = useState(false);
   const [fullscreenError, setFullscreenError] = useState<string | null>(null);
+  const referenceRef = useRef<{ replay: ReferenceReplay; startedAt: number } | null>(null);
+  const referenceRequest = useRef(0);
+  const [referenceState, setReferenceState] = useState<"idle" | "loading" | "playing">("idle");
+  const [referenceError, setReferenceError] = useState<string | null>(null);
+
+  useEffect(() => {
+    referenceRequest.current += 1;
+    referenceRef.current = null;
+    setReferenceState("idle");
+    setReferenceError(null);
+  }, [scenarioId, status?.training]);
+
+  const referenceFrame = (now: number) => {
+    const ref = referenceRef.current;
+    if (!ref || ref.replay.scenario_id !== scenarioId) return null;
+    const speed = scenarioId === "orbital-docking" ? 8 : 1;
+    const index = Math.min(ref.replay.frames.length - 1,
+      Math.floor((now - ref.startedAt) / 1000 * speed / ref.replay.dt));
+    return ref.replay.frames[index] ?? null;
+  };
+
+  const toggleReference = async () => {
+    const request = ++referenceRequest.current;
+    if (referenceRef.current) {
+      referenceRef.current = null;
+      setReferenceState("idle");
+      return;
+    }
+    setReferenceState("loading"); setReferenceError(null);
+    try {
+      const response = await fetch(`/api/reference/${encodeURIComponent(scenarioId ?? "")}`);
+      if (!response.ok) throw new Error("Reference demonstration could not load.");
+      const replay: ReferenceReplay = await response.json();
+      if (request !== referenceRequest.current) return;
+      referenceRef.current = { replay, startedAt: performance.now() };
+      setReferenceState("playing");
+    } catch (error) {
+      if (request !== referenceRequest.current) return;
+      setReferenceError(error instanceof Error ? error.message : "Reference demonstration failed.");
+      setReferenceState("idle");
+    }
+  };
 
   useEffect(() => {
     setFullscreenAvailable(
@@ -213,7 +307,7 @@ export default function SceneCanvas() {
   }, [isFullscreen]);
 
   useEffect(() => {
-    const update = () => setTelemetry(selectVisibleFrame(
+    const update = () => setTelemetry(referenceFrame(performance.now()) ?? selectVisibleFrame(
       frameRef.current, terminalFrameRef.current, performance.now(), undefined,
       status?.training === false,
     ));
@@ -286,7 +380,7 @@ export default function SceneCanvas() {
         sctx.restore();
       }
 
-      const frame = selectVisibleFrame(
+      const frame = referenceFrame(now) ?? selectVisibleFrame(
         frameRef.current, terminalFrameRef.current, now, undefined,
         status?.training === false,
       );
@@ -333,7 +427,7 @@ export default function SceneCanvas() {
       if (scene.kind === "track") ctx.drawImage(skidLayer, 0, 0, W, H);
 
       // Ghost replay (loops).
-      const ghost = ghostRef.current;
+      const ghost = referenceRef.current ? null : ghostRef.current;
       if (ghost) {
         const { lap, startedAt } = ghost;
         const n = lap.trajectory.length;
@@ -351,7 +445,7 @@ export default function SceneCanvas() {
           drawTrail(ctx, ghostTrail, COLORS.ghostTrail);
           drawGenericObject(ctx, {
             shape: scene.primary_shape as GenericObject["shape"],
-            x: gx, y: gy, rot: grot,
+            x: gx, y: gy, rot: grot, joint2: gd,
           }, 0.5);
         }
       } else {
@@ -381,7 +475,7 @@ export default function SceneCanvas() {
       cancelAnimationFrame(raf);
       clearTimeout(timer);
     };
-  }, [scene, frameRef, terminalFrameRef, ghostRef, status?.training]);
+  }, [scene, frameRef, terminalFrameRef, ghostRef, status?.training, referenceState]);
 
   const enterFullscreen = async () => {
     setFullscreenError(null);
@@ -411,12 +505,16 @@ export default function SceneCanvas() {
       <header className="simulator-toolbar">
         <div>
           <span className="section-kicker">Live environment</span>
-          <h2 id="simulator-title">Policy rollout</h2>
+          <h2 id="simulator-title">{referenceState === "playing" ? "Reference demonstration" : "Policy rollout"}</h2>
         </div>
         <div className="simulator-legend" aria-label="Simulator legend">
-          <span><i className="legend-agent" />Agent</span>
+          <span><i className="legend-agent" />{referenceState === "playing" ? "Reference" : "Agent"}</span>
           <span><i className="legend-replay" />Checkpoint replay</span>
         </div>
+        {currentScenario?.reference_controller && <button type="button" className="fullscreen-button"
+          disabled={status?.training || referenceState === "loading"} onClick={() => void toggleReference()}>
+          {referenceState === "loading" ? "Loading reference…" : referenceState === "playing" ? "Close reference" : "Watch reference"}
+        </button>}
         <button type="button" className="fullscreen-button" ref={expandButtonRef}
           aria-controls="simulator-well" aria-expanded={isFullscreen}
           disabled={!fullscreenAvailable}
@@ -425,6 +523,10 @@ export default function SceneCanvas() {
           {fullscreenAvailable ? "Expand simulator" : "Fullscreen unavailable"}
         </button>
       </header>
+      {referenceState === "playing" && <p className="reference-disclosure" role="status">
+        Analytic reference controller · not a learned policy{scenarioId === "orbital-docking" ? " · 8× playback" : ""}
+      </p>}
+      {referenceError && <p className="reference-disclosure" role="alert">{referenceError}</p>}
       <div className="simulator-well" id="simulator-well" ref={stageRef}>
         {fullscreenError && (
           <div className="fullscreen-feedback" role="alert">{fullscreenError}</div>
@@ -434,7 +536,7 @@ export default function SceneCanvas() {
             onClick={() => void exitFullscreen()}>Exit fullscreen</button>
         )}
         <canvas ref={canvasRef} className="track-canvas" role="img"
-          aria-label={`${currentScenario?.name ?? "Experiment"} live policy simulation`}>
+          aria-label={`${currentScenario?.name ?? "Experiment"} ${referenceState === "playing" ? "analytic reference demonstration" : "live policy simulation"}`}>
           Live visual simulation for {currentScenario?.name ?? "the active experiment"}.
         </canvas>
         {!scene && !sceneError && <div className="track-loading">Loading environment…</div>}
@@ -444,10 +546,10 @@ export default function SceneCanvas() {
             <button type="button" onClick={() => setSceneAttempt((value) => value + 1)}>Retry</button>
           </div>
         )}
-      {scene && !status?.training && !frameRef.current && (
+      {scene && !status?.training && !frameRef.current && referenceState !== "playing" && (
           <div className="track-idle"><strong>Environment ready</strong><span>Choose a budget and run the policy.</span></div>
       )}
-      {ghostEpisode != null && (
+      {ghostEpisode != null && referenceState !== "playing" && (
           <div className="ghost-chip">Comparing episode {ghostEpisode}</div>
       )}
         {telemetry?.terminal && telemetry.cause && (
@@ -458,7 +560,7 @@ export default function SceneCanvas() {
             aria-atomic="true"
             data-cause={telemetry.cause}
           >
-            <span>Episode {displayedEpisodeNumber(telemetry, status?.episode ?? 0)} ended</span>
+            <span>{referenceState === "playing" ? "Reference demonstration ended" : `Episode ${displayedEpisodeNumber(telemetry, status?.episode ?? 0)} ended`}</span>
             <strong>{formatTerminationCause(telemetry.cause)}</strong>
             <small>
               Ended after {formatEpisodeDuration(
@@ -479,6 +581,8 @@ export default function SceneCanvas() {
           {telemetry?.waypoints != null && <span><small>Waypoints</small><strong>{telemetry.waypoints} / 5</strong></span>}
           {telemetry?.balance_time != null && <span><small>Balanced</small><strong>{telemetry.balance_time.toFixed(2)} s</strong></span>}
           {telemetry?.peak_position != null && <span><small>Peak position</small><strong>{telemetry.peak_position.toFixed(3)}</strong></span>}
+          {telemetry?.distance != null && <span><small>Target distance</small><strong>{telemetry.distance.toFixed(3)} m</strong></span>}
+          {telemetry?.hold != null && <span><small>Stable hold</small><strong>{telemetry.hold.toFixed(1)} s</strong></span>}
           {status?.training && currentScenario && stepsPerSecond > 0 && (
             <span><small>Simulation</small><strong>{formatSimulationRate(
               stepsPerSecond, currentScenario.horizon_steps, currentScenario.horizon_seconds,
@@ -653,8 +757,8 @@ function renderStatics(ctx: CanvasRenderingContext2D, statics: StaticPrimitive[]
         if (pts.length < 2) break;
         ctx.beginPath();
         pts.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
-        ctx.strokeStyle = s.color === "danger" ? "#c95663" : "rgba(231,240,237,.7)";
-        ctx.lineWidth = s.color === "danger" ? 3 : 5;
+        ctx.strokeStyle = s.color === "danger" ? "#c95663" : s.color ?? "rgba(231,240,237,.7)";
+        ctx.lineWidth = s.color === "danger" ? 3 : s.color ? 2 : 5;
         ctx.stroke();
         break;
       }
@@ -684,7 +788,7 @@ function drawHud(ctx: CanvasRenderingContext2D, frame: FrameMsg, ghostEpisode: n
   ctx.fillStyle = "rgba(255,255,255,0.75)";
   let y = 22;
   ctx.fillText(`EP ${displayedEpisodeNumber(frame, 0)}`, 14, y); y += 18;
-  ctx.fillText(`R ${frame.episode_reward}`, 14, y); y += 18;
+  ctx.fillText(`R ${frame.episode_reward.toFixed(1)}`, 14, y); y += 18;
   if (frame.laps != null) { ctx.fillText(`LAP ${frame.laps}`, 14, y); y += 18; }
   if (frame.style != null) { ctx.fillText(`STYLE ${frame.style}`, 14, y); y += 18; }
   if (frame.overtakes != null) { ctx.fillText(`PASSES ${frame.overtakes}`, 14, y); y += 18; }

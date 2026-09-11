@@ -251,7 +251,7 @@ export default function Leaderboard() {
                     </div>
                     <button type="button" disabled={training || !run.compatible}
                       title={!run.compatible
-                        ? "Older scientific protocol: this branch cannot be loaded into the current environment schema"
+                        ? "Older scientific protocol: this branch does not match the current engine, environment schema, or test suite"
                         : training ? "Pause training before restoring a branch" : "Restore this saved branch"}
                       onClick={() => restore(run.id, run.latest_episode)}>
                       {run.compatible ? "Restore branch" : "Older scientific protocol"}

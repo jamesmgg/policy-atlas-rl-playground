@@ -1,14 +1,18 @@
 import ExperimentBrief from "./ExperimentBrief";
+import EvaluationPanel from "./EvaluationPanel";
 import Leaderboard from "./Leaderboard";
-import LearningCurve from "./LearningCurve";
+import { lazy, Suspense, useState } from "react";
 import LearningLens from "./LearningLens";
 import ScenarioSwitcher from "./ScenarioSwitcher";
 import SceneCanvas from "./SceneCanvas";
 import TrainingControls from "./TrainingControls";
 import { useTrainingSocket } from "../../hooks/useTrainingSocket";
 
+const LearningCurve = lazy(() => import("./LearningCurve"));
+
 export default function SimulatorPage() {
   const { connectionState, currentScenario, scenarios, status } = useTrainingSocket();
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
 
   return (
     <div className="app-shell">
@@ -22,7 +26,7 @@ export default function SimulatorPage() {
           </span>
         </div>
         <div className="topbar-context">
-          <span>{scenarios.length || 16} experiments</span>
+          <span>{scenarios.length ? `${scenarios.length} experiments` : "Loading experiments"}</span>
           <span aria-hidden="true">·</span>
           <span>Watch policies learn</span>
         </div>
@@ -47,11 +51,15 @@ export default function SimulatorPage() {
 
           <SceneCanvas />
           <Leaderboard />
-          <details className="technical-drawer">
+          <EvaluationPanel />
+          <details className="technical-drawer"
+            onToggle={(event) => setShowDiagnostics(event.currentTarget.open)}>
             <summary>Show learning diagnostics</summary>
             <div className="technical-drawer-content">
               <LearningLens />
-              <LearningCurve />
+              {showDiagnostics && <Suspense fallback={<p>Loading learning charts…</p>}>
+                <LearningCurve />
+              </Suspense>}
             </div>
           </details>
         </main>

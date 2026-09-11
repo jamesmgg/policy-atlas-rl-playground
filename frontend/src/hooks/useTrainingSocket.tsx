@@ -176,6 +176,7 @@ export function TrainingSocketProvider({ children }: { children: React.ReactNode
               )) ? previous : previous.concat(savedRecord).slice(-MAX_PPO_POINTS));
             }
             setStatus(msg);
+            if (msg.last_error) setLastError(`Training stopped: ${msg.last_error}`);
             setGhostEpisode(msg.ghost_episode);
             setScenarioKind(msg.scenario_kind);
             setMetricLabel(msg.metric_label);

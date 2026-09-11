@@ -6,9 +6,11 @@ import {
 import type { ScenarioInfo } from "../../api/types";
 import { useTrainingSocket } from "../../hooks/useTrainingSocket";
 
-const GROUP_ORDER = ["All", "Foundations", "Classic", "Circuits", "Weather", "Vehicles", "Objectives"];
+const GROUP_ORDER = ["All", "Foundations", "Classic", "Space", "Robotics", "Circuits", "Weather", "Vehicles", "Objectives"];
 
 function experimentGlyph(scenario: ScenarioInfo): string {
+  if (scenario.group === "Space") return "✧";
+  if (scenario.group === "Robotics") return "⌾";
   if (scenario.id.includes("cartpole") || scenario.id.includes("pendulum")) return "ϕ";
   if (scenario.id.includes("mountain")) return "∿";
   if (scenario.id.includes("lander")) return "△";

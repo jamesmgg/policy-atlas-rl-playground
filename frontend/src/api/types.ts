@@ -40,13 +40,16 @@ export interface CarFrame {
 }
 
 export interface GenericObject {
-  shape: "lander" | "rod" | "drone" | "target" | "cartpole" | "mountain-car";
+  shape: "lander" | "rod" | "drone" | "target" | "cartpole" | "mountain-car" | "spacecraft" | "station" | "robotarm" | "ballbeam";
   x: number;
   y: number;
   rot?: number;
   len?: number;
   flame?: number;
   force?: number;
+  joint2?: number;
+  thrust_x?: number;
+  thrust_y?: number;
 }
 
 export interface FrameMsg {
@@ -70,6 +73,11 @@ export interface FrameMsg {
   balance_time?: number;
   peak_position?: number;
   fuel?: number;
+  distance?: number;
+  hold?: number;
+  speed?: number;
+  delta_v?: number;
+  tracking_hits?: number;
 }
 
 export interface EpisodeRecord {
@@ -154,6 +162,8 @@ export interface StatusMsg {
   metric_label: string;
   metric_mode: "min" | "max";
   training: boolean;
+  last_error?: string | null;
+  cpu_threads?: number;
   episode: number;
   max_episodes: number;
   run_start_episode: number;
@@ -210,6 +220,8 @@ export interface ScenarioInfo {
   horizon_steps: number;
   horizon_seconds: number | null;
   progress: ScenarioProgress | null;
+  reference_controller?: string | null;
+  model_assumptions?: string[];
 }
 
 const REQUIRED_PPO_DIAGNOSTICS = [
@@ -448,6 +460,11 @@ export function formatTerminationCause(cause: string): string {
     balanced: "Balance target reached",
     summit: "Summit reached",
     landed: "Safe landing",
+    docked: "Stable rendezvous",
+    escaped: "Escaped approach zone",
+    reached: "Target reached and settled",
+    tracked: "Moving target tracked",
+    fell: "Ball left the beam",
     complete: "Route complete",
   };
   return labels[cause] ?? cause.replaceAll("_", " ");

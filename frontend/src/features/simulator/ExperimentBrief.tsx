@@ -60,6 +60,12 @@ export default function ExperimentBrief() {
           <span><strong>Seed {status?.seed ?? 42}</strong> reproducible reset</span>
           <span><strong>{metricMode === "min" ? "↓" : "↑"}</strong> {currentScenario.metric_label}</span>
         </div>
+        {currentScenario.model_assumptions?.length ? <div className="model-notes">
+          <h3>Model assumptions</h3>
+          <ul>{currentScenario.model_assumptions.map((item) => <li key={item}>{item}</li>)}</ul>
+          <p><strong>Reference controller:</strong> {currentScenario.reference_controller}</p>
+          <p>The reference demonstrates feasibility. PPO starts independently and must earn its own results.</p>
+        </div> : null}
       </details>
     </section>
   );

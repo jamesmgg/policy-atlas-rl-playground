@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 
 const ORIGIN = process.env.RL_PLAYGROUND_URL ?? "http://localhost:8900";
+assert.equal(process.env.RL_DISPOSABLE_TEST, "1",
+  "This test resets and restores runs. Set RL_DISPOSABLE_TEST=1 only against disposable checkpoints.");
 
 async function json(path, init) {
   const response = await fetch(`${ORIGIN}${path}`, init);
@@ -19,7 +21,7 @@ async function waitFor(check, timeoutMs = 45_000) {
 }
 
 const catalog = await json("/api/scenarios");
-assert.equal(catalog.scenarios.length, 16);
+assert.equal(catalog.scenarios.length, 20);
 assert.ok(catalog.scenarios.some((item) => item.id === "cartpole-balance"));
 assert.ok(catalog.scenarios.every((item) => item.objective && item.actions.length));
 
@@ -62,7 +64,7 @@ assert.equal(checkpoints.checkpoints.at(-1).evaluation_suite, "policy-atlas-eval
 assert.equal(checkpoints.checkpoints.at(-1).protocol.algorithm, "PPO");
 assert.match(checkpoints.checkpoints.at(-1).protocol.engine_source_sha256, /^[a-f0-9]{64}$/);
 assert.match(checkpoints.checkpoints.at(-1).metadata_sha256, /^[a-f0-9]{64}$/);
-assert.equal(checkpoints.checkpoints.at(-1).schema_version, 1);
+assert.equal(checkpoints.checkpoints.at(-1).schema_version, 2);
 assert.ok(events.some((event) => event.type === "ppo_update"));
 
 const reset = await json("/api/training/reset", {
@@ -89,4 +91,25 @@ await json("/api/training/reset", {
 });
 
 socket.close();
-console.log("LIVE E2E PASSED: catalog → scenario → frames → PPO update → evaluation → reset → branch restore");
+for (const id of ["orbital-docking", "robot-reach", "robot-tracking", "ball-beam"]) {
+  await json("/api/scenario", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }),
+  });
+  const replay = await json(`/api/reference/${id}`);
+  assert.equal(replay.controller, "reference");
+  assert.equal(replay.summary.success, true);
+  assert.equal(replay.frames.at(-1).terminal, true);
+  const comparison = await json("/api/evaluation", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ scenario_id: id, episodes: 2 }),
+  });
+  assert.equal(comparison.is_holdout, false);
+  assert.equal(comparison.policy_episode, 0);
+  assert.equal(comparison.results.length, 4);
+  assert.equal(comparison.results.find((row) => row.controller === "reference").successes, 2);
+  for (const result of comparison.results) {
+    assert.deepEqual(result.trials.map((trial) => trial.seed), [3000000, 3000001]);
+  }
+  assert.deepEqual((await json("/api/checkpoints")).checkpoints, []);
+}
+console.log("LIVE E2E PASSED: catalog → scenario → frames → PPO update → evaluation → reset → branch restore; four reference replays and paired comparisons");
