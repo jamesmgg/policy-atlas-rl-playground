@@ -289,7 +289,8 @@ class CheckpointRegistry:
                  if path.exists()]
         return self._archive(files, prefix="invalid-")
 
-    def list_archives(self) -> list[dict]:
+    def list_archives(self, *, expected_engine: str | None = None,
+                      expected_evaluation_suite: str | None = None) -> list[dict]:
         """Summarize recoverable branches without exposing invalid quarantine."""
         root = self.dir / "archive"
         if not root.exists():
@@ -316,6 +317,14 @@ class CheckpointRegistry:
                 latest = max(metas, key=lambda item: item["episode"])
                 schemas = {int(meta["schema_version"]) for meta in metas}
                 compatible = schemas == {self.schema_version}
+                if expected_engine is not None:
+                    compatible = compatible and all(
+                        isinstance(meta.get("protocol"), dict)
+                        and meta["protocol"].get("engine_source_sha256") == expected_engine
+                        for meta in metas)
+                if expected_evaluation_suite is not None:
+                    compatible = compatible and all(
+                        meta.get("evaluation_suite") == expected_evaluation_suite for meta in metas)
                 runs.append({
                     "id": directory.name,
                     "latest_episode": latest["episode"],
@@ -327,13 +336,16 @@ class CheckpointRegistry:
                 })
         return runs
 
-    def restore_archive(self, archive_id: str) -> bool:
+    def restore_archive(self, archive_id: str, *, expected_engine: str | None = None,
+                        expected_evaluation_suite: str | None = None) -> bool:
         """Swap a recoverable branch into the active checkpoint directory."""
         if Path(archive_id).name != archive_id:
             return False
         target = self.dir / "archive" / archive_id
         runs = {
-            run["id"] for run in self.list_archives()
+            run["id"] for run in self.list_archives(
+                expected_engine=expected_engine,
+                expected_evaluation_suite=expected_evaluation_suite)
             if run.get("compatible", False)
         }
         if archive_id not in runs or not target.is_dir():

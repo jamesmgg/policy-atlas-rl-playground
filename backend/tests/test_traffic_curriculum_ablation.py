@@ -374,7 +374,7 @@ class TrafficStageCurriculumAblationTests(unittest.TestCase):
         for spec in list_specs():
             with self.subTest(scenario=spec.id):
                 expected = 1.0 if spec.id in {
-                    "traffic-rush", "lunar-lander", "drone-hover",
+                    "traffic-rush", "lunar-lander", "drone-hover", "orbital-docking",
                 } else 0.995
                 self.assertEqual(spec.training_discount_factor, expected)
 

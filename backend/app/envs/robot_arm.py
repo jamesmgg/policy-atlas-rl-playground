@@ -25,8 +25,8 @@ def wrap(angle):
 
 def scene():
     return {"kind": "generic", "bounds": [1000, 700], "primary_shape": "robotarm",
-            "statics": [{"shape": "circle", "x": 450, "y": 390, "r": 280},
-                        {"shape": "circle", "x": 450, "y": 390, "r": 40}]}
+            "statics": [{"shape": "circle", "x": 450, "y": 390, "r": 280, "color": "#29414c"},
+                        {"shape": "circle", "x": 450, "y": 390, "r": 40, "color": "#29414c"}]}
 
 
 @dataclass

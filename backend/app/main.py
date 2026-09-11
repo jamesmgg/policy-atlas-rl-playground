@@ -155,8 +155,11 @@ def api_checkpoints():
 
 @app.get("/api/runs")
 def api_runs():
+    status = trainer.status()
     return {"scenario_id": trainer.spec.id,
-            "archives": trainer.registry.list_archives()}
+            "archives": trainer.registry.list_archives(
+                expected_engine=status["engine_source_sha256"],
+                expected_evaluation_suite=status["evaluation_suite"])}
 
 
 @app.post("/api/runs/{archive_id}/restore")

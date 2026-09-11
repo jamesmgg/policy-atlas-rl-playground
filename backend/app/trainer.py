@@ -508,7 +508,10 @@ class Trainer:
     def restore_archive(self, archive_id: str) -> bool:
         """Swap a recoverable run branch into the active workspace."""
         with self._lock:
-            if self.running or not self.registry.restore_archive(archive_id):
+            if self.running or not self.registry.restore_archive(
+                archive_id, expected_engine=source_digest(),
+                expected_evaluation_suite=evaluation_suite_id(self.settings.eval_episodes),
+            ):
                 return False
             scenario_id = self.spec.id
             self._load_scenario(scenario_id)

@@ -53,6 +53,20 @@ class OptimizerAuditTests(unittest.TestCase):
 
 
 class TrainerAuditTests(unittest.TestCase):
+    def test_archive_restore_rejects_other_engine_before_moving_live_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            trainer = Trainer(Settings(8901, Path(tmp), 50, 1, False, eval_episodes=1))
+            with patch.object(trainer, "_run_eval", return_value={
+                "reward": 0.0, "metric": 0.0, "trajectory": [], "episodes": 1,
+                "evaluation_suite": "policy-atlas-eval-v1-n1", "seed": 42,
+            }):
+                trainer._save_checkpoint()
+            archived = trainer.registry.archive_current()
+            with patch("app.trainer.source_digest", return_value="changed-engine"):
+                self.assertFalse(trainer.restore_archive(archived.name))
+            self.assertTrue(archived.exists())
+            self.assertEqual(trainer.registry.list(), [])
+
     def test_restoring_a_policy_does_not_retrain_its_demonstration_warm_start(self):
         from app.ppo.demonstrations import BehaviorCloningWarmStart
         with tempfile.TemporaryDirectory() as tmp:

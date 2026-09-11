@@ -34,10 +34,10 @@ def integrate_cw(state: np.ndarray, acceleration: np.ndarray, dt: float) -> np.n
 def scene():
     return {"kind": "generic", "bounds": [1000, 700], "primary_shape": "spacecraft",
             "statics": [
-                {"shape": "circle", "x": 500, "y": 350, "r": 95},
-                {"shape": "circle", "x": 500, "y": 350, "r": 190},
-                {"shape": "line", "points": [[110, 350], [890, 350]]},
-                {"shape": "line", "points": [[500, 65], [500, 635]]},
+                {"shape": "circle", "x": 500, "y": 350, "r": 95, "color": "#29414c"},
+                {"shape": "circle", "x": 500, "y": 350, "r": 190, "color": "#29414c"},
+                {"shape": "line", "points": [[110, 350], [890, 350]], "color": "#29414c"},
+                {"shape": "line", "points": [[500, 65], [500, 635]], "color": "#29414c"},
             ]}
 
 

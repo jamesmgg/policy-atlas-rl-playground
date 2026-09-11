@@ -508,6 +508,7 @@ def evaluate_holdout(
     curriculum_seed_ranges: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Evaluate a frozen selected policy on starts never used for selection."""
+    from app.ppo.agent import deterministic_action
     if episodes < 1:
         raise ValueError("holdout episodes must be positive")
     if _seed_ranges_overlap(
@@ -529,8 +530,7 @@ def evaluate_holdout(
         reward_total = 0.0
         done = False
         for _ in range(env.max_steps):
-            action, _, _ = agent.select_action(
-                observation, deterministic=True)
+            action = deterministic_action(agent, observation)
             observation, reward, done, _ = env.step(action)
             reward_total += float(reward)
             if done:
