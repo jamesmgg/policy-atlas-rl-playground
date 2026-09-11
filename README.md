@@ -5,15 +5,27 @@ agent's observation → action → reward loop visible while PPO trains, and kee
 training evidence, fixed-suite evaluation results, saved policies, and ghost
 replays in one workspace.
 
-The playground currently contains 16 experiments across four families:
+The playground currently contains 20 experiments:
 
 - driving tasks, including wet grip, traffic, endurance, efficiency, and drift;
 - control benchmarks: a continuous-force CartPole variant and Continuous Mountain Car;
 - aerospace tasks: Lunar Lander and a five-waypoint Drone Course;
-- classic control: Pendulum Swing-up.
+- classic control: Pendulum Swing-up;
+- new control labs: Orbital Docking, Robot Arm Reach, Robot Target Tracking,
+  and Ball & Beam.
 
 Each experiment describes its objective, success condition, observation space,
 action space, metric direction, difficulty, and horizon before a run starts.
+
+The four new labs include animated analytic reference controllers. **Watch
+reference** demonstrates a feasible solution; it does not play a learned policy.
+**Compare controllers** evaluates a frozen policy, zero action, random actions,
+and the reference on the same ten starts, with 95% Wilson success intervals.
+These repeatable diagnostics are not untouched holdouts. Model assumptions and
+reference methods appear under **Method details**.
+
+See the [September audit and learning study](docs/2026-09-10-chief-scientist-audit.md)
+for the fixes, measurements, task contracts, and limitations.
 
 ## Run locally
 
@@ -27,6 +39,11 @@ Training defaults to CPU. To expose a compatible NVIDIA GPU to PyTorch:
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
 ```
+
+Small-network CPU training defaults to one PyTorch thread, configurable with
+`TORCH_NUM_THREADS`. The web port binds to loopback. For access from your own
+Tailscale devices, run `tailscale serve --bg --tcp=8900 tcp://127.0.0.1:8900`
+on the host, then open `http://<host-tailscale-ip>:8900`.
 
 Saved policies persist in the `rl-checkpoints` Docker volume. **New seeded run**
 archives the active run before clearing the workspace, so reset data remains
@@ -59,10 +76,12 @@ recoverable from the checkpoint archive.
   the tensor payload; corrupt archived branches are rejected before a restore.
 - By default, checkpoints are evaluated on ten fixed, versioned test starts so
   separately trained policies can be compared on the same environment starts.
-  The current campaign reports use one optimizer/training seed (`42`); ten
+  The historical 16-task campaign reports use one optimizer/training seed (`42`); ten
   evaluation starts or 100 holdout starts measure environment-start robustness,
   not optimizer-seed replication. Reports include mean, standard deviation,
   success rate, a 95% Wilson interval, evaluation count, seed, and update count.
+  The September 2026 control study additionally tests independent training seeds
+  `42` and `123`, with separate 50-start evaluations for each selected policy.
 - Driving training uses a disclosed 75% canonical / 25% rolling-checkpoint
   mixture. Rolling states reconstruct speed, clock, task progress, fuel, and
   traffic from a curvature/grip braking envelope; selection and replay keep
@@ -142,8 +161,8 @@ recoverable from the checkpoint archive.
   crash, and finite-lambda GAE receives no artificial positive terminal
   correction. Attitude and thrust regularizers are accumulated and charged
   only when the course is completed, ranking successful controllers by
-  efficiency. Traffic Rush and Lunar Lander also use `gamma = 1.0`; other
-  scenarios retain `gamma = 0.995` and their exploration settings.
+  efficiency. Traffic Rush, Lunar Lander, and Orbital Docking also use
+  `gamma = 1.0`; other scenarios retain `gamma = 0.995` and their exploration settings.
   The next scheduled episode, selected training mode/segment, and RNG state are
   checkpointed exactly. Training starts and demonstrations never enter
   full-course checkpoint selection.
@@ -235,6 +254,8 @@ seeded reset → archived-branch restore flow.
 
 - `GET /api/health`, `/api/scenarios`, `/api/scene`, `/api/checkpoints`,
   `/api/runs`, `/api/training/status`
+- `GET /api/reference/{scenario_id}` for a labelled analytic-controller replay
+- `POST /api/evaluation` for paired frozen-policy and baseline diagnostics
 - `POST /api/scenario` with `{"id": "cartpole-balance"}`
 - `POST /api/training/start`, `/api/training/stop`, `/api/training/reset`,
   `/api/runs/{archive_id}/restore`

@@ -1,0 +1,74 @@
+[
+  {
+    "scenario_id": "robot-reach",
+    "seed": 42,
+    "episode": 1500,
+    "file": "robot-reach/archive/study-20260910-seed-42-ep-1500-78d5b3ab/checkpoint_ep001500.json",
+    "checkpoint_sha256": "78d5b3aba7731df36f6084c70af07f743af292995e9a7130d60272df315ec801",
+    "holdout_successes": 0,
+    "holdout_episodes": 50
+  },
+  {
+    "scenario_id": "robot-reach",
+    "seed": 123,
+    "episode": 1500,
+    "file": "robot-reach/archive/study-20260910-seed-123-ep-1500-480dd985/checkpoint_ep001500.json",
+    "checkpoint_sha256": "480dd98588cb72692f16855e93b28a81cb640511338f84346d1588558e4ac67a",
+    "holdout_successes": 0,
+    "holdout_episodes": 50
+  },
+  {
+    "scenario_id": "ball-beam",
+    "seed": 42,
+    "episode": 312,
+    "file": "ball-beam/archive/study-20260910-seed-42-ep-312-b0482bd4/checkpoint_ep000312.json",
+    "checkpoint_sha256": "b0482bd45e77901995f01675da07a9c3363d3f1b6d00fc538ba3fdcdddf5789c",
+    "holdout_successes": 50,
+    "holdout_episodes": 50
+  },
+  {
+    "scenario_id": "ball-beam",
+    "seed": 123,
+    "episode": 611,
+    "file": "ball-beam/archive/study-20260910-seed-123-ep-611-5e9dd9e9/checkpoint_ep000611.json",
+    "checkpoint_sha256": "5e9dd9e959a770eca46497542bfb01d05f1e762651d3b463c56b317edc6a8fd6",
+    "holdout_successes": 49,
+    "holdout_episodes": 50
+  },
+  {
+    "scenario_id": "robot-tracking",
+    "seed": 42,
+    "episode": 602,
+    "file": "robot-tracking/archive/study-20260910-seed-42-ep-602-242ef9d9/checkpoint_ep000602.json",
+    "checkpoint_sha256": "242ef9d915806cf78a1c68231e78e8f5597c80f786bb9672edd157c5947060a0",
+    "holdout_successes": 50,
+    "holdout_episodes": 50
+  },
+  {
+    "scenario_id": "robot-tracking",
+    "seed": 123,
+    "episode": 504,
+    "file": "robot-tracking/archive/study-20260910-seed-123-ep-504-7334597c/checkpoint_ep000504.json",
+    "checkpoint_sha256": "7334597cbb712d7a2e654ffcaa3230d692958554f064aacdfde80912cc15c75c",
+    "holdout_successes": 50,
+    "holdout_episodes": 50
+  },
+  {
+    "scenario_id": "orbital-docking",
+    "seed": 42,
+    "episode": 1500,
+    "file": "orbital-docking/archive/study-20260910-seed-42-ep-1500-7a3692ec/checkpoint_ep001500.json",
+    "checkpoint_sha256": "7a3692ec8530d1254805c1370ff922df5bf12a0f366afcea331b3498add65641",
+    "holdout_successes": 0,
+    "holdout_episodes": 50
+  },
+  {
+    "scenario_id": "orbital-docking",
+    "seed": 123,
+    "episode": 1500,
+    "file": "orbital-docking/archive/study-20260910-seed-123-ep-1500-656be7b9/checkpoint_ep001500.json",
+    "checkpoint_sha256": "656be7b96d998522d12340edba53654db5c5b4a1a9a7029c365d8914831bd84e",
+    "holdout_successes": 0,
+    "holdout_episodes": 50
+  }
+]

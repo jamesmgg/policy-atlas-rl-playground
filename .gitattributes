@@ -1,0 +1,4 @@
+# Recorded report bytes are part of the research provenance. Preserve SHA-256
+# identities across Windows and Linux checkouts instead of converting newlines.
+docs/reports/*.json -text
+docs/reports/*.png binary
