@@ -531,7 +531,7 @@ export default function SceneCanvas() {
                   COLORS.car, 1, frame.car.drift, COLORS.carGlow);
         }
         for (const obj of frame.objects ?? []) drawGenericObject(ctx, obj);
-        if (!replayOnly) drawHud(ctx, frame, ghost ? ghost.lap.episode : null);
+        if (!replayOnly) drawHud(ctx, frame, null);
         if (banner && now < banner.until) drawBanner(ctx, banner, now);
       }
       if (reduceMotion) timer = window.setTimeout(draw, 200);
