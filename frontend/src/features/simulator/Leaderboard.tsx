@@ -62,7 +62,8 @@ export default function Leaderboard() {
           <h2 id="checkpoints-title">Top runs</h2>
           <p>{hasSolvedRun
             ? "The strongest policies on the current fixed test starts."
-            : "No test starts completed yet. These are the closest attempts so far."}</p>
+            : ranked.length ? "No policy has passed a test start yet. These are the closest attempts so far."
+              : "Train a policy to evaluate its first test starts."}</p>
         </div>
         <span className="ranking-note">Success first · task score breaks ties</span>
       </div>

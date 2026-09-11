@@ -396,7 +396,7 @@ test("failed top runs are clearly best attempts and do not receive celebratory m
   assert.match(source, /solved \? `podium-\$\{medal\.tone\}` : "podium-attempt"/);
   assert.match(source, /solved \? \(/);
   assert.match(source, /Best attempt, rank/);
-  assert.match(source, /No test starts completed yet/);
+  assert.match(source, /No policy has passed a test start yet/);
   assert.match(styles, /\.podium-attempt\s*\{[^}]*--medal:\s*var\(--faint\)/s);
   assert.match(styles, /\.podium-attempt-rank\s*\{/);
 });
