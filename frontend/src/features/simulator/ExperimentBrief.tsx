@@ -5,6 +5,8 @@ export default function ExperimentBrief() {
   if (!currentScenario) {
     return <section className="panel brief-panel panel-loading" aria-label="Loading experiment brief" />;
   }
+  const assistance = currentScenario.actor_warm_start;
+  const learnsFromDemonstrations = assistance && !assistance.pure_model_free_from_scratch;
 
   return (
     <section className="panel brief-panel" aria-labelledby="brief-title">
@@ -23,6 +25,23 @@ export default function ExperimentBrief() {
       <div className="brief-success">
         <span aria-hidden="true">✓</span>
         <p><strong>Success:</strong> {currentScenario.success}</p>
+      </div>
+
+      <div className="brief-callout">
+        <span className="brief-icon" aria-hidden="true">↗</span>
+        <div>
+          <strong>Learning method</strong>
+          {learnsFromDemonstrations ? (
+            <p>This neural policy first learns from demonstrations, then continues with PPO practice.
+              {assistance.expert.used_at_inference
+                ? " This scenario also uses expert control during evaluation."
+                : " During evaluated gameplay, the neural policy chooses the actions; the expert does not control the game."}
+            </p>
+          ) : (
+            <p>This neural policy learns through PPO practice without expert demonstrations.
+              Evaluated gameplay uses the learned policy with exploratory randomness turned off.</p>
+          )}
+        </div>
       </div>
 
       <details className="contract-details">
@@ -63,8 +82,10 @@ export default function ExperimentBrief() {
         {currentScenario.model_assumptions?.length ? <div className="model-notes">
           <h3>Model assumptions</h3>
           <ul>{currentScenario.model_assumptions.map((item) => <li key={item}>{item}</li>)}</ul>
-          <p><strong>Reference controller:</strong> {currentScenario.reference_controller}</p>
-          <p>The reference demonstrates feasibility. PPO starts independently and must earn its own results.</p>
+          {currentScenario.reference_controller ? <>
+            <p><strong>Reference controller:</strong> {currentScenario.reference_controller}</p>
+            <p>The reference demonstrates feasibility. Scores shown for the learned policy come from separate evaluations.</p>
+          </> : null}
         </div> : null}
       </details>
     </section>

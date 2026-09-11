@@ -20,10 +20,11 @@ function savedAt(iso: string): string {
 export default function Leaderboard({ onWatch }: { onWatch?: () => void }) {
   const {
     checkpoints, archivedRuns, ghostEpisode, status, metricLabel, metricMode,
-    setGhost, clearGhost, loadCheckpoint, restoreArchivedRun,
+    setGhost, setArchiveGhost, clearGhost, loadCheckpoint, restoreArchivedRun,
   } = useTrainingSocket();
   const [view, setView] = useState<"best" | "recent">("best");
   const training = status?.training ?? false;
+  const verifiedRuns = archivedRuns.filter((run) => run.compatible && run.requalification);
   const comparableCheckpoints = useMemo(
     () => status
       ? checkpoints.filter((checkpoint) => isComparableCheckpoint(checkpoint, status))
@@ -71,6 +72,20 @@ export default function Leaderboard({ onWatch }: { onWatch?: () => void }) {
         </div>
         <span className="ranking-note">Success first · task score breaks ties</span>
       </div>
+
+      {verifiedRuns.length > 0 && <div className="verified-policies">
+        <h3>Ready to watch</h3>
+        <p>Saved neural policies tested on this version. Watching leaves your training policy in place.</p>
+        <div className="verified-policy-list">{verifiedRuns.map((run) => (
+          <article key={run.id}>
+            <div><strong>Verified policy · seed {run.seed}</strong>
+              <small>{run.requalification!.holdout_successes}/{run.requalification!.holdout_episodes} separate test starts passed · successful replay</small>
+              <small>Originally trained through episode {run.requalification!.origin.episode}</small>
+            </div>
+            <button type="button" onClick={() => { setArchiveGhost(run.id, run.latest_episode); onWatch?.(); }}>Watch verified policy</button>
+          </article>
+        ))}</div>
+      </div>}
 
       {ranked.length === 0 ? (
         <div className="checkpoint-empty">
@@ -227,7 +242,7 @@ export default function Leaderboard({ onWatch }: { onWatch?: () => void }) {
                           <button type="button" className={ghostActive ? "compare-active" : ""}
                             aria-pressed={ghostActive}
                             onClick={() => watchReplay(checkpoint.episode)}>
-                            {ghostActive ? "Hide replay" : training ? "Compare replay" : "Watch replay"}
+                            {ghostActive ? "Hide replay" : "Watch replay"}
                           </button>
                           <button type="button" disabled={training || !comparable}
                             title={!comparable

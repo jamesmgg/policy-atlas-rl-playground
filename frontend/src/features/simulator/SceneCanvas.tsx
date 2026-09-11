@@ -141,6 +141,53 @@ function drawGenericObject(
       ctx.stroke();
       break;
     }
+    case "paddle": {
+      const w = obj.width ?? 153, h = obj.height ?? 16;
+      ctx.fillStyle = "#8fe2cd";
+      ctx.beginPath(); ctx.roundRect(obj.x-w/2, obj.y-h/2, w, h, 7); ctx.fill();
+      ctx.fillStyle = "#d1fff2"; ctx.fillRect(obj.x-w/2+12, obj.y-h/2+2, w-24, 3);
+      break;
+    }
+    case "ball": {
+      ctx.fillStyle = "#ffe397";
+      ctx.beginPath(); ctx.arc(obj.x, obj.y, obj.radius ?? 13, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = "#fff5d4";
+      ctx.beginPath(); ctx.arc(obj.x-4, obj.y-4, 4, 0, Math.PI*2); ctx.fill();
+      break;
+    }
+    case "bird": {
+      ctx.translate(obj.x, obj.y); ctx.rotate(obj.rot ?? 0);
+      ctx.fillStyle = "#ffd275";
+      ctx.beginPath(); ctx.ellipse(0, 0, 22, 17, 0, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = "#d79a4d";
+      ctx.beginPath(); ctx.ellipse(-8, 4, 11, 7, -0.4, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = "#ed9960";
+      ctx.beginPath(); ctx.moveTo(17, -1); ctx.lineTo(31, 5); ctx.lineTo(16, 8); ctx.fill();
+      ctx.fillStyle = "#122331";
+      ctx.beginPath(); ctx.arc(9, -5, 3, 0, Math.PI*2); ctx.fill();
+      break;
+    }
+    case "pipe": {
+      const w = obj.width ?? 63, h = obj.height ?? 100;
+      ctx.fillStyle = "#246b62"; ctx.fillRect(obj.x-w/2, obj.y-h/2, w, h);
+      ctx.fillStyle = "#68b8a1"; ctx.fillRect(obj.x-w/2+5, obj.y-h/2, 7, h);
+      ctx.strokeStyle = "#92d6ba"; ctx.lineWidth = 2; ctx.strokeRect(obj.x-w/2, obj.y-h/2, w, h);
+      break;
+    }
+    case "collector": {
+      ctx.translate(obj.x, obj.y); ctx.rotate(obj.rot ?? 0);
+      ctx.fillStyle = "#8fd5f2";
+      ctx.beginPath(); ctx.moveTo(19, 0); ctx.lineTo(-13, -14); ctx.lineTo(-7, 0); ctx.lineTo(-13, 14); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = "#d5f3ff"; ctx.lineWidth = 2; ctx.stroke();
+      break;
+    }
+    case "coin": {
+      const r = obj.radius ?? 16;
+      ctx.fillStyle = "#eab85a"; ctx.beginPath(); ctx.arc(obj.x, obj.y, r, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = "#fff0b4"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(obj.x, obj.y, r-4, 0, Math.PI*2); ctx.stroke();
+      ctx.fillStyle = "#865f27"; ctx.fillRect(obj.x-2, obj.y-7, 4, 14);
+      break;
+    }
     case "rod": {
       const len = obj.len ?? 180;
       const rot = obj.rot ?? 0;
@@ -219,8 +266,8 @@ function drawGenericObject(
 
 export default function SceneCanvas() {
   const {
-    frameRef, terminalFrameRef, ghostRef, ghostEpisode, status, ppo,
-    scenarioId, currentScenario, setGhost, clearGhost,
+    frameRef, terminalFrameRef, ghostRef, ghostEpisode, replayRevision, status, ppo,
+    scenarioId, currentScenario, restartReplay, clearGhost,
   } = useTrainingSocket();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -240,14 +287,14 @@ export default function SceneCanvas() {
   const [referenceState, setReferenceState] = useState<"idle" | "loading" | "playing">("idle");
   const [referenceError, setReferenceError] = useState<string | null>(null);
   const viewingReplay = ghostEpisode != null && referenceState !== "playing";
-  const replayOnly = viewingReplay && !status?.training;
+  const replayOnly = viewingReplay;
 
   useEffect(() => {
     referenceRequest.current += 1;
     referenceRef.current = null;
     setReferenceState("idle");
     setReferenceError(null);
-  }, [scenarioId, status?.training]);
+  }, [scenarioId, status?.training, replayRevision]);
 
   const referenceFrame = (now: number) => {
     const ref = referenceRef.current;
@@ -313,9 +360,10 @@ export default function SceneCanvas() {
     const update = () => {
       const now = performance.now();
       const ghost = referenceRef.current ? null : ghostRef.current;
-      setPlayback(ghost ? replayPosition(ghost, now) : null);
+      const position = ghost ? replayPosition(ghost, now) : null;
+      setPlayback(position);
       // A saved rollout must never inherit a training episode's outcome or HUD.
-      setTelemetry(ghost && !status?.training ? null : referenceFrame(now) ?? selectVisibleFrame(
+      setTelemetry(ghost ? ghost.lap.frames?.[position?.index ?? 0] ?? null : referenceFrame(now) ?? selectVisibleFrame(
         frameRef.current, terminalFrameRef.current, now, undefined,
         status?.training === false,
       ));
@@ -397,8 +445,10 @@ export default function SceneCanvas() {
       }
 
       const ghost = referenceRef.current ? null : ghostRef.current;
-      const replayOnly = !!ghost && !status?.training;
-      const frame = replayOnly ? null : referenceFrame(now) ?? selectVisibleFrame(
+      const replayOnly = !!ghost;
+      const position = ghost ? replayPosition(ghost, now) : null;
+      const recorded = ghost && position ? ghost.lap.frames?.[position.index] : null;
+      const frame = replayOnly ? recorded ?? null : referenceFrame(now) ?? selectVisibleFrame(
         frameRef.current, terminalFrameRef.current, now, undefined,
         status?.training === false,
       );
@@ -445,8 +495,7 @@ export default function SceneCanvas() {
       if (scene.kind === "track") ctx.drawImage(skidLayer, 0, 0, W, H);
 
       // Saved rollouts play once and hold their terminal position.
-      const position = ghost ? replayPosition(ghost, now) : null;
-      if (ghost && position) {
+      if (ghost && position && !(replayOnly && recorded)) {
         const { lap, startedAt } = ghost;
         if (previousGhostStart !== startedAt) ghostTrail.length = 0;
         previousGhostStart = startedAt;
@@ -482,7 +531,7 @@ export default function SceneCanvas() {
                   COLORS.car, 1, frame.car.drift, COLORS.carGlow);
         }
         for (const obj of frame.objects ?? []) drawGenericObject(ctx, obj);
-        drawHud(ctx, frame, ghost ? ghost.lap.episode : null);
+        if (!replayOnly) drawHud(ctx, frame, ghost ? ghost.lap.episode : null);
         if (banner && now < banner.until) drawBanner(ctx, banner, now);
       }
       if (reduceMotion) timer = window.setTimeout(draw, 200);
@@ -546,8 +595,9 @@ export default function SceneCanvas() {
       </p>}
       {referenceError && <p className="reference-disclosure" role="alert">{referenceError}</p>}
       {viewingReplay && <div className="replay-controls">
-        <p>Recorded rollout · fixed starting state. Playback does not train and stops at its final frame.</p>
-        <button type="button" onClick={() => setGhost(ghostEpisode!)}>Restart replay</button>
+        <p>Recorded rollout · fixed starting state. Playback stops at its final frame.
+          {status?.training ? " Training continues in the background." : " Playback does not train."}</p>
+        <button type="button" onClick={restartReplay}>Restart replay</button>
         <button type="button" onClick={clearGhost}>Close replay</button>
       </div>}
       {scenarioId === "lunar-lander" && !viewingReplay && <p className="reference-disclosure">
@@ -577,10 +627,11 @@ export default function SceneCanvas() {
           <div className="track-idle"><strong>Environment ready</strong><span>Choose a budget and run the policy.</span></div>
       )}
       {ghostEpisode != null && referenceState !== "playing" && (
-          <div className="ghost-chip">{replayOnly ? "Saved policy" : "Comparing"} · episode {ghostEpisode}</div>
+          <div className="ghost-chip">{ghostRef.current?.lap.archive_id ? "Verified saved policy" : `${replayOnly ? "Saved policy" : "Comparing"} · episode ${ghostEpisode}`}</div>
       )}
         {replayOnly && playback?.finished && <div className="termination-notice replay-ended" role="status">
-          <strong>Replay finished</strong><small>Final frame held. Restart to watch it again.</small>
+          <strong>{telemetry?.terminal && telemetry.cause ? formatTerminationCause(telemetry.cause) : "Replay finished"}</strong>
+          <small>Replay finished · final frame held. Restart to watch it again.</small>
         </div>}
         {!replayOnly && telemetry?.terminal && telemetry.cause && (
           <div
@@ -603,8 +654,11 @@ export default function SceneCanvas() {
           </div>
         )}
         {replayOnly ? <div className="scene-telemetry" aria-label="Saved replay telemetry">
-          <span><small>Saved policy</small><strong>Episode {ghostEpisode}</strong></span>
+          <span><small>Saved policy</small><strong>{ghostRef.current?.lap.archive_id ? "Verified replay" : `Episode ${ghostEpisode}`}</strong></span>
           <span><small>Playback</small><strong>{playback?.elapsed.toFixed(1) ?? "0.0"} / {playback?.duration.toFixed(1) ?? "—"} s</strong></span>
+          {telemetry?.hits != null && <span><small>Returns</small><strong>{telemetry.hits} / {telemetry.target_hits}</strong></span>}
+          {telemetry?.gates != null && <span><small>Gates</small><strong>{telemetry.gates} / {telemetry.target_gates}</strong></span>}
+          {telemetry?.coins != null && <span><small>Coins</small><strong>{telemetry.coins} / {telemetry.target_coins}</strong></span>}
         </div> : <div className="scene-telemetry" aria-label="Live simulator telemetry">
           <span><small>Episode</small><strong>{displayedEpisodeNumber(
             telemetry, status?.episode ?? 0,
@@ -617,6 +671,9 @@ export default function SceneCanvas() {
           {telemetry?.peak_position != null && <span><small>Peak position</small><strong>{telemetry.peak_position.toFixed(3)}</strong></span>}
           {telemetry?.distance != null && <span><small>Target distance</small><strong>{telemetry.distance.toFixed(3)} m</strong></span>}
           {telemetry?.hold != null && <span><small>Stable hold</small><strong>{telemetry.hold.toFixed(1)} s</strong></span>}
+          {telemetry?.hits != null && <span><small>Returns</small><strong>{telemetry.hits} / {telemetry.target_hits}</strong></span>}
+          {telemetry?.gates != null && <span><small>Gates</small><strong>{telemetry.gates} / {telemetry.target_gates}</strong></span>}
+          {telemetry?.coins != null && <span><small>Coins</small><strong>{telemetry.coins} / {telemetry.target_coins}</strong></span>}
           {status?.training && currentScenario && stepsPerSecond > 0 && (
             <span><small>Simulation</small><strong>{formatSimulationRate(
               stepsPerSecond, currentScenario.horizon_steps, currentScenario.horizon_seconds,

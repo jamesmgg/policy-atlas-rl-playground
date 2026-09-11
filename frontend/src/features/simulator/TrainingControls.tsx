@@ -26,6 +26,7 @@ export default function TrainingControls({ onRun }: { onRun?: () => void }) {
   const [episodes, setEpisodes] = useState(500);
   const [checkpointEvery, setCheckpointEvery] = useState(25);
   const [seed, setSeed] = useState(42);
+  const [pauseOnSuccess, setPauseOnSuccess] = useState(true);
   const training = status?.training ?? false;
 
   useEffect(() => {
@@ -71,12 +72,12 @@ export default function TrainingControls({ onRun }: { onRun?: () => void }) {
     const target = runWindow.resumable
       ? status!.run_target_episode
       : (status?.episode ?? 0) + config.episodes;
-    if (startTraining(target, config.checkpointEvery)) watchTraining();
+    if (startTraining(target, config.checkpointEvery, pauseOnSuccess)) watchTraining();
   };
 
   const replaceBudget = () => {
     const config = normalizeRunConfig(episodes, checkpointEvery);
-    if (startTraining((status?.episode ?? 0) + config.episodes, config.checkpointEvery)) watchTraining();
+    if (startTraining((status?.episode ?? 0) + config.episodes, config.checkpointEvery, pauseOnSuccess)) watchTraining();
   };
 
   const newRun = () => {
@@ -108,6 +109,15 @@ export default function TrainingControls({ onRun }: { onRun?: () => void }) {
           ))}
         </div>
       </fieldset>
+
+      <label className="success-pause-toggle">
+        <input type="checkbox" checked={pauseOnSuccess} disabled={training}
+          onChange={(event) => setPauseOnSuccess(event.target.checked)} />
+        <span><strong>Pause when all test starts pass</strong><small>Save the policy and show its replay before further training changes it.</small></span>
+      </label>
+      {status?.pause_reason === "fixed_test_success" && <p className="success-pause-notice" role="status">
+        Saved and paused after passing all {status.eval_episodes} fixed test starts. This is a checkpoint result, not a guarantee for every possible start.
+      </p>}
 
       <details className="advanced-controls">
         <summary>Reproducibility and saving</summary>

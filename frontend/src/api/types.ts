@@ -40,7 +40,7 @@ export interface CarFrame {
 }
 
 export interface GenericObject {
-  shape: "lander" | "rod" | "drone" | "target" | "cartpole" | "mountain-car" | "spacecraft" | "station" | "robotarm" | "ballbeam";
+  shape: "lander" | "rod" | "drone" | "target" | "cartpole" | "mountain-car" | "spacecraft" | "station" | "robotarm" | "ballbeam" | "paddle" | "ball" | "bird" | "pipe" | "collector" | "coin";
   x: number;
   y: number;
   rot?: number;
@@ -50,6 +50,9 @@ export interface GenericObject {
   joint2?: number;
   thrust_x?: number;
   thrust_y?: number;
+  width?: number;
+  height?: number;
+  radius?: number;
 }
 
 export interface FrameMsg {
@@ -78,6 +81,13 @@ export interface FrameMsg {
   speed?: number;
   delta_v?: number;
   tracking_hits?: number;
+  hits?: number;
+  target_hits?: number;
+  gates?: number;
+  target_gates?: number;
+  coins?: number;
+  target_coins?: number;
+  capture?: number;
 }
 
 export interface EpisodeRecord {
@@ -156,6 +166,8 @@ export interface CheckpointMeta {
 }
 
 export interface StatusMsg {
+  pause_on_success?: boolean;
+  pause_reason?: "fixed_test_success" | null;
   type: "status";
   scenario_id: string;
   scenario_kind: "driving" | "generic";
@@ -192,6 +204,8 @@ export interface ScenarioProgress {
 }
 
 export interface ArchivedRun {
+  requalification?: { holdout_successes: number; holdout_episodes: number;
+    origin: { seed: number; episode: number } } | null;
   id: string;
   latest_episode: number;
   checkpoints: number;
@@ -202,6 +216,8 @@ export interface ArchivedRun {
 }
 
 export interface ScenarioInfo {
+  actor_warm_start?: { role: string; pure_model_free_from_scratch: boolean;
+    expert: { description: string; used_at_inference: boolean } } | null;
   id: string;
   name: string;
   group: string;
@@ -250,9 +266,12 @@ export function ppoRecordFromStatus(status: Pick<StatusMsg,
 
 // trajectory rows: [x, y, rotation, drift, speed]
 export interface GhostLap {
+  scenario_id?: string;
+  archive_id?: string;
   episode: number;
   dt: number;
   trajectory: [number, number, number, number, number][];
+  frames?: FrameMsg[];
 }
 
 export type ServerMessage =
@@ -263,15 +282,16 @@ export type ServerMessage =
   | { type: "checkpoint_list"; scenario_id: string; checkpoints: CheckpointMeta[] }
   | { type: "history"; scenario_id: string; history: EpisodeRecord[] }
   | ({ type: "ghost_lap" } & GhostLap)
-  | { type: "ghost_clear" }
+  | { type: "ghost_clear"; scenario_id?: string }
   | ({ type: "scenario_changed" } & Omit<ScenarioInfo, "progress">)
   | { type: "error"; message: string };
 
 export type ClientMessage =
-  | { type: "start_training"; max_episodes: number; checkpoint_every_n: number }
+  | { type: "start_training"; max_episodes: number; checkpoint_every_n: number; pause_on_success?: boolean }
   | { type: "stop_training" }
   | { type: "reset_training"; seed: number }
   | { type: "set_ghost"; episode: number }
+  | { type: "set_archive_ghost"; archive_id: string; episode: number; scenario_id: string }
   | { type: "clear_ghost" }
   | { type: "load_checkpoint"; episode: number };
 
@@ -466,6 +486,10 @@ export function formatTerminationCause(cause: string): string {
     tracked: "Moving target tracked",
     fell: "Ball left the beam",
     complete: "Route complete",
+    completed: "Game completed",
+    "missed-ball": "Ball missed",
+    "pipe-hit": "Pipe collision",
+    "out-of-bounds": "Arena boundary crossed",
   };
   return labels[cause] ?? cause.replaceAll("_", " ");
 }

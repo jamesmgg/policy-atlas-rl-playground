@@ -6,9 +6,10 @@ import {
 import type { ScenarioInfo } from "../../api/types";
 import { useTrainingSocket } from "../../hooks/useTrainingSocket";
 
-const GROUP_ORDER = ["All", "Foundations", "Classic", "Space", "Robotics", "Circuits", "Weather", "Vehicles", "Objectives"];
+const GROUP_ORDER = ["All", "Arcade", "Foundations", "Classic", "Space", "Robotics", "Circuits", "Weather", "Vehicles", "Objectives"];
 
 function experimentGlyph(scenario: ScenarioInfo): string {
+  if (scenario.group === "Arcade") return "✦";
   if (scenario.group === "Space") return "✧";
   if (scenario.group === "Robotics") return "⌾";
   if (scenario.id.includes("cartpole") || scenario.id.includes("pendulum")) return "ϕ";
@@ -25,6 +26,7 @@ export default function ScenarioSwitcher({ onSelected }: { onSelected?: () => vo
   const [query, setQuery] = useState("");
   const [group, setGroup] = useState("All");
   const [switching, setSwitching] = useState(false);
+  const [openingName, setOpeningName] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef(new Map<string, HTMLButtonElement>());
   const previousScenarioId = useRef<string | null>(null);
@@ -77,6 +79,7 @@ export default function ScenarioSwitcher({ onSelected }: { onSelected?: () => vo
       `Open “${scenario.name}”? The current run will pause after its current PPO rollout.`,
     )) return;
     setSwitching(true);
+    setOpeningName(scenario.name);
     try {
       if (await selectScenario(scenario.id)) onSelected?.();
     } finally {
@@ -92,6 +95,8 @@ export default function ScenarioSwitcher({ onSelected }: { onSelected?: () => vo
         <div><h2 id="library-title" tabIndex={-1}>Projects</h2><span>{scenarios.length} experiments</span></div>
         <p className="library-guidance">Choose an experiment to open its simulator.</p>
       </div>
+
+      {switching && <p className="library-guidance" role="status">Opening {openingName}… Preparing its policy.</p>}
 
       <label className="library-search">
         <span className="sr-only">Search experiments</span>

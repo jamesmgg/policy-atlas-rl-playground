@@ -27,16 +27,19 @@ export interface TrainingSocketValue {
   checkpoints: CheckpointMeta[];
   archivedRuns: ArchivedRun[];
   ghostEpisode: number | null;
+  replayRevision: number;
   lastError: string | null;
   /** Latest live frame — read inside rAF loops, never triggers re-renders. */
   frameRef: React.RefObject<FrameMsg | null>;
   terminalFrameRef: React.RefObject<HeldTerminalFrame | null>;
   /** Active ghost lap trajectory, with the time it was activated. */
   ghostRef: React.RefObject<{ lap: GhostLap; startedAt: number } | null>;
-  startTraining(maxEpisodes: number, checkpointEveryN: number): boolean;
+  startTraining(maxEpisodes: number, checkpointEveryN: number, pauseOnSuccess?: boolean): boolean;
   stopTraining(): void;
   resetTraining(seed: number): void;
   setGhost(episode: number): void;
+  setArchiveGhost(id: string, episode: number): void;
+  restartReplay(): void;
   clearGhost(): void;
   loadCheckpoint(episode: number): void;
   restoreArchivedRun(id: string): Promise<void>;
@@ -67,6 +70,7 @@ export function TrainingSocketProvider({ children }: { children: React.ReactNode
   const [checkpoints, setCheckpoints] = useState<CheckpointMeta[]>([]);
   const [archivedRuns, setArchivedRuns] = useState<ArchivedRun[]>([]);
   const [ghostEpisode, setGhostEpisode] = useState<number | null>(null);
+  const [replayRevision, setReplayRevision] = useState(0);
   const [lastError, setLastError] = useState<string | null>(null);
 
   const frameRef = useRef<FrameMsg | null>(null);
@@ -227,10 +231,13 @@ export function TrainingSocketProvider({ children }: { children: React.ReactNode
             setCheckpoints(msg.checkpoints.slice().reverse());
             break;
           case "ghost_lap":
+            if (msg.scenario_id && msg.scenario_id !== sid) break;
             ghostRef.current = { lap: msg, startedAt: performance.now() };
             setGhostEpisode(msg.episode);
+            setReplayRevision((value) => value + 1);
             break;
           case "ghost_clear":
+            if (msg.scenario_id && msg.scenario_id !== sid) break;
             ghostRef.current = null;
             setGhostEpisode(null);
             break;
@@ -299,10 +306,10 @@ export function TrainingSocketProvider({ children }: { children: React.ReactNode
   const value = useMemo<TrainingSocketValue>(() => ({
     connected, connectionState, status, scenarios, currentScenario,
     scenarioId, scenarioKind, metricLabel, metricMode,
-    history, ppo, checkpoints, archivedRuns, ghostEpisode, lastError,
+    history, ppo, checkpoints, archivedRuns, ghostEpisode, replayRevision, lastError,
     frameRef, terminalFrameRef, ghostRef,
-    startTraining: (maxEpisodes, checkpointEveryN) =>
-      send({ type: "start_training", max_episodes: maxEpisodes, checkpoint_every_n: checkpointEveryN }),
+    startTraining: (maxEpisodes, checkpointEveryN, pauseOnSuccess = true) =>
+      send({ type: "start_training", max_episodes: maxEpisodes, checkpoint_every_n: checkpointEveryN, pause_on_success: pauseOnSuccess }),
     stopTraining: () => send({ type: "stop_training" }),
     resetTraining: (seed) => {
       pendingEpisodes.current = [];
@@ -315,6 +322,13 @@ export function TrainingSocketProvider({ children }: { children: React.ReactNode
       send({ type: "reset_training", seed });
     },
     setGhost: (episode) => send({ type: "set_ghost", episode }),
+    setArchiveGhost: (id, episode) => {
+      if (scenarioId) send({ type: "set_archive_ghost", archive_id: id, episode, scenario_id: scenarioId });
+    },
+    restartReplay: () => {
+      const ghost = ghostRef.current;
+      if (ghost) ghostRef.current = { ...ghost, startedAt: performance.now() };
+    },
     clearGhost: () => send({ type: "clear_ghost" }),
     loadCheckpoint: (episode) => {
       frameRef.current = null;
@@ -362,7 +376,7 @@ export function TrainingSocketProvider({ children }: { children: React.ReactNode
     clearError: () => setLastError(null),
   }), [connected, connectionState, status, scenarios, currentScenario,
        scenarioId, scenarioKind, metricLabel, metricMode,
-       history, ppo, checkpoints, archivedRuns, ghostEpisode, lastError, send]);
+       history, ppo, checkpoints, archivedRuns, ghostEpisode, replayRevision, lastError, send]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "node --experimental-strip-types --test tests/contracts.test.mjs",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "test:live": "node tests/live-e2e.mjs"
   },
   "dependencies": {
