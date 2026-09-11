@@ -19,7 +19,7 @@ function savedAt(iso: string): string {
 
 export default function Leaderboard({ onWatch }: { onWatch?: () => void }) {
   const {
-    checkpoints, archivedRuns, ghostEpisode, status, metricLabel, metricMode,
+    checkpoints, archivedRuns, ghostEpisode, ghostRef, status, metricLabel, metricMode,
     setGhost, setArchiveGhost, clearGhost, loadCheckpoint, restoreArchivedRun,
   } = useTrainingSocket();
   const [view, setView] = useState<"best" | "recent">("best");
@@ -42,7 +42,7 @@ export default function Leaderboard({ onWatch }: { onWatch?: () => void }) {
     && podiumRuns.every((checkpoint) => (checkpoint.success_rate ?? 0) > 0);
   const rows = view === "best" ? ranked : recentCheckpoints(checkpoints);
   const watchReplay = (episode: number) => {
-    if (ghostEpisode === episode) clearGhost();
+    if (ghostEpisode === episode && !ghostRef.current?.lap.archive_id) clearGhost();
     else { setGhost(episode); onWatch?.(); }
   };
 
@@ -99,7 +99,7 @@ export default function Leaderboard({ onWatch }: { onWatch?: () => void }) {
           <div className="checkpoint-podium" aria-label="Top three evaluated runs">
             {podiumRuns.map((checkpoint, index) => {
               const medal = MEDALS[index];
-              const ghostActive = ghostEpisode === checkpoint.episode;
+              const ghostActive = ghostEpisode === checkpoint.episode && !ghostRef.current?.lap.archive_id;
               const solved = (checkpoint.success_rate ?? 0) > 0;
               const comparable = status
                 ? isComparableCheckpoint(checkpoint, status)
@@ -183,7 +183,7 @@ export default function Leaderboard({ onWatch }: { onWatch?: () => void }) {
                 </tr></thead>
                 <tbody>
                   {rows.map((checkpoint, index) => {
-                    const ghostActive = ghostEpisode === checkpoint.episode;
+                    const ghostActive = ghostEpisode === checkpoint.episode && !ghostRef.current?.lap.archive_id;
                     const sourceHash = typeof checkpoint.protocol?.engine_source_sha256 === "string"
                       ? checkpoint.protocol.engine_source_sha256
                       : null;

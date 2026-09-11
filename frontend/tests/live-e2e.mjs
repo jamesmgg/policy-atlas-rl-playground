@@ -21,8 +21,11 @@ async function waitFor(check, timeoutMs = 45_000) {
 }
 
 const catalog = await json("/api/scenarios");
-assert.equal(catalog.scenarios.length, 20);
+assert.equal(catalog.scenarios.length, 23);
 assert.ok(catalog.scenarios.some((item) => item.id === "cartpole-balance"));
+for (const id of ["paddle-rally", "flappy-flight", "coin-collector"]) {
+  assert.ok(catalog.scenarios.some((item) => item.id === id), `${id} is missing from the catalog`);
+}
 assert.ok(catalog.scenarios.every((item) => item.objective && item.actions.length));
 
 await json("/api/scenario", {

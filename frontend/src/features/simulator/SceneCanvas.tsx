@@ -113,8 +113,13 @@ function drawGenericObject(
       break;
     }
     case "lander": {
-      ctx.translate(obj.x, obj.y);
-      ctx.rotate(obj.rot ?? 0);
+      const rot = obj.rot ?? 0;
+      // Physics reports the contact point, so keep the lowest sprite outline
+      // at that point instead of drawing the landing feet below the surface.
+      const c = Math.cos(rot), s = Math.abs(Math.sin(rot));
+      const contactDepth = Math.max(12 * c + 11 * s, 6 * c + 8 * s, -8 * c + 5 * s) + 1;
+      ctx.translate(obj.x, obj.y - contactDepth);
+      ctx.rotate(rot);
       if ((obj.flame ?? 0) > 0.05) {
         ctx.fillStyle = COLORS.flame;
         const f = 8 + (obj.flame ?? 0) * 16;
@@ -156,15 +161,19 @@ function drawGenericObject(
       break;
     }
     case "bird": {
-      ctx.translate(obj.x, obj.y); ctx.rotate(obj.rot ?? 0);
+      // Rotate unit-circle artwork inside the mapped 0.045 m collision radius.
+      // Scaling before rotation keeps every tilt inside the same world ellipse.
+      ctx.translate(obj.x, obj.y); ctx.scale(0.045 * 350, 0.045 * 285);
+      ctx.rotate(obj.rot ?? 0);
       ctx.fillStyle = "#ffd275";
-      ctx.beginPath(); ctx.ellipse(0, 0, 22, 17, 0, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-0.96, 0.12); ctx.lineTo(-0.55, -0.26); ctx.lineTo(-0.55, 0.36); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(-0.1, 0, 0.68, 0.72, 0, 0, Math.PI*2); ctx.fill();
       ctx.fillStyle = "#d79a4d";
-      ctx.beginPath(); ctx.ellipse(-8, 4, 11, 7, -0.4, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(-0.22, 0.08, 0.35, 0.28, -0.4, 0, Math.PI*2); ctx.fill();
       ctx.fillStyle = "#ed9960";
-      ctx.beginPath(); ctx.moveTo(17, -1); ctx.lineTo(31, 5); ctx.lineTo(16, 8); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(0.48, -0.12); ctx.lineTo(0.97, 0.03); ctx.lineTo(0.5, 0.22); ctx.fill();
       ctx.fillStyle = "#122331";
-      ctx.beginPath(); ctx.arc(9, -5, 3, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(0.32, -0.24, 0.115, 0, Math.PI*2); ctx.fill();
       break;
     }
     case "pipe": {
@@ -175,10 +184,12 @@ function drawGenericObject(
       break;
     }
     case "collector": {
-      ctx.translate(obj.x, obj.y); ctx.rotate(obj.rot ?? 0);
+      // Include the rounded outline within the 0.045 m × 300 px/m footprint.
+      ctx.translate(obj.x, obj.y); ctx.scale(0.045 * 300, 0.045 * 300);
+      ctx.rotate(obj.rot ?? 0);
       ctx.fillStyle = "#8fd5f2";
-      ctx.beginPath(); ctx.moveTo(19, 0); ctx.lineTo(-13, -14); ctx.lineTo(-7, 0); ctx.lineTo(-13, 14); ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = "#d5f3ff"; ctx.lineWidth = 2; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0.9, 0); ctx.lineTo(-0.6, -0.65); ctx.lineTo(-0.28, 0); ctx.lineTo(-0.6, 0.65); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = "#d5f3ff"; ctx.lineWidth = 0.09; ctx.lineJoin = "round"; ctx.stroke();
       break;
     }
     case "coin": {
@@ -530,7 +541,9 @@ export default function SceneCanvas() {
           drawCar(ctx, frame.car.x, frame.car.y, frame.car.heading,
                   COLORS.car, 1, frame.car.drift, COLORS.carGlow);
         }
-        for (const obj of frame.objects ?? []) drawGenericObject(ctx, obj);
+        for (const obj of frame.objects ?? []) {
+          drawGenericObject(ctx, frame.terminal && obj.shape === "lander" ? { ...obj, flame: 0 } : obj);
+        }
         if (!replayOnly) drawHud(ctx, frame, null);
         if (banner && now < banner.until) drawBanner(ctx, banner, now);
       }

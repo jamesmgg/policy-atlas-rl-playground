@@ -553,13 +553,14 @@ button:disabled { cursor: not-allowed; opacity: 0.48; }
   transform: translateX(-50%);
 }
 
-.scene-telemetry { position: absolute; right: 12px; bottom: 12px; left: 12px; display: flex; gap: 7px; align-items: stretch; pointer-events: none; }
+.scene-telemetry { display: flex; flex-wrap: wrap; gap: 7px; align-items: stretch; padding: 10px 12px; border-top: 1px solid var(--line); background: #0d1720; }
 .scene-telemetry > span { display: flex; flex: 0 1 auto; min-width: 78px; flex-direction: column; gap: 2px; padding: 7px 9px; border: 1px solid rgba(255, 255, 255, 0.11); border-radius: 8px; background: rgba(8, 16, 23, 0.76); backdrop-filter: blur(8px); }
 .scene-telemetry small { color: #93a5a2; font-size: 10px; }
 .scene-telemetry strong { color: #eef6f3; font: 600 11px var(--font-data); }
 
-.simulator-well:fullscreen { display: grid; width: 100vw; height: 100vh; place-items: center; background: var(--simulator); }
-.simulator-well:fullscreen .track-canvas { width: min(100vw, calc(100vh * 10 / 7)); max-height: 100vh; }
+.simulator-well:fullscreen { display: grid; grid-template-rows: minmax(0, 1fr) auto; width: 100vw; height: 100vh; place-items: center; background: var(--simulator); }
+.simulator-well:fullscreen .track-canvas { width: min(100vw, calc((100vh - 110px) * 10 / 7)); max-height: calc(100vh - 110px); object-fit: contain; }
+.simulator-well:fullscreen .scene-telemetry { width: 100%; justify-content: center; }
 
 .technical-drawer {
   overflow: hidden;
@@ -913,7 +914,7 @@ button:disabled { cursor: not-allowed; opacity: 0.48; }
   .simulator-toolbar { min-height: 60px; padding: 10px 12px; }
   .fullscreen-button { font-size: 11px; }
   .track-canvas { object-fit: contain; }
-  .scene-telemetry { right: 7px; bottom: 7px; left: 7px; gap: 4px; overflow-x: auto; }
+  .scene-telemetry { gap: 4px; padding: 8px; }
   .scene-telemetry > span { min-width: 70px; padding: 6px 7px; }
   .termination-notice { top: 8px; left: 8px; width: calc(100% - 16px); max-width: calc(100% - 16px); }
   .learning-lens { padding: 16px 13px; border-radius: 15px; }
