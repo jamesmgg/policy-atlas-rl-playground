@@ -278,7 +278,7 @@ function drawGenericObject(
 export default function SceneCanvas() {
   const {
     frameRef, terminalFrameRef, ghostRef, ghostEpisode, replayRevision, status, ppo,
-    scenarioId, currentScenario, restartReplay, clearGhost,
+    scenarioId, currentScenario, restartReplay, clearGhost, readOnly, scene: publicScene,
   } = useTrainingSocket();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -386,6 +386,11 @@ export default function SceneCanvas() {
 
   useEffect(() => {
     if (!scenarioId) return;
+    if (readOnly) {
+      setScene(publicScene);
+      setSceneError(publicScene ? null : "The recorded environment view could not be loaded.");
+      return;
+    }
     let cancelled = false;
     setScene(null);
     setSceneError(null);
@@ -401,7 +406,7 @@ export default function SceneCanvas() {
         if (!cancelled) setSceneError("The environment view could not be loaded.");
       });
     return () => { cancelled = true; };
-  }, [scenarioId, sceneAttempt]);
+  }, [publicScene, readOnly, scenarioId, sceneAttempt]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

@@ -23,7 +23,7 @@ const LABELS: Record<string, string> = {
 };
 
 export default function EvaluationPanel() {
-  const { scenarioId, status } = useTrainingSocket();
+  const { scenarioId, status, readOnly, publicQualification, archivedRuns } = useTrainingSocket();
   const [result, setResult] = useState<Comparison | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +34,25 @@ export default function EvaluationPanel() {
     setResult(null); setError(null); setBusy(false);
     return () => { requestRef.current += 1; };
   }, [scenarioId]);
+
+  if (readOnly) {
+    const policies = archivedRuns.filter((run) => run.requalification);
+    return <section className="panel evaluation-panel" aria-labelledby="evaluation-title">
+      <div className="panel-heading">
+        <div><span className="section-kicker">Independent qualification</span><h2 id="evaluation-title">Verified success</h2></div>
+        <span className="run-badge run-connected">Passed</span>
+      </div>
+      <p className="evaluation-context">
+        Each saved neural policy passed {publicQualification?.starts_per_policy ?? 50}/
+        {publicQualification?.starts_per_policy ?? 50} separate holdout starts and a successful canonical replay.
+      </p>
+      <dl className="run-stats">
+        <div><dt>Policies here</dt><dd>{policies.length}</dd></div>
+        <div><dt>Public library</dt><dd>{publicQualification?.policies ?? 46} policies</dd></div>
+        <div><dt>Holdout record</dt><dd>{publicQualification?.successful_starts ?? 2300}/{publicQualification?.total_starts ?? 2300}</dd></div>
+      </dl>
+    </section>;
+  }
 
   const compare = async () => {
     const request = ++requestRef.current;

@@ -20,7 +20,7 @@ function savedAt(iso: string): string {
 export default function Leaderboard({ onWatch }: { onWatch?: () => void }) {
   const {
     checkpoints, archivedRuns, ghostEpisode, ghostRef, status, metricLabel, metricMode,
-    setGhost, setArchiveGhost, clearGhost, loadCheckpoint, restoreArchivedRun,
+    setGhost, setArchiveGhost, clearGhost, loadCheckpoint, restoreArchivedRun, readOnly,
   } = useTrainingSocket();
   const [view, setView] = useState<"best" | "recent">("best");
   const training = status?.training ?? false;
@@ -58,6 +58,37 @@ export default function Leaderboard({ onWatch }: { onWatch?: () => void }) {
       `Restore the archived branch ending at episode ${episode}? The active branch will be archived first.`,
     )) void restoreArchivedRun(id);
   };
+
+  if (readOnly) {
+    return (
+      <section className="panel checkpoints-panel" aria-labelledby="checkpoints-title">
+        <div className="panel-heading checkpoint-heading">
+          <div>
+            <span className="section-kicker">Qualified neural policies</span>
+            <h2 id="checkpoints-title">Ready to watch</h2>
+            <p>Two independent training seeds passed every holdout start for this environment.</p>
+          </div>
+          <span className="ranking-note">50/50 holdout starts per policy</span>
+        </div>
+        <div className="verified-policies">
+          <div className="verified-policy-list">{verifiedRuns.map((run) => {
+            const active = ghostRef.current?.lap.archive_id === run.id;
+            return <article key={run.id}>
+              <div><strong>Verified policy · seed {run.seed}</strong>
+                <small>{run.requalification!.holdout_successes}/{run.requalification!.holdout_episodes} unseen starts passed</small>
+                <small>Originally trained through episode {run.requalification!.origin.episode}</small>
+              </div>
+              <button type="button" className={active ? "compare-active" : ""}
+                aria-pressed={active}
+                onClick={() => { setArchiveGhost(run.id, run.latest_episode); onWatch?.(); }}>
+                {active ? "Restart policy" : "Watch policy"}
+              </button>
+            </article>;
+          })}</div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="panel checkpoints-panel" aria-labelledby="checkpoints-title">

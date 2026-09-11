@@ -30,6 +30,49 @@ export type SceneData =
   | { scenario_id: string; kind: "generic"; bounds: [number, number];
       primary_shape: string; statics: StaticPrimitive[] };
 
+export interface PublicDemoPolicy {
+  id: string;
+  seed: number;
+  origin_episode: number;
+  timestamp: string | null;
+  holdout_successes: number;
+  holdout_episodes: number;
+  canonical_summary: EpisodeRecord;
+  evaluation: {
+    eval_reward: number;
+    eval_reward_std: number;
+    eval_metric: number | null;
+    eval_metric_std: number | null;
+    eval_episodes: number;
+    success_rate: number;
+    success_ci_low: number;
+    success_ci_high: number;
+    evaluation_suite: string;
+    schema_version: number;
+    total_steps: number;
+    update_count: number;
+  };
+  dt: number;
+  trajectory: [number, number, number, number, number][];
+  frames: FrameMsg[];
+}
+
+export interface PublicDemoData {
+  version: number;
+  generated_at: string;
+  engine_source_sha256: string;
+  qualification: {
+    scenarios: number;
+    policies: number;
+    starts_per_policy: number;
+    successful_starts: number;
+    total_starts: number;
+  };
+  scenarios: ScenarioInfo[];
+  scenes: Record<string, SceneData>;
+  policies: Record<string, PublicDemoPolicy[]>;
+}
+
 export interface CarFrame {
   x: number;
   y: number;

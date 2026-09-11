@@ -21,7 +21,7 @@ function durationLabel(seconds: number): string {
 export default function TrainingControls({ onRun }: { onRun?: () => void }) {
   const {
     status, connected, connectionState, metricLabel, history, checkpoints,
-    startTraining, stopTraining, resetTraining, lastError, clearError,
+    startTraining, stopTraining, resetTraining, lastError, clearError, readOnly,
   } = useTrainingSocket();
   const [episodes, setEpisodes] = useState(500);
   const [checkpointEvery, setCheckpointEvery] = useState(25);
@@ -50,6 +50,21 @@ export default function TrainingControls({ onRun }: { onRun?: () => void }) {
     return durationLabel(status?.sps ? runWindow.remaining * meanSteps / status.sps : 0);
   }, [history, runWindow.remaining, status?.sps]);
   const latestEvaluation = recentCheckpoints(checkpoints)[0];
+
+  if (readOnly) {
+    return (
+      <section className="panel controls-panel" id="run-setup" aria-labelledby="run-title">
+        <div className="panel-heading">
+          <div><span className="section-kicker">Public showcase</span><h2 id="run-title" tabIndex={-1}>Train the policy</h2></div>
+          <span className="run-badge run-connected">Replay only</span>
+        </div>
+        <p>Training uses a Python and PyTorch backend. This public build keeps compute controls private while making every qualified policy replay available.</p>
+        <a className="primary-action" href="https://github.com/jamesmgg/policy-atlas-rl-playground"
+          target="_blank" rel="noreferrer">Open GitHub to run locally</a>
+        <p className="evaluation-context">Clone the repository for live PPO training, seeded runs, checkpoints, and controller comparisons.</p>
+      </section>
+    );
+  }
 
   const applyPreset = (preset: typeof PRESETS[number]) => {
     setEpisodes(preset.episodes);

@@ -14,7 +14,7 @@ const LearningCurve = lazy(() => import("./LearningCurve"));
 
 export default function SimulatorPage() {
   const { connectionState, currentScenario, scenarios, status, lastError, clearError,
-    stopTraining } = useTrainingSocket();
+    stopTraining, readOnly } = useTrainingSocket();
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [mobileView, setMobileView] = useState(() => mobileViewFromHash(window.location.hash));
 
@@ -56,11 +56,11 @@ export default function SimulatorPage() {
         <div className="topbar-context">
           <span>{scenarios.length ? `${scenarios.length} experiments` : "Loading experiments"}</span>
           <span aria-hidden="true">·</span>
-          <span>Watch policies learn</span>
+          <span>{readOnly ? "Replay verified policies" : "Watch policies learn"}</span>
         </div>
         <div className={`connection-state connection-${connectionState}`} aria-live="polite">
           <span className="connection-dot" aria-hidden="true" />
-          {connectionState === "connected" ? (status?.training ? "Training live" : "Lab ready") : connectionState}
+          {connectionState === "connected" ? (readOnly ? "Public library" : status?.training ? "Training live" : "Lab ready") : connectionState}
         </div>
         <a className="mobile-project-switch" href="#projects" aria-label={`Switch project: ${currentScenario?.name ?? "Loading"}`}>
           <span><small>Current project</small><strong>{currentScenario?.name ?? "Loading experiments…"}</strong></span>
@@ -90,10 +90,13 @@ export default function SimulatorPage() {
             <div className="mobile-watch-actions">
               {status?.training
                 ? <button className="primary-action action-pause" onClick={stopTraining}>Pause training</button>
-                : <a className="primary-action" href="#train">Train this policy</a>}
+                : readOnly
+                  ? <a className="primary-action" href="#results">Choose verified policy</a>
+                  : <a className="primary-action" href="#train">Train this policy</a>}
               <a className="secondary-action" href="#results">Saved runs & results</a>
               <p>{status?.training ? "Training continues while you browse. Pausing finishes the current rollout."
-                : "Choose a training budget, or watch a saved policy from Results."}</p>
+                : readOnly ? "Switch projects or choose either qualified training seed in Results."
+                  : "Choose a training budget, or watch a saved policy from Results."}</p>
             </div>
           </div>
           <div className="results-screen">
@@ -124,7 +127,7 @@ export default function SimulatorPage() {
       <nav className="mobile-setup-dock" aria-label="Mobile navigation">
         {([
           ["projects", "Projects", "▦"], ["watch", "Watch", "◉"],
-          ["train", "Train", "▷"], ["results", "Results", "▥"],
+          ["train", readOnly ? "Run locally" : "Train", "▷"], ["results", "Results", "▥"],
         ] as const).map(([view, label, icon]) => (
           <a key={view} href={`#${view}`} aria-current={mobileView === view ? "page" : undefined}>
             <span aria-hidden="true">{icon}</span><strong>{label}</strong>
@@ -134,8 +137,9 @@ export default function SimulatorPage() {
       </nav>
 
       <footer className="app-footer">
-        <span>Policy Atlas · local experiment workspace</span>
-        <span>Scores use {status?.eval_episodes ?? 10} fixed test starts with 95% success intervals.</span>
+        <span>Policy Atlas · {readOnly ? "public verified replay library" : "local experiment workspace"}</span>
+        <span>{readOnly ? "46 policies passed 2,300/2,300 independent holdout starts."
+          : `Scores use ${status?.eval_episodes ?? 10} fixed test starts with 95% success intervals.`}</span>
       </footer>
     </div>
   );

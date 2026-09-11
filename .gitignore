@@ -1,6 +1,7 @@
 # Frontend dependencies and build output
 frontend/node_modules/
 frontend/dist/
+.wrangler/
 
 # Python caches and test artifacts
 __pycache__/

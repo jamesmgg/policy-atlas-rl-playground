@@ -5,6 +5,11 @@ agent's observation → action → reward loop visible while PPO trains, and kee
 training evidence, fixed-suite evaluation results, saved policies, and ghost
 replays in one workspace.
 
+The public Cloudflare showcase is available at
+[policy-atlas-rl-playground.pages.dev](https://policy-atlas-rl-playground.pages.dev).
+It bundles 46 qualified policy replays across all 23 environments. Live PPO
+training and checkpoint mutation remain available in the local Docker app.
+
 On phones and tablets, use the bottom navigation for **Projects**, **Watch**,
 **Train**, and **Results**. Tap the current project at the top to switch at any
 time. Projects are searchable and grouped by category; starting training or
@@ -82,6 +87,22 @@ on the host, then open `http://<host-tailscale-ip>:8900`.
 Saved policies persist in the `rl-checkpoints` Docker volume. **New seeded run**
 archives the active run before clearing the workspace, so reset data remains
 recoverable from the checkpoint archive.
+
+## Build the public replay showcase
+
+Generate `frontend/public/demo.json` from a qualified release package with the
+backend image, then build the replay-only frontend:
+
+```bash
+docker run --rm -e PYTHONPATH=/app -v "$PWD:/workspace" rl-simulator-backend:local \
+  python /workspace/scripts/export_public_demo.py \
+  /workspace/data/release-validation-20260911/package \
+  /workspace/frontend/public/demo.json
+npm --prefix frontend run build:public
+```
+
+The public build contains recorded scenes and terminal frames. It makes no API
+or WebSocket calls and exposes no training, reset, or checkpoint endpoints.
 
 ## Scientific safeguards
 

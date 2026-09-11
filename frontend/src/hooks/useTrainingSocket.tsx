@@ -4,7 +4,8 @@ import {
 import { ppoRecordFromStatus, recordTerminalFrame } from "../api/types";
 import type {
   ArchivedRun, CheckpointMeta, ClientMessage, EpisodeRecord, FrameMsg, GhostLap,
-  HeldTerminalFrame, PpoUpdateRecord, ScenarioInfo, ServerMessage, StatusMsg,
+  HeldTerminalFrame, PpoUpdateRecord, PublicDemoData, PublicDemoPolicy, ScenarioInfo,
+  SceneData, ServerMessage, StatusMsg,
 } from "../api/types";
 
 const FLUSH_MS = 400;
@@ -13,6 +14,9 @@ const MAX_PPO_POINTS = 600;
 const ROLLING_WINDOW = 20;
 
 export interface TrainingSocketValue {
+  readOnly: boolean;
+  scene: SceneData | null;
+  publicQualification: PublicDemoData["qualification"] | null;
   connected: boolean;
   connectionState: "connecting" | "connected" | "reconnecting";
   status: StatusMsg | null;
@@ -56,7 +60,7 @@ function decimateHalf(items: EpisodeRecord[]): EpisodeRecord[] {
   return compressed.concat(items.slice(half));
 }
 
-export function TrainingSocketProvider({ children }: { children: React.ReactNode }) {
+function LiveTrainingSocketProvider({ children }: { children: React.ReactNode }) {
   const [connected, setConnected] = useState(false);
   const [connectionState, setConnectionState] = useState<TrainingSocketValue["connectionState"]>("connecting");
   const [status, setStatus] = useState<StatusMsg | null>(null);
@@ -304,6 +308,7 @@ export function TrainingSocketProvider({ children }: { children: React.ReactNode
   );
 
   const value = useMemo<TrainingSocketValue>(() => ({
+    readOnly: false, scene: null, publicQualification: null,
     connected, connectionState, status, scenarios, currentScenario,
     scenarioId, scenarioKind, metricLabel, metricMode,
     history, ppo, checkpoints, archivedRuns, ghostEpisode, replayRevision, lastError,
@@ -379,6 +384,189 @@ export function TrainingSocketProvider({ children }: { children: React.ReactNode
        history, ppo, checkpoints, archivedRuns, ghostEpisode, replayRevision, lastError, send]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+function publicStatus(scenario: ScenarioInfo, policy: PublicDemoPolicy, engineHash: string): StatusMsg {
+  return {
+    type: "status",
+    scenario_id: scenario.id,
+    scenario_kind: scenario.kind,
+    metric_label: scenario.metric_label,
+    metric_mode: scenario.metric_mode,
+    training: false,
+    episode: policy.origin_episode,
+    max_episodes: policy.origin_episode,
+    run_start_episode: policy.origin_episode,
+    run_target_episode: policy.origin_episode,
+    checkpoint_every_n: 0,
+    total_steps: policy.evaluation.total_steps ?? 0,
+    update_count: policy.evaluation.update_count ?? 0,
+    sps: 0,
+    seed: policy.seed,
+    eval_episodes: policy.evaluation.eval_episodes,
+    evaluation_suite: policy.evaluation.evaluation_suite,
+    evaluation_seed_base: 5_200_000,
+    engine_source_sha256: engineHash,
+    best_reward: policy.canonical_summary.reward,
+    best_metric: policy.canonical_summary.metric,
+    device: "recorded",
+    ghost_episode: policy.origin_episode,
+    ppo_diagnostics: null,
+  };
+}
+
+function PublicDemoProvider({ children }: { children: React.ReactNode }) {
+  const [demo, setDemo] = useState<PublicDemoData | null>(null);
+  const [scenarioId, setScenarioId] = useState<string | null>(null);
+  const [ghostEpisode, setGhostEpisode] = useState<number | null>(null);
+  const [replayRevision, setReplayRevision] = useState(0);
+  const [lastError, setLastError] = useState<string | null>(null);
+  const frameRef = useRef<FrameMsg | null>(null);
+  const terminalFrameRef = useRef<HeldTerminalFrame | null>(null);
+  const ghostRef = useRef<{ lap: GhostLap; startedAt: number } | null>(null);
+
+  const activatePolicy = useCallback((scenario: string, policy: PublicDemoPolicy) => {
+    ghostRef.current = {
+      lap: {
+        scenario_id: scenario,
+        archive_id: policy.id,
+        episode: policy.origin_episode,
+        dt: policy.dt,
+        trajectory: policy.trajectory,
+        frames: policy.frames,
+      },
+      startedAt: performance.now(),
+    };
+    setGhostEpisode(policy.origin_episode);
+    setReplayRevision((revision) => revision + 1);
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/demo.json", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`demo request failed (${response.status})`);
+        return response.json() as Promise<PublicDemoData>;
+      })
+      .then((data) => {
+        const preferred = data.scenarios.find((scenario) => scenario.id === "lunar-lander")
+          ?? data.scenarios[0];
+        if (!preferred || data.qualification.policies !== 46) {
+          throw new Error("The public replay bundle is incomplete.");
+        }
+        setDemo(data);
+        setScenarioId(preferred.id);
+        activatePolicy(preferred.id, data.policies[preferred.id][0]);
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setLastError("The verified replay library could not be loaded. Refresh to try again.");
+      });
+    return () => controller.abort();
+  }, [activatePolicy]);
+
+  const currentScenario = useMemo(
+    () => demo?.scenarios.find((scenario) => scenario.id === scenarioId) ?? null,
+    [demo, scenarioId],
+  );
+  const policies = useMemo(
+    () => scenarioId ? demo?.policies[scenarioId] ?? [] : [],
+    [demo, scenarioId],
+  );
+  const status = useMemo(
+    () => currentScenario && policies[0] && demo
+      ? publicStatus(currentScenario, policies[0], demo.engine_source_sha256) : null,
+    [currentScenario, demo, policies],
+  );
+  const history = useMemo<EpisodeRecord[]>(() => policies.map((policy, index) => ({
+    ...policy.canonical_summary,
+    episode: index + 1,
+    rollingMean: policy.canonical_summary.reward,
+  })), [policies]);
+  const archivedRuns = useMemo<ArchivedRun[]>(() => policies.map((policy) => ({
+    id: policy.id,
+    latest_episode: policy.origin_episode,
+    checkpoints: 1,
+    seed: policy.seed,
+    timestamp: policy.timestamp,
+    schema_version: policy.evaluation.schema_version,
+    compatible: true,
+    requalification: {
+      holdout_successes: policy.holdout_successes,
+      holdout_episodes: policy.holdout_episodes,
+      origin: { seed: policy.seed, episode: policy.origin_episode },
+    },
+  })), [policies]);
+  const readOnlyError = useCallback(() => {
+    setLastError("This Cloudflare showcase is replay-only. Clone the GitHub repository to train policies locally.");
+    return false;
+  }, []);
+
+  const value = useMemo<TrainingSocketValue>(() => ({
+    readOnly: true,
+    scene: scenarioId ? demo?.scenes[scenarioId] ?? null : null,
+    publicQualification: demo?.qualification ?? null,
+    connected: Boolean(demo),
+    connectionState: demo ? "connected" : "connecting",
+    status,
+    scenarios: demo?.scenarios ?? [],
+    currentScenario,
+    scenarioId,
+    scenarioKind: currentScenario?.kind ?? "generic",
+    metricLabel: currentScenario?.metric_label ?? "score",
+    metricMode: currentScenario?.metric_mode ?? "max",
+    history,
+    ppo: [],
+    checkpoints: [],
+    archivedRuns,
+    ghostEpisode,
+    replayRevision,
+    lastError,
+    frameRef,
+    terminalFrameRef,
+    ghostRef,
+    startTraining: readOnlyError,
+    stopTraining: () => { readOnlyError(); },
+    resetTraining: () => { readOnlyError(); },
+    setGhost: () => {
+      if (scenarioId && policies[0]) activatePolicy(scenarioId, policies[0]);
+    },
+    setArchiveGhost: (id) => {
+      const policy = policies.find((item) => item.id === id);
+      if (scenarioId && policy) activatePolicy(scenarioId, policy);
+    },
+    restartReplay: () => {
+      if (ghostRef.current) ghostRef.current = {
+        ...ghostRef.current, startedAt: performance.now(),
+      };
+      setReplayRevision((revision) => revision + 1);
+    },
+    clearGhost: () => {
+      ghostRef.current = null;
+      setGhostEpisode(null);
+    },
+    loadCheckpoint: () => { readOnlyError(); },
+    restoreArchivedRun: async () => { readOnlyError(); },
+    selectScenario: async (id) => {
+      const scenario = demo?.scenarios.find((item) => item.id === id);
+      const policy = demo?.policies[id]?.[0];
+      if (!scenario || !policy) return false;
+      setScenarioId(id);
+      setLastError(null);
+      activatePolicy(id, policy);
+      return true;
+    },
+    clearError: () => setLastError(null),
+  }), [activatePolicy, archivedRuns, currentScenario, demo, ghostEpisode, history,
+    lastError, policies, readOnlyError, replayRevision, scenarioId, status]);
+
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+export function TrainingSocketProvider({ children }: { children: React.ReactNode }) {
+  return import.meta.env.VITE_PUBLIC_DEMO === "1"
+    ? <PublicDemoProvider>{children}</PublicDemoProvider>
+    : <LiveTrainingSocketProvider>{children}</LiveTrainingSocketProvider>;
 }
 
 export function useTrainingSocket(): TrainingSocketValue {
