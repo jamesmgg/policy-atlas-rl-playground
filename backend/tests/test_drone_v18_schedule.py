@@ -338,7 +338,7 @@ class DroneV18ScheduleTests(unittest.TestCase):
             meta = trainer.registry.list()[0]
 
             self.assertEqual(meta["schema_version"], 17)
-            self.assertEqual(meta["protocol"]["version"], 18)
+            self.assertEqual(meta["protocol"]["version"], 19)
             self.assertEqual(meta["protocol"]["training_schedule"],
                              self.schedule.protocol())
             warm = meta["protocol"]["actor_warm_start"]

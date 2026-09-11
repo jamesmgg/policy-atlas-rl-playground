@@ -24,7 +24,7 @@ import torch
 
 from .checkpoints import CheckpointRegistry, IncompatibleCheckpointError
 from .ppo import agent as ppo_defaults
-from .ppo.agent import PPOAgent
+from .ppo.agent import PPOAgent, deterministic_action
 from .ppo.buffer import RolloutBuffer
 from .ppo.initialization import default_actor_initialization
 from .scenarios import get_spec
@@ -231,7 +231,7 @@ def evaluate_training_curriculum(curriculum, training_env, agent) -> dict:
             env.rng.seed(seed)
         obs = env.reset()
         for _ in range(env.max_steps):
-            action, _, _ = agent.select_action(obs, deterministic=True)
+            action = deterministic_action(agent, obs)
             obs, _, done, _ = env.step(action)
             if done:
                 break
@@ -262,7 +262,7 @@ def evaluate_training_control(control, training_env, agent) -> dict:
             env.rng.seed(seed)
         obs = env.reset()
         for _ in range(env.max_steps):
-            action, _, _ = agent.select_action(obs, deterministic=True)
+            action = deterministic_action(agent, obs)
             obs, _, done, _ = env.step(action)
             if done:
                 break
@@ -280,6 +280,7 @@ def evaluate_training_control(control, training_env, agent) -> dict:
 class Trainer:
     def __init__(self, settings: Settings):
         self.settings = settings
+        torch.set_num_threads(settings.cpu_threads)
         if settings.use_gpu and torch.cuda.is_available():
             self.device = torch.device("cuda")
         else:
@@ -291,6 +292,7 @@ class Trainer:
         self.checkpoint_every_n = settings.checkpoint_every_n
         self.seed = settings.seed
         self.update_count = 0
+        self.last_error: str | None = None
 
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
@@ -324,9 +326,7 @@ class Trainer:
         self.agent = PPOAgent(self.env.obs_dim, self.env.n_continuous,
                               self.env.n_binary, self.device,
                               actor_initialization=self.spec.actor_initialization)
-        warm_start = getattr(self.spec, "actor_warm_start", None)
-        self.actor_warm_start_diagnostics = (
-            warm_start.apply(self.agent) if warm_start is not None else None)
+        self.actor_warm_start_diagnostics = None
         self.registry = CheckpointRegistry(
             self.settings.checkpoint_dir, self.spec.id, self.spec.checkpoint_schema)
         self.episode = 0
@@ -339,7 +339,11 @@ class Trainer:
         self.ghost: dict | None = None
         self._learning: dict | None = None
         self.latest_update_metrics: dict[str, float] | None = None
-        self._restore_latest()
+        restored = self._restore_latest()
+        warm_start = getattr(self.spec, "actor_warm_start", None)
+        if not restored and warm_start is not None:
+            self.actor_warm_start_diagnostics = warm_start.apply(self.agent)
+        self.last_error = None
         self.run_start_episode = self.episode
         self.run_target_episode = self.episode
         self._write_active_scenario()
@@ -435,6 +439,7 @@ class Trainer:
             self.ghost = None
             self._learning = None
             self.latest_update_metrics = None
+            self.last_error = None
             reset_curriculum = getattr(env, "reset_training_curriculum", None)
             if callable(reset_curriculum):
                 reset_curriculum()
@@ -524,6 +529,8 @@ class Trainer:
             "metric_label": self.spec.metric_label,
             "metric_mode": self.spec.metric_mode,
             "training": self.running,
+            "last_error": getattr(self, "last_error", None),
+            "cpu_threads": torch.get_num_threads(),
             "episode": self.episode,
             "max_episodes": self.max_episodes,
             "run_start_episode": getattr(self, "run_start_episode", self.episode),
@@ -549,6 +556,22 @@ class Trainer:
     # ------------------------------------------------------------- train loop
 
     def _run(self) -> None:
+        self.last_error = None
+        try:
+            self._run_loop()
+        except Exception as exc:
+            self.last_error = str(exc)
+            self._stop.set()
+            log.exception("[%s] training failed", self.spec.id)
+            self.emit({"type": "error", "scenario_id": self.spec.id,
+                       "message": f"Training stopped: {exc}"})
+        finally:
+            final_status = self.status()
+            final_status["training"] = False
+            self.emit(final_status)
+            log.info("[%s] training stopped at episode %d", self.spec.id, self.episode)
+
+    def _run_loop(self) -> None:
         self._emit_status()
         env = self.env
         # Update after at least ROLLOUT_STEPS, at the next episode boundary.
@@ -633,11 +656,6 @@ class Trainer:
             if done and not self._stop.is_set() and self.episode < self.max_episodes:
                 obs = reset_training_environment(env, self.episode + 1)
                 done = False
-
-        final_status = self.status()
-        final_status["training"] = False
-        self.emit(final_status)
-        log.info("[%s] training stopped at episode %d", self.spec.id, self.episode)
 
     def _on_episode_end(self) -> bool:
         entry = {"episode": self.episode, **self.env.episode_summary()}
@@ -755,7 +773,9 @@ class Trainer:
                 if getattr(self.spec, "actor_warm_start", None) is not None
                 else "PPO"
             ),
-            "version": 18,
+            "version": 19,
+            "kl_stop_timing": "before_optimizer_step",
+            "cpu_threads": torch.get_num_threads(),
             "rollout_steps": ROLLOUT_STEPS,
             "episode_aligned_rollouts": True,
             "gamma": scenario_discount_factor(self.spec),
@@ -861,7 +881,7 @@ class Trainer:
                 env.rng.seed(evaluation_seed(i))
             obs = env.reset()
             for _ in range(env.max_steps):
-                action, _, _ = self.agent.select_action(obs, deterministic=True)
+                action = deterministic_action(self.agent, obs)
                 obs, _, done, _ = env.step(action)
                 if done:
                     break
@@ -879,7 +899,7 @@ class Trainer:
         obs = canonical.reset()
         trajectory: list[list[float]] = []
         for _ in range(canonical.max_steps):
-            action, _, _ = self.agent.select_action(obs, deterministic=True)
+            action = deterministic_action(self.agent, obs)
             obs, _, done, _ = canonical.step(action)
             trajectory.append(canonical.ghost_sample())
             if done:
@@ -922,7 +942,7 @@ class Trainer:
 
     # ----------------------------------------------------------------- misc
 
-    def _restore_latest(self) -> None:
+    def _restore_latest(self) -> bool:
         skipped_incompatible = False
         restored_episode: int | None = None
         for meta in reversed(self.registry.list()):
@@ -949,6 +969,9 @@ class Trainer:
                     restore_rng_state(data["rng_state"], self.env)
                 self.latest_update_metrics = data.get("meta", {}).get(
                     "training_diagnostics")
+                self.actor_warm_start_diagnostics = (
+                    ((data.get("meta", {}).get("protocol") or {})
+                     .get("actor_warm_start") or {}).get("realized"))
                 self._recompute_bests()
                 log.info("[%s] restored checkpoint ep%d", self.spec.id, latest)
                 restored_episode = latest
@@ -968,7 +991,7 @@ class Trainer:
                 self.registry.quarantine_episode(latest)
 
         if not skipped_incompatible:
-            return
+            return restored_episode is not None
         if restored_episode is None:
             archive = self.registry.archive_current()
             log.warning(
@@ -976,13 +999,14 @@ class Trainer:
                 "starting fresh",
                 self.spec.id, archive,
             )
-            return
+            return False
         archive = self.registry.archive_after(restored_episode)
         log.warning(
             "[%s] archived non-resumable descendants after ep%d in %s "
             "before continuation",
             self.spec.id, restored_episode, archive,
         )
+        return True
 
     def _recompute_bests(self) -> None:
         rewards = [h["reward"] for h in self.history]

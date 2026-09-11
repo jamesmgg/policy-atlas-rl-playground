@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from .classic import CLASSIC_SPECS
+from .control import CONTROL_SPECS
 from .driving import DRIVING_SPECS
 from .spec import ScenarioSpec
 
 SCENARIOS: dict[str, ScenarioSpec] = {
-    spec.id: spec for spec in (*DRIVING_SPECS, *CLASSIC_SPECS)
+    spec.id: spec for spec in (*DRIVING_SPECS, *CLASSIC_SPECS, *CONTROL_SPECS)
 }
 
 DEFAULT_SCENARIO = "apex-gp"

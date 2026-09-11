@@ -386,7 +386,7 @@ class TrafficV16ContractTests(unittest.TestCase):
             payload = trainer.registry.load(150)
 
         self.assertEqual(meta["schema_version"], 18)
-        self.assertEqual(meta["protocol"]["version"], 18)
+        self.assertEqual(meta["protocol"]["version"], 19)
         self.assertEqual(
             meta["protocol"]["training_control"],
             self.curriculum.training_control.protocol(),

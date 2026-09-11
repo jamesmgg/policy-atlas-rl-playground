@@ -20,6 +20,14 @@ MINIBATCH_SIZE = 256
 TARGET_KL = 0.03
 
 
+def deterministic_action(agent, observation: np.ndarray) -> np.ndarray:
+    """Action-only fast path, retaining the small policy interface for baselines."""
+    predict = getattr(agent, "predict", None)
+    if callable(predict):
+        return predict(observation)
+    return agent.select_action(observation, deterministic=True)[0]
+
+
 def critic_diagnostics(
     targets: np.ndarray,
     predictions: np.ndarray,
@@ -150,7 +158,19 @@ class PPOAgent:
         t = torch.as_tensor(obs, device=self.device).unsqueeze(0)
         return float(self.network.get_value(t).item())
 
+    @torch.no_grad()
+    def predict(self, obs: np.ndarray) -> np.ndarray:
+        """Deterministic action only; evaluation needs neither densities nor RNG."""
+        t = torch.as_tensor(obs, dtype=torch.float32, device=self.device).unsqueeze(0)
+        h = self.network.torso(t)
+        parts = [torch.tanh(self.network.mu(h))]
+        if self.network.drift_logit is not None:
+            parts.append((self.network.drift_logit(h) > 0).to(t.dtype))
+        return torch.cat(parts, dim=-1).squeeze(0).cpu().numpy()
+
     def update(self, buffer: RolloutBuffer) -> dict[str, float]:
+        if buffer.ptr == 0:
+            raise ValueError("cannot update PPO from an empty rollout")
         pg_losses, v_losses, entropies, kls, clip_fracs = [], [], [], [], []
         value_scales, value_clip_fracs = [], []
         targets = buffer.returns[:buffer.ptr]
@@ -170,6 +190,14 @@ class PPOAgent:
                     approx_kl = ((ratio - 1) - log_ratio).mean().item()
                     clip_fracs.append(((ratio - 1).abs() > CLIP_EPS).float().mean().item())
                 kls.append(approx_kl)
+
+                # This batch already exceeds the trust-region budget. Taking
+                # another step before stopping moves the policy further away.
+                if not np.isfinite(approx_kl):
+                    raise FloatingPointError("non-finite PPO KL divergence")
+                if approx_kl > TARGET_KL:
+                    stop = True
+                    break
 
                 adv = batch["advantages"]
                 adv = (adv - adv.mean()) / (adv.std(unbiased=False) + 1e-8)
@@ -195,20 +223,19 @@ class PPOAgent:
                 value_scales.append(value_scale.item())
                 value_clip_fracs.append(value_clip_fraction.item())
                 entropies.append(entropy.mean().item())
-                if approx_kl > TARGET_KL:
-                    stop = True
-                    break
             if stop:
                 break
 
         return {
-            "policy_loss": float(np.mean(pg_losses)),
-            "value_loss": float(np.mean(v_losses)),
-            "entropy": float(np.mean(entropies)),
+            "policy_loss": float(np.mean(pg_losses)) if pg_losses else 0.0,
+            "value_loss": float(np.mean(v_losses)) if v_losses else 0.0,
+            "entropy": float(np.mean(entropies)) if entropies else 0.0,
             "approx_kl": float(np.mean(kls)),
             "clip_frac": float(np.mean(clip_fracs)),
-            "value_scale": float(np.mean(value_scales)),
-            "value_clip_frac": float(np.mean(value_clip_fracs)),
+            "value_scale": float(np.mean(value_scales)) if value_scales else rollout_value_scale,
+            "value_clip_frac": float(np.mean(value_clip_fracs)) if value_clip_fracs else 0.0,
+            "optimizer_steps": len(pg_losses),
+            "kl_early_stopped": int(stop),
             **calibration,
             **self.exploration_stats(),
             **self.policy_action_diagnostics(buffer.obs[:buffer.ptr]),

@@ -486,7 +486,7 @@ class TrafficV15ContractTests(unittest.TestCase):
 
         self.assertEqual(self.spec.checkpoint_schema, 18)
         self.assertEqual(meta["schema_version"], 18)
-        self.assertEqual(meta["protocol"]["version"], 18)
+        self.assertEqual(meta["protocol"]["version"], 19)
         self.assertEqual(meta["protocol"]["training_curriculum"],
                          curriculum.protocol())
         self.assertEqual(

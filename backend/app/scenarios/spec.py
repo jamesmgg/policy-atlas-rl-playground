@@ -48,6 +48,8 @@ class ScenarioSpec:
     # hidden rather than loaded or compared under a different scientific
     # contract.
     checkpoint_schema: int = 1
+    reference_controller: str | None = None
+    model_assumptions: tuple[str, ...] = ()
 
     def make_training_env(self) -> Env:
         """Build the learning environment without changing evaluation starts."""
@@ -76,4 +78,6 @@ class ScenarioSpec:
             "difficulty": self.difficulty,
             "horizon_steps": self.horizon_steps,
             "horizon_seconds": self.horizon_seconds,
+            "reference_controller": self.reference_controller,
+            "model_assumptions": list(self.model_assumptions),
         }

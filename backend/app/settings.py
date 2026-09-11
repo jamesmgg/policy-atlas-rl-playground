@@ -12,6 +12,7 @@ class Settings:
     use_gpu: bool
     seed: int = 42
     eval_episodes: int = 10
+    cpu_threads: int = 1
 
 
 def load_settings() -> Settings:
@@ -23,6 +24,7 @@ def load_settings() -> Settings:
         use_gpu=os.environ.get("USE_GPU", "0") == "1",
         seed=int(os.environ.get("SEED", "42")),
         eval_episodes=max(1, int(os.environ.get("EVAL_EPISODES", "10"))),
+        cpu_threads=max(1, min(64, int(os.environ.get("TORCH_NUM_THREADS", "1")))),
     )
 
 

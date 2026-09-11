@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import logging
 from contextlib import asynccontextmanager
@@ -48,13 +49,15 @@ class ConnectionManager:
                 continue
             data = json.dumps(msg)
             dead = []
-            for ws in self.clients:
+            # Membership may change at every await as browsers connect/leave.
+            # Concurrent, bounded sends keep one stalled peer from blocking all.
+            async def send(ws):
                 try:
-                    await ws.send_text(data)
+                    await asyncio.wait_for(ws.send_text(data), timeout=2.0)
                 except Exception:
                     dead.append(ws)
-            for ws in dead:
-                self.clients.discard(ws)
+            await asyncio.gather(*(send(ws) for ws in tuple(self.clients)))
+            self.clients.difference_update(dead)
 
 
 manager = ConnectionManager()
@@ -92,6 +95,11 @@ class ResetRequest(BaseModel):
 
 class ScenarioRequest(BaseModel):
     id: str
+
+
+class EvaluationRequest(BaseModel):
+    scenario_id: str
+    episodes: int = Field(default=10, ge=1, le=50)
 
 
 @app.get("/api/health")
@@ -166,6 +174,34 @@ def api_status():
     return trainer.status()
 
 
+@app.get("/api/reference/{scenario_id}")
+async def api_reference(scenario_id: str):
+    from .evaluation import cached_reference_replay
+    try:
+        return await asyncio.to_thread(cached_reference_replay, scenario_id)
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(404, str(exc))
+
+
+@app.post("/api/evaluation")
+async def api_evaluation(req: EvaluationRequest):
+    from .evaluation import compare_controllers
+
+    def evaluate():
+        # Deepcopy takes no random draws and freezes the policy. The trainer may
+        # resume after this snapshot without changing the evaluation's weights.
+        with trainer._lock:
+            if trainer.running:
+                raise HTTPException(409, "pause training before comparing controllers")
+            if trainer.spec.id != req.scenario_id:
+                raise HTTPException(409, "the active experiment changed; retry")
+            spec, agent, episode = trainer.spec, copy.deepcopy(trainer.agent), trainer.episode
+        result = compare_controllers(spec, agent, episodes=req.episodes)
+        return {**result, "policy_episode": episode}
+
+    return await asyncio.to_thread(evaluate)
+
+
 @app.post("/api/training/start")
 def api_start(req: StartRequest):
     started = trainer.start(req.max_episodes, req.checkpoint_every_n)
@@ -218,14 +254,20 @@ async def ws_training(ws: WebSocket):
 
 
 async def handle_client_message(ws: WebSocket, msg: dict) -> None:
-    mtype = msg.get("type")
     try:
+        if not isinstance(msg, dict):
+            raise ValueError("command must be a JSON object")
+        mtype = msg.get("type")
         if mtype == "start_training":
-            trainer.start(msg.get("max_episodes"), msg.get("checkpoint_every_n"))
+            request = StartRequest.model_validate(msg)
+            if not trainer.start(request.max_episodes, request.checkpoint_every_n):
+                raise ValueError("training already running")
         elif mtype == "stop_training":
             trainer.stop()
         elif mtype == "reset_training":
-            trainer.reset_agent(msg.get("seed"))
+            request = ResetRequest.model_validate(msg)
+            if not await asyncio.to_thread(trainer.reset_agent, request.seed):
+                raise ValueError("pause training before starting a new seeded run")
         elif mtype == "set_scenario":
             ok = await asyncio.to_thread(trainer.switch_scenario, str(msg["id"]))
             if not ok:
@@ -243,6 +285,10 @@ async def handle_client_message(ws: WebSocket, msg: dict) -> None:
             if not ok:
                 await ws.send_text(json.dumps(
                     {"type": "error", "message": "stop training before loading a checkpoint"}))
+        else:
+            raise ValueError(f"unknown command: {mtype}")
+    except ValueError as exc:
+        await ws.send_text(json.dumps({"type": "error", "message": str(exc)}))
     except KeyError as exc:
         await ws.send_text(json.dumps({"type": "error", "message": str(exc)}))
     except FileNotFoundError:

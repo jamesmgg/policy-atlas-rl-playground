@@ -99,7 +99,7 @@ class ThunderInitializationAblationTests(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 18)
+        self.assertEqual(protocol["version"], 19)
         self.assertEqual(protocol["actor_initialization"]["scope"],
                          "thunder_oval_only")
         self.assertEqual(protocol["actor_initialization"][
