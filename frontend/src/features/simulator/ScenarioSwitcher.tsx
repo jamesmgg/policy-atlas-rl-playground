@@ -20,7 +20,7 @@ function experimentGlyph(scenario: ScenarioInfo): string {
   return "⌁";
 }
 
-export default function ScenarioSwitcher() {
+export default function ScenarioSwitcher({ onSelected }: { onSelected?: () => void }) {
   const { scenarioId, status, scenarios, selectScenario, lastError } = useTrainingSocket();
   const [query, setQuery] = useState("");
   const [group, setGroup] = useState("All");
@@ -71,13 +71,14 @@ export default function ScenarioSwitcher() {
   }, [filtered, scenarioId]);
 
   const onSelect = async (scenario: ScenarioInfo) => {
-    if (scenario.id === scenarioId || switching) return;
+    if (switching) return;
+    if (scenario.id === scenarioId) { onSelected?.(); return; }
     if (status?.training && !window.confirm(
       `Open “${scenario.name}”? The current run will pause after its current PPO rollout.`,
     )) return;
     setSwitching(true);
     try {
-      await selectScenario(scenario.id);
+      if (await selectScenario(scenario.id)) onSelected?.();
     } finally {
       setSwitching(false);
     }
@@ -88,14 +89,15 @@ export default function ScenarioSwitcher() {
       aria-labelledby="library-title" aria-busy={switching}>
       <div className="library-heading">
         <span className="section-kicker">Explore</span>
-        <div><h2 id="library-title">Experiment library</h2><span>{scenarios.length} available</span></div>
+        <div><h2 id="library-title" tabIndex={-1}>Projects</h2><span>{scenarios.length} experiments</span></div>
+        <p className="library-guidance">Choose an experiment to open its simulator.</p>
       </div>
 
       <label className="library-search">
         <span className="sr-only">Search experiments</span>
         <span aria-hidden="true">⌕</span>
         <input value={query} onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search goal, domain, level…" type="search" />
+          placeholder="Find a project…" type="search" />
       </label>
 
       <div className="library-filters" aria-label="Experiment categories">
@@ -124,7 +126,7 @@ export default function ScenarioSwitcher() {
                   {scenario.difficulty} · {scenario.metric_mode === "min" ? "minimize" : "maximize"} {scenario.metric_label}
                 </span>
                 <span className="experiment-item-progress">
-                  {scenario.progress
+                  {active ? "Currently open" : scenario.progress
                     ? `Episode ${scenario.progress.episode} · ${formatMetric(scenario.progress.best_metric, scenario.metric_label)}`
                     : "Ready for a first run"}
                 </span>
@@ -139,6 +141,7 @@ export default function ScenarioSwitcher() {
         {scenarios.length > 0 && filtered.length === 0 && (
           <div className="library-empty" role="status" aria-live="polite">
             No experiments match that search.
+            <button type="button" className="secondary-action" onClick={() => { setQuery(""); setGroup("All"); }}>Clear filters</button>
           </div>
         )}
       </div>

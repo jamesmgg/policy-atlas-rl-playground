@@ -17,7 +17,7 @@ function savedAt(iso: string): string {
   });
 }
 
-export default function Leaderboard() {
+export default function Leaderboard({ onWatch }: { onWatch?: () => void }) {
   const {
     checkpoints, archivedRuns, ghostEpisode, status, metricLabel, metricMode,
     setGhost, clearGhost, loadCheckpoint, restoreArchivedRun,
@@ -40,6 +40,10 @@ export default function Leaderboard() {
   const fullMedalPodium = podiumRuns.length === MEDALS.length
     && podiumRuns.every((checkpoint) => (checkpoint.success_rate ?? 0) > 0);
   const rows = view === "best" ? ranked : recentCheckpoints(checkpoints);
+  const watchReplay = (episode: number) => {
+    if (ghostEpisode === episode) clearGhost();
+    else { setGhost(episode); onWatch?.(); }
+  };
 
   const resume = (checkpoint: CheckpointMeta) => {
     if (!status || !isComparableCheckpoint(checkpoint, status)) return;
@@ -117,7 +121,7 @@ export default function Leaderboard() {
                   <div className="podium-actions">
                     <button type="button" className={ghostActive ? "compare-active" : ""}
                       aria-pressed={ghostActive}
-                      onClick={() => ghostActive ? clearGhost() : setGhost(checkpoint.episode)}>
+                      onClick={() => watchReplay(checkpoint.episode)}>
                       {ghostActive ? "Hide replay" : "Watch replay"}
                     </button>
                     <button type="button" disabled={training || !comparable}
@@ -222,7 +226,7 @@ export default function Leaderboard() {
                         <td className="checkpoint-actions">
                           <button type="button" className={ghostActive ? "compare-active" : ""}
                             aria-pressed={ghostActive}
-                            onClick={() => ghostActive ? clearGhost() : setGhost(checkpoint.episode)}>
+                            onClick={() => watchReplay(checkpoint.episode)}>
                             {ghostActive ? "Hide replay" : "Compare replay"}
                           </button>
                           <button type="button" disabled={training || !comparable}

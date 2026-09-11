@@ -1,21 +1,49 @@
 import ExperimentBrief from "./ExperimentBrief";
 import EvaluationPanel from "./EvaluationPanel";
 import Leaderboard from "./Leaderboard";
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import LearningLens from "./LearningLens";
 import ScenarioSwitcher from "./ScenarioSwitcher";
 import SceneCanvas from "./SceneCanvas";
 import TrainingControls from "./TrainingControls";
 import { useTrainingSocket } from "../../hooks/useTrainingSocket";
+import { focusExperimentHeading, mobileViewFromHash } from "../../api/types";
+import type { MobileView } from "../../api/types";
 
 const LearningCurve = lazy(() => import("./LearningCurve"));
 
 export default function SimulatorPage() {
-  const { connectionState, currentScenario, scenarios, status } = useTrainingSocket();
+  const { connectionState, currentScenario, scenarios, status, lastError, clearError,
+    ghostEpisode, clearGhost, stopTraining } = useTrainingSocket();
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [mobileView, setMobileView] = useState(() => mobileViewFromHash(window.location.hash));
+
+  const navigate = useCallback((view: MobileView) => {
+    if (!window.matchMedia("(max-width: 900px)").matches) return;
+    window.location.hash = view;
+    setMobileView(view);
+  }, []);
+  const watch = useCallback(() => navigate("watch"), [navigate]);
+
+  useEffect(() => {
+    const onHashChange = () => setMobileView(mobileViewFromHash(window.location.hash));
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  useEffect(() => {
+    if (!window.matchMedia("(max-width: 900px)").matches) return;
+    const headings = { watch: "experiment-title", projects: "library-title",
+      train: "run-title", results: "results-title" };
+    const frame = requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: "instant" });
+      focusExperimentHeading(document.getElementById(headings[mobileView]), true);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [mobileView]);
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-mobile-view={mobileView}>
       <a className="skip-link" href="#experiment-stage">Skip to active experiment</a>
       <header className="topbar">
         <div className="brand-lockup" aria-label="Policy Atlas RL Playground">
@@ -34,57 +62,76 @@ export default function SimulatorPage() {
           <span className="connection-dot" aria-hidden="true" />
           {connectionState === "connected" ? (status?.training ? "Training live" : "Lab ready") : connectionState}
         </div>
+        <a className="mobile-project-switch" href="#projects" aria-label={`Switch project: ${currentScenario?.name ?? "Loading"}`}>
+          <span><small>Current project</small><strong>{currentScenario?.name ?? "Loading experiments…"}</strong></span>
+          <span className="project-switch-label">Switch <span aria-hidden="true">⌄</span></span>
+        </a>
       </header>
+
+      {lastError && mobileView !== "train" && <div className="mobile-error error-banner" role="alert">
+        <span>{lastError}</span><button onClick={clearError} aria-label="Dismiss error">×</button>
+      </div>}
 
       <div className="workspace">
         <main className="experiment-stage" id="experiment-stage">
-          <section className="experiment-heading" aria-labelledby="experiment-title">
-            <div>
-              <div className="eyebrow">
-                <span>{currentScenario?.group ?? "Experiment"}</span>
-                <span>{currentScenario?.difficulty ?? "Loading"}</span>
+          <div className="watch-screen">
+            <section className="experiment-heading" aria-labelledby="experiment-title">
+              <div>
+                <div className="eyebrow">
+                  <span>{currentScenario?.group ?? "Experiment"}</span>
+                  <span>{currentScenario?.difficulty ?? "Loading"}</span>
+                </div>
+                <h1 id="experiment-title" tabIndex={-1}>{currentScenario?.name ?? "Opening experiment…"}</h1>
+                <p>{currentScenario?.description ?? "Loading the environment and its experiment contract."}</p>
               </div>
-              <h1 id="experiment-title" tabIndex={-1}>{currentScenario?.name ?? "Opening experiment…"}</h1>
-              <p>{currentScenario?.description ?? "Loading the environment and its experiment contract."}</p>
-            </div>
-          </section>
+            </section>
 
-          <SceneCanvas />
-          <Leaderboard />
-          <EvaluationPanel />
-          <details className="technical-drawer"
-            onToggle={(event) => setShowDiagnostics(event.currentTarget.open)}>
-            <summary>Show learning diagnostics</summary>
-            <div className="technical-drawer-content">
-              <LearningLens />
-              {showDiagnostics && <Suspense fallback={<p>Loading learning charts…</p>}>
-                <LearningCurve />
-              </Suspense>}
+            <SceneCanvas />
+            <div className="mobile-watch-actions">
+              {ghostEpisode != null && <button className="secondary-action" onClick={clearGhost}>Stop replay</button>}
+              {status?.training
+                ? <button className="primary-action action-pause" onClick={stopTraining}>Pause training</button>
+                : <a className="primary-action" href="#train">Train this policy</a>}
+              <a className="secondary-action" href="#results">Saved runs & results</a>
+              <p>{status?.training ? "Training continues while you browse. Pausing finishes the current rollout."
+                : "Choose a training budget, or watch a saved policy from Results."}</p>
             </div>
-          </details>
+          </div>
+          <div className="results-screen">
+            <h2 className="mobile-screen-title" id="results-title" tabIndex={-1}>Results</h2>
+            <Leaderboard onWatch={watch} />
+            <EvaluationPanel />
+            <details className="technical-drawer"
+              onToggle={(event) => setShowDiagnostics(event.currentTarget.open)}>
+              <summary>Show learning diagnostics</summary>
+              <div className="technical-drawer-content">
+                <LearningLens />
+                {showDiagnostics && <Suspense fallback={<p>Loading learning charts…</p>}>
+                  <LearningCurve />
+                </Suspense>}
+              </div>
+            </details>
+          </div>
         </main>
 
-        <ScenarioSwitcher />
+        <ScenarioSwitcher onSelected={watch} />
 
         <aside className="experiment-inspector" aria-label="Experiment setup">
+          <TrainingControls onRun={watch} />
           <ExperimentBrief />
-          <TrainingControls />
         </aside>
       </div>
 
-      <nav className="mobile-setup-dock" aria-label="Quick setup navigation">
-        <a href="#experiment-stage">
-          <span className="dock-glyph dock-glyph-watch" aria-hidden="true">◉</span>
-          <span><small>Live</small><strong>Watch</strong></span>
-        </a>
-        <a href="#experiment-library">
-          <span className="dock-glyph" aria-hidden="true">∿</span>
-          <span><small>Browse</small><strong>Experiment</strong></span>
-        </a>
-        <a href="#run-setup">
-          <span className="dock-glyph dock-glyph-run" aria-hidden="true">▶</span>
-          <span><small>Choose a budget</small><strong>Run setup</strong></span>
-        </a>
+      <nav className="mobile-setup-dock" aria-label="Mobile navigation">
+        {([
+          ["projects", "Projects", "▦"], ["watch", "Watch", "◉"],
+          ["train", "Train", "▷"], ["results", "Results", "▥"],
+        ] as const).map(([view, label, icon]) => (
+          <a key={view} href={`#${view}`} aria-current={mobileView === view ? "page" : undefined}>
+            <span aria-hidden="true">{icon}</span><strong>{label}</strong>
+            {view === "train" && status?.training && <span className="nav-training-dot" aria-label="Training in progress" />}
+          </a>
+        ))}
       </nav>
 
       <footer className="app-footer">

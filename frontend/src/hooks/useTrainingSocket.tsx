@@ -33,14 +33,14 @@ export interface TrainingSocketValue {
   terminalFrameRef: React.RefObject<HeldTerminalFrame | null>;
   /** Active ghost lap trajectory, with the time it was activated. */
   ghostRef: React.RefObject<{ lap: GhostLap; startedAt: number } | null>;
-  startTraining(maxEpisodes: number, checkpointEveryN: number): void;
+  startTraining(maxEpisodes: number, checkpointEveryN: number): boolean;
   stopTraining(): void;
   resetTraining(seed: number): void;
   setGhost(episode: number): void;
   clearGhost(): void;
   loadCheckpoint(episode: number): void;
   restoreArchivedRun(id: string): Promise<void>;
-  selectScenario(id: string): Promise<void>;
+  selectScenario(id: string): Promise<boolean>;
   clearError(): void;
 }
 
@@ -85,8 +85,10 @@ export function TrainingSocketProvider({ children }: { children: React.ReactNode
     if (ws && ws.readyState === WebSocket.OPEN) {
       setLastError(null);
       ws.send(JSON.stringify(msg));
+      return true;
     } else {
       setLastError("The trainer is reconnecting. Try the action again in a moment.");
+      return false;
     }
   }, []);
 
@@ -116,6 +118,7 @@ export function TrainingSocketProvider({ children }: { children: React.ReactNode
       wsRef.current = ws;
 
       ws.onopen = () => {
+        if (closed || wsRef.current !== ws) return;
         setConnected(true);
         setConnectionState("connected");
         connectedOnce.current = true;
@@ -123,6 +126,8 @@ export function TrainingSocketProvider({ children }: { children: React.ReactNode
         retryDelay = 500;
       };
       ws.onclose = () => {
+        // A closing connection from an earlier effect must not clear its replacement.
+        if (closed || wsRef.current !== ws) return;
         setConnected(false);
         setConnectionState(connectedOnce.current ? "reconnecting" : "connecting");
         wsRef.current = null;
@@ -132,6 +137,7 @@ export function TrainingSocketProvider({ children }: { children: React.ReactNode
         }
       };
       ws.onmessage = (event) => {
+        if (closed || wsRef.current !== ws) return;
         let msg: ServerMessage;
         try {
           msg = JSON.parse(event.data) as ServerMessage;
@@ -343,11 +349,14 @@ export function TrainingSocketProvider({ children }: { children: React.ReactNode
         });
         if (!res.ok) {
           setLastError(`The experiment could not be opened (${res.status}). Try again.`);
+          return false;
         } else {
           setLastError(null);
+          return true;
         }
       } catch {
         setLastError("The experiment could not be opened because the trainer is offline.");
+        return false;
       }
     },
     clearError: () => setLastError(null),

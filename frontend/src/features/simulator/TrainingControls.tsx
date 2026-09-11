@@ -18,7 +18,7 @@ function durationLabel(seconds: number): string {
   return `About ${(seconds / 3600).toFixed(1)} hr remaining`;
 }
 
-export default function TrainingControls() {
+export default function TrainingControls({ onRun }: { onRun?: () => void }) {
   const {
     status, connected, connectionState, metricLabel, history, checkpoints,
     startTraining, stopTraining, resetTraining, lastError, clearError,
@@ -56,6 +56,7 @@ export default function TrainingControls() {
   };
 
   const watchTraining = () => {
+    onRun?.();
     scrollExperimentStage(
       document.getElementById("experiment-stage"),
       window.matchMedia("(max-width: 900px)").matches,
@@ -70,14 +71,12 @@ export default function TrainingControls() {
     const target = runWindow.resumable
       ? status!.run_target_episode
       : (status?.episode ?? 0) + config.episodes;
-    startTraining(target, config.checkpointEvery);
-    watchTraining();
+    if (startTraining(target, config.checkpointEvery)) watchTraining();
   };
 
   const replaceBudget = () => {
     const config = normalizeRunConfig(episodes, checkpointEvery);
-    startTraining((status?.episode ?? 0) + config.episodes, config.checkpointEvery);
-    watchTraining();
+    if (startTraining((status?.episode ?? 0) + config.episodes, config.checkpointEvery)) watchTraining();
   };
 
   const newRun = () => {
@@ -90,7 +89,7 @@ export default function TrainingControls() {
   return (
     <section className="panel controls-panel" id="run-setup" aria-labelledby="run-title">
       <div className="panel-heading">
-        <div><span className="section-kicker">Run setup</span><h2 id="run-title">Train the policy</h2></div>
+        <div><span className="section-kicker">Run setup</span><h2 id="run-title" tabIndex={-1}>Train the policy</h2></div>
         <span className={`run-badge run-${training ? "live" : connectionState}`} aria-live="polite">
           {training ? "Running" : connectionState === "connected" ? "Ready" : connectionState}
         </span>

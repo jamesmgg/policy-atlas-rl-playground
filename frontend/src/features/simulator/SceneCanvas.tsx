@@ -369,6 +369,12 @@ export default function SceneCanvas() {
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     const draw = () => {
+      // Mobile keeps screens mounted to preserve replay state. Avoid drawing
+      // a hidden simulator while the user browses projects, settings, or results.
+      if (document.hidden || canvas.clientWidth === 0) {
+        timer = window.setTimeout(draw, 200);
+        return;
+      }
       const now = performance.now();
 
       if (now - lastSkidFade > 2000) {

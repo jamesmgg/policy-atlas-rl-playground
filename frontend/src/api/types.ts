@@ -544,3 +544,15 @@ export function focusExperimentHeading(
   target.focus({ preventScroll: true });
   return true;
 }
+
+export type MobileView = "watch" | "projects" | "train" | "results";
+
+export function mobileViewFromHash(hash: string): MobileView {
+  const routes: Record<string, MobileView> = {
+    "#watch": "watch", "#experiment-stage": "watch",
+    "#projects": "projects", "#experiment-library": "projects",
+    "#train": "train", "#run-setup": "train",
+    "#results": "results", "#checkpoints-title": "results",
+  };
+  return routes[hash] ?? "watch";
+}

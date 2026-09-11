@@ -5,6 +5,12 @@ agent's observation → action → reward loop visible while PPO trains, and kee
 training evidence, fixed-suite evaluation results, saved policies, and ghost
 replays in one workspace.
 
+On phones and tablets, use the bottom navigation for **Projects**, **Watch**,
+**Train**, and **Results**. Tap the current project at the top to switch at any
+time. Projects are searchable and grouped by category; starting training or
+choosing a saved replay opens Watch automatically. Desktop keeps the full
+workspace with the project library and training controls alongside the simulator.
+
 The playground currently contains 20 experiments:
 
 - driving tasks, including wet grip, traffic, endurance, efficiency, and drift;

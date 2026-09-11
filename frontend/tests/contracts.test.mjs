@@ -4,6 +4,19 @@ import test from "node:test";
 
 import * as api from "../src/api/types.ts";
 
+test("mobile navigation restores screens from URLs and keeps older setup links usable", () => {
+  assert.equal(typeof api.mobileViewFromHash, "function");
+  for (const view of ["watch", "projects", "train", "results"]) {
+    assert.equal(api.mobileViewFromHash(`#${view}`), view);
+  }
+  assert.equal(api.mobileViewFromHash("#experiment-library"), "projects");
+  assert.equal(api.mobileViewFromHash("#run-setup"), "train");
+  assert.equal(api.mobileViewFromHash("#checkpoints-title"), "results");
+  assert.equal(api.mobileViewFromHash("#experiment-stage"), "watch");
+  assert.equal(api.mobileViewFromHash(""), "watch");
+  assert.equal(api.mobileViewFromHash("#unknown"), "watch");
+});
+
 test("metric formatting is readable across experiment families", () => {
   assert.equal(api.formatMetric(null, "best lap"), "Not measured");
   assert.equal(api.formatMetric(72.345, "best lap"), "72.34 s");
@@ -209,7 +222,7 @@ test("the active experiment is visualization first with diagnostics collapsed", 
     "utf8",
   );
   const simulator = source.indexOf("<SceneCanvas />");
-  const topRuns = source.indexOf("<Leaderboard />");
+  const topRuns = source.indexOf("<Leaderboard ");
   const diagnostics = source.indexOf('<details className="technical-drawer"');
 
   assert.ok(simulator >= 0, "the live simulator must remain on the experiment page");
@@ -292,48 +305,6 @@ test("active experiments are revealed inside their own scroll container", () => 
     { left: 4, top: 7 },
   ), null);
 });
-
-test("mobile users get direct setup anchors without interrupting the experiment stage", () => {
-  const page = readFileSync(
-    new URL("../src/features/simulator/SimulatorPage.tsx", import.meta.url),
-    "utf8",
-  );
-  const switcher = readFileSync(
-    new URL("../src/features/simulator/ScenarioSwitcher.tsx", import.meta.url),
-    "utf8",
-  );
-  const controls = readFileSync(
-    new URL("../src/features/simulator/TrainingControls.tsx", import.meta.url),
-    "utf8",
-  );
-  const styles = readFileSync(
-    new URL("../src/styles/app.css", import.meta.url),
-    "utf8",
-  );
-
-  const simulator = page.indexOf("<SceneCanvas />");
-  const topRuns = page.indexOf("<Leaderboard />");
-  const diagnostics = page.indexOf('<details className="technical-drawer"');
-  const quickNav = page.indexOf('className="mobile-setup-dock"');
-  assert.ok(simulator < topRuns && topRuns < diagnostics && diagnostics < quickNav);
-  assert.match(page, /aria-label="Quick setup navigation"/);
-  assert.match(page, /href="#experiment-stage"/);
-  assert.match(page, /href="#experiment-library"/);
-  assert.match(page, /href="#run-setup"/);
-  assert.match(page, /<strong>Watch<\/strong>/);
-  assert.match(switcher, /id="experiment-library"/);
-  assert.match(switcher, /getRevealScrollPosition/);
-  assert.match(switcher, /scrollExperimentStage/);
-  assert.match(controls, /id="run-setup"/);
-  assert.match(controls, /scrollExperimentStage/);
-  assert.match(styles, /\.mobile-setup-dock\s*\{[^}]*display:\s*none/s);
-  assert.match(
-    styles,
-    /@media \(max-width: 900px\)[\s\S]*?\.mobile-setup-dock\s*\{[^}]*display:\s*grid/s,
-  );
-  assert.match(styles, /\.experiment-stage\s*\{[^}]*scroll-margin-top:\s*82px/s);
-});
-
 test("experiment categories wrap instead of hiding groups off screen", () => {
   const styles = readFileSync(
     new URL("../src/styles/app.css", import.meta.url),
@@ -412,23 +383,6 @@ test("empty experiment searches are announced without making every result noisy"
     /filtered\.length === 0[\s\S]*?className="library-empty" role="status" aria-live="polite"/,
   );
 });
-
-test("phone podiums disclose and snap to off-screen medalists", () => {
-  const leaderboard = readFileSync(
-    new URL("../src/features/simulator/Leaderboard.tsx", import.meta.url),
-    "utf8",
-  );
-  const styles = readFileSync(
-    new URL("../src/styles/app.css", import.meta.url),
-    "utf8",
-  );
-
-  assert.match(leaderboard, /className="podium-scroll-cue"/);
-  assert.match(leaderboard, /Swipe for Silver and Bronze/);
-  assert.match(styles, /scroll-snap-type:\s*x mandatory/);
-  assert.match(styles, /\.podium-card\s*\{[^}]*scroll-snap-align:\s*start/s);
-});
-
 test("Policy Atlas declares a dark instrument theme", () => {
   const styles = readFileSync(
     new URL("../src/styles/app.css", import.meta.url),
