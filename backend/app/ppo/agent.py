@@ -80,7 +80,10 @@ def scale_aware_value_loss(
 class PPOAgent:
     def __init__(self, obs_dim: int, n_continuous: int, n_binary: int,
                  device: torch.device,
-                 actor_initialization: ActorInitialization | None = None):
+                 actor_initialization: ActorInitialization | None = None,
+                 learning_rate: float = LR):
+        if not np.isfinite(learning_rate) or learning_rate <= 0.0:
+            raise ValueError("PPO learning rate must be finite and positive")
         self.device = device
         self.obs_dim = obs_dim
         self.n_continuous = n_continuous
@@ -91,7 +94,8 @@ class PPOAgent:
             n_binary,
             actor_initialization=actor_initialization,
         ).to(device)
-        self.optimizer = torch.optim.Adam(self.network.parameters(), lr=LR, eps=1e-5)
+        self.optimizer = torch.optim.Adam(
+            self.network.parameters(), lr=float(learning_rate), eps=1e-5)
 
     @property
     def act_dim(self) -> int:

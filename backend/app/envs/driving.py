@@ -231,6 +231,7 @@ class DrivingFeatures:
     fuel: FuelConfig | None = None
     bots: tuple[Bot, ...] = ()
     metric: str = "lap"              # "lap" | "style" | "tank" | "overtakes"
+    guidance_observations: bool = False
 
 
 @dataclass
@@ -256,7 +257,8 @@ class DrivingEnv:
                         + (1 if self.features.fuel else 0)
                         + (4 * len(self.features.bots))
                         + (TRAFFIC_GUIDANCE_OBS_DIM
-                           if self.features.metric == "overtakes" else 0)
+                           if (self.features.metric == "overtakes"
+                               or self.features.guidance_observations) else 0)
                         + 1)
         # Per-sample grip from global surface + zones.
         grip = np.full(self.track.n, self.features.global_grip)
@@ -927,7 +929,7 @@ class DrivingEnv:
                 obs[cursor + 2] = bot.lat_frac
                 obs[cursor + 3] = float(self._bot_passed[i])
                 cursor += 4
-        if self.features.metric == "overtakes":
+        if self.features.metric == "overtakes" or self.features.guidance_observations:
             guidance = self.traffic_guidance()
             obs[cursor] = guidance["target_lane_fraction"]
             obs[cursor + 1] = guidance["heading_error_normalized"]
@@ -958,6 +960,16 @@ def traffic_reference_action(env: DrivingEnv) -> np.ndarray:
         1.0,
     )
     return np.array([throttle, steering, 0.0], dtype=np.float32)
+
+
+def guided_reference_action(env: DrivingEnv) -> np.ndarray:
+    """Training-only driving targets; inference always uses the learned actor."""
+    action = traffic_reference_action(env)
+    if env.features.metric == "style":
+        action[2] = float(
+            abs(env.car.slip_angle) < math.radians(8.0)
+            and abs(env.track.curvature[env.idx]) > CORNER_CURV)
+    return action
 
 
 @dataclass

@@ -24,7 +24,7 @@ class ThunderInitializationAblationTests(unittest.TestCase):
         self.assertEqual(thunder.scope, "thunder_oval_only")
         self.assertEqual(thunder.continuous_action_prior, (0.0, 0.0))
         self.assertEqual(thunder.binary_probability_prior, (0.05,))
-        self.assertEqual(thunder.continuous_log_std, (-0.5, -0.5))
+        self.assertEqual(thunder.continuous_log_std, (-2.0, -2.0))
 
         for spec in list_specs():
             if spec.kind == "driving" and spec.id != "thunder-oval":
@@ -99,7 +99,7 @@ class ThunderInitializationAblationTests(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 19)
+        self.assertEqual(protocol["version"], 20)
         self.assertEqual(protocol["actor_initialization"]["scope"],
                          "thunder_oval_only")
         self.assertEqual(protocol["actor_initialization"][

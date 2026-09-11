@@ -1,5 +1,8 @@
 """Explicit contracts for robotics and orbital-control experiments."""
 from ..envs import ball_beam, orbital, robot_arm
+from ..ppo.control_demonstrations import warm_start
+from ..ppo.ballbeam_demonstrations import BALLBEAM_WARM_START
+from ..ppo.initialization import ActorInitialization
 from .spec import ScenarioSpec
 
 
@@ -24,7 +27,14 @@ def robot_spec(tracking):
         actions=("shoulder acceleration command", "elbow acceleration command"),
         reward_terms=("−endpoint distance²", "−0.025 × relative tip speed²", "−0.005 × action norm²", "+30 success"),
         termination_conditions=("tracking horizon" if tracking else "one-second stable reach", "15-second horizon"),
-        training_start_distribution="seeded joint perturbations and reachable target configurations; no demonstrations",
+        training_start_distribution=("seeded joint perturbations and reachable target configurations; no demonstrations" if tracking
+                                     else "unchanged full-task starts after disclosed reference demonstrations and DAgger initialization"),
+        actor_warm_start=None if tracking else warm_start("robot-reach"),
+        actor_initialization=None if tracking else ActorInitialization(
+            scope="robot-reach-only", continuous_action_labels=("shoulder", "elbow"),
+            continuous_action_prior=(0.0, 0.0), continuous_log_std=(-2.5, -2.5)),
+        checkpoint_schema=1 if tracking else 3,
+        training_learning_rate=None if tracking else 3e-5,
         horizon_steps=300, horizon_seconds=15, difficulty="Advanced" if tracking else "Intermediate",
         training_discount_factor=0.995,
         reference_controller="Inverse kinematics with PD joint control and target-velocity feedforward",
@@ -45,7 +55,12 @@ CONTROL_SPECS = [
         actions=("radial thruster acceleration", "along-track thruster acceleration"),
         reward_terms=("−0.05 per step", "−(distance / 60)²", "−0.2 × speed²", "−0.005 × action norm²", "+100 docking / −600 escape"),
         termination_conditions=("10-second stable rendezvous", "140 m escape boundary", "300-second horizon"),
-        training_start_distribution="radial 30–65 m, along-track ±35 m, each velocity ±0.1 m/s; no demonstrations",
+        training_start_distribution="radial 30–65 m, along-track ±35 m, each velocity ±0.1 m/s; disclosed reference demonstrations and DAgger initialization",
+        actor_warm_start=warm_start("orbital-docking"),
+        actor_initialization=ActorInitialization(
+            scope="orbital-docking-only", continuous_action_labels=("radial", "along_track"),
+            continuous_action_prior=(0.0, 0.0), continuous_log_std=(-2.5, -2.5)),
+        checkpoint_schema=2,
         difficulty="Advanced", horizon_steps=600, horizon_seconds=300,
         training_discount_factor=1.0,
         reference_controller="PD rendezvous control with cancellation of the CW orbital terms",
@@ -66,7 +81,12 @@ CONTROL_SPECS = [
         actions=("beam angular acceleration command",),
         reward_terms=("−2 × position error²", "−0.2 × velocity²", "−0.03 × tilt²", "−0.001 × command²", "+30 settled / −200 fell"),
         termination_conditions=("two-second settling dwell", "ball leaves ±1 m beam", "20-second horizon"),
-        training_start_distribution="ball starts within ±0.65 m, target within ±0.3 m, level beam; no demonstrations",
+        training_start_distribution="unchanged ball starts within ±0.65 m, target within ±0.3 m, level beam; disclosed reference demonstrations initialize the actor before PPO",
+        actor_warm_start=BALLBEAM_WARM_START,
+        actor_initialization=ActorInitialization(
+            scope="ball-beam-only", continuous_action_labels=("beam_angular_acceleration",),
+            continuous_action_prior=(0.0,), continuous_log_std=(-2.5,)),
+        checkpoint_schema=2,
         difficulty="Intermediate", horizon_steps=500, horizon_seconds=20,
         reference_controller="Cascaded PD control of ball position and beam tilt",
         model_assumptions=("Solid ball rolling without slip: acceleration = (5/7) g sin(tilt), with linear drag.",

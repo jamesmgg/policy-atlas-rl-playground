@@ -124,3 +124,27 @@ class MountainCarEnv:
         slope = 3.0 * math.cos(3.0 * self.position)
         return [round(x, 1), round(y, 1), round(math.atan2(-slope, 1.0), 3),
                 0.0, round(abs(self.velocity), 3)]
+
+
+def momentum_reference_action(env: MountainCarEnv) -> np.ndarray:
+    """Training-only demonstrations add energy along the current velocity."""
+    return np.array([1.0 if env.velocity > 0.0 else -1.0], dtype=np.float32)
+
+
+def behavior_cloning_dataset() -> tuple[np.ndarray, np.ndarray]:
+    """Canonical training starts, disjoint from selection and held-out seeds."""
+    observations, actions = [], []
+    for index in range(80):
+        env = MountainCarEnv(jitter=True)
+        env.rng.seed(4_100_000 + index)
+        observation = env.reset()
+        for _ in range(env.max_steps):
+            action = momentum_reference_action(env)
+            observations.append(observation.copy())
+            actions.append(action.copy())
+            observation, _, done, _ = env.step(action)
+            if done:
+                break
+        if not env.episode_summary()["success"]:
+            raise RuntimeError(f"Mountain Car demonstration {index} failed")
+    return np.asarray(observations, np.float32), np.asarray(actions, np.float32)

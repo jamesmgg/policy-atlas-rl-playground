@@ -166,7 +166,7 @@ def targeted_invariants() -> None:
 
 def main() -> None:
     specs = list_specs()
-    assert len(specs) == 20, len(specs)
+    assert len(specs) == 23, len(specs)
     print(f"exercising {len(specs)} scenarios:")
     for spec in specs:
         exercise_scenario(spec)

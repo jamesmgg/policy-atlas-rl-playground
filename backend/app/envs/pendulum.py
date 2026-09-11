@@ -89,12 +89,14 @@ class PendulumEnv:
 
     def episode_summary(self) -> dict:
         balance = sum(self._recent) / max(len(self._recent), 1)
+        finished = self.steps >= self.max_steps
+        success = finished and len(self._recent) == 100 and balance > -0.5
         return {
             "reward": round(self.episode_reward, 2),
             "steps": self.steps,
-            "cause": "timeout",
+            "cause": ("balanced" if success else "timeout") if finished else "running",
             "metric": round(balance, 2),  # ~0 means balanced upright
-            "success": balance > -0.5,
+            "success": success,
         }
 
     def ghost_sample(self) -> list[float]:

@@ -767,7 +767,15 @@ class DroneEnv:
         done = False
         captured_waypoint = False
         task_reward = 0.0
-        if d < CAPTURE_DIST:
+        crashed = (abs(self.theta) > TIP_OVER
+                   or self.x < 0 or self.x > 1000
+                   or self.y < 0 or self.y > 700)
+        # Safety limits apply on the capture transition too. Otherwise a
+        # tipped drone can collect the last waypoint and bypass termination.
+        if crashed:
+            task_reward -= TERMINAL_FAILURE_PENALTY
+            done, self.cause = True, "crash"
+        elif d < CAPTURE_DIST:
             captured_waypoint = True
             task_reward += 20.0
             self.k += 1
@@ -782,12 +790,7 @@ class DroneEnv:
                 # while preserving the original successful-course score.
                 task_reward += 50.0 - self._completion_regularizer
                 done, self.cause = True, "complete"
-        if not done and (abs(self.theta) > TIP_OVER
-                         or self.x < 0 or self.x > 1000
-                         or self.y < 0 or self.y > 700):
-            task_reward -= TERMINAL_FAILURE_PENALTY
-            done, self.cause = True, "crash"
-        elif not done and self.steps >= self.max_steps:
+        if not done and self.steps >= self.max_steps:
             task_reward -= TERMINAL_FAILURE_PENALTY
             done, self.cause = True, "timeout"
 

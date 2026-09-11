@@ -87,6 +87,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"],
 class StartRequest(BaseModel):
     max_episodes: int | None = Field(default=None, ge=1, le=1_000_000)
     checkpoint_every_n: int | None = Field(default=None, ge=1, le=100_000)
+    pause_on_success: bool = False
 
 
 class ResetRequest(BaseModel):
@@ -207,7 +208,7 @@ async def api_evaluation(req: EvaluationRequest):
 
 @app.post("/api/training/start")
 def api_start(req: StartRequest):
-    started = trainer.start(req.max_episodes, req.checkpoint_every_n)
+    started = trainer.start(req.max_episodes, req.checkpoint_every_n, req.pause_on_success)
     if not started:
         raise HTTPException(409, "training already running")
     return trainer.status()
@@ -263,7 +264,7 @@ async def handle_client_message(ws: WebSocket, msg: dict) -> None:
         mtype = msg.get("type")
         if mtype == "start_training":
             request = StartRequest.model_validate(msg)
-            if not trainer.start(request.max_episodes, request.checkpoint_every_n):
+            if not trainer.start(request.max_episodes, request.checkpoint_every_n, request.pause_on_success):
                 raise ValueError("training already running")
         elif mtype == "stop_training":
             trainer.stop()
@@ -281,6 +282,11 @@ async def handle_client_message(ws: WebSocket, msg: dict) -> None:
             if not ok:
                 await ws.send_text(json.dumps(
                     {"type": "error", "message": f"no ghost lap for episode {msg['episode']}"}))
+        elif mtype == "set_archive_ghost":
+            ok = await asyncio.to_thread(trainer.set_archive_ghost,
+                str(msg["archive_id"]), int(msg["episode"]), str(msg["scenario_id"]))
+            if not ok:
+                raise ValueError("saved replay unavailable for this experiment")
         elif mtype == "clear_ghost":
             trainer.clear_ghost()
         elif mtype == "load_checkpoint":

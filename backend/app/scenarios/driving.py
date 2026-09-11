@@ -30,6 +30,7 @@ from ..envs.driving import (
     traffic_reference_action,
 )
 from ..ppo.demonstrations import BehaviorCloningWarmStart
+from ..ppo.driving_warmstarts import guided_driving_spec
 from ..ppo.initialization import ActorInitialization
 from ..track import Track, build_track
 from .spec import ScenarioSpec
@@ -85,6 +86,8 @@ def _driving_spec(id: str, name: str, group: str, description: str,
                   actor_initialization: ActorInitialization = DRIVING_ACTOR_INITIALIZATION,
                   training_discount_factor: float = 0.995,
                   checkpoint_schema: int = 7) -> ScenarioSpec:
+    if features.metric != "overtakes":
+        features = replace(features, guidance_observations=True)
     if reward.terminal_zero_course_potential:
         reward_terms = [
             "terminal-zero course potential: live progress/checkpoint/lap "
@@ -166,11 +169,12 @@ def _driving_spec(id: str, name: str, group: str, description: str,
             f"traffic {index + 1} lateral lane fraction",
             f"traffic {index + 1} already passed",
         ))
-    if features.metric == "overtakes":
+    if features.metric == "overtakes" or features.guidance_observations:
+        guidance_prefix = "Traffic" if features.metric == "overtakes" else "Geometric"
         observation_dimensions.extend((
-            "Traffic pursuit target lane fraction",
-            "Traffic pursuit heading error / max steering angle",
-            "Traffic physics speed target / max speed",
+            f"{guidance_prefix} pursuit target lane fraction",
+            f"{guidance_prefix} pursuit heading error / max steering angle",
+            f"{guidance_prefix} physics speed target / max speed",
         ))
     observation_dimensions.append("remaining horizon fraction")
     if (training_rolling_checkpoints is not None
@@ -232,7 +236,8 @@ def _driving_spec(id: str, name: str, group: str, description: str,
         success=success,
         observations=("speed and lateral slip", "track offset and heading error",
                       "five curvature look-aheads", "current and upcoming grip",
-                      "fuel or every traffic car when present"),
+                      "fuel or every traffic car when present",
+                      "geometric lane, heading, and braking-envelope speed targets"),
         observation_dimensions=tuple(observation_dimensions),
         actions=("throttle / brake", "steering", "drift toggle"),
         reward_terms=tuple(reward_terms),
@@ -605,4 +610,9 @@ DRIVING_SPECS: list[ScenarioSpec] = [
         training_schedule=TRAFFIC_TRAINING_SCHEDULE,
         actor_warm_start=TRAFFIC_ACTOR_WARM_START,
     ),
+]
+
+DRIVING_SPECS = [
+    guided_driving_spec(spec) if spec.id != "traffic-rush" else spec
+    for spec in DRIVING_SPECS
 ]

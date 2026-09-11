@@ -49,8 +49,8 @@ class DriftProgressAblationTests(unittest.TestCase):
         )
 
     def test_drift_reward_revision_uses_a_fresh_checkpoint_schema(self) -> None:
-        self.assertEqual(self.spec.checkpoint_schema, 8)
-        self.assertEqual(self.specs["rally-ridge"].checkpoint_schema, 7)
+        self.assertEqual(self.spec.checkpoint_schema, 9)
+        self.assertEqual(self.specs["rally-ridge"].checkpoint_schema, 8)
         self.assertEqual(self.specs["traffic-rush"].checkpoint_schema, 18)
 
     def test_other_driving_reward_contracts_are_explicit(self) -> None:
@@ -80,7 +80,7 @@ class DriftProgressAblationTests(unittest.TestCase):
         fixed = self.spec.make_env(False)
         training = self.spec.make_training_env()
 
-        self.assertEqual(fixed.obs_dim, 26)
+        self.assertEqual(fixed.obs_dim, 29)
         self.assertEqual((fixed.n_continuous, fixed.n_binary), (2, 1))
         self.assertEqual((self.spec.horizon_steps, self.spec.horizon_seconds),
                          (1500, 60.0))

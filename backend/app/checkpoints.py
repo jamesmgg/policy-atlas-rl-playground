@@ -140,6 +140,8 @@ class CheckpointRegistry:
                 "agent": agent.state_dict(),
                 "history": history,
                 "trajectory": eval_result["trajectory"],
+                "replay_frames": eval_result.get("replay_frames", []),
+                "canonical_summary": eval_result.get("canonical_summary"),
                 "update_count": int(eval_result.get("update_count", 0)),
                 "total_steps": eval_result.get("total_steps"),
                 "rng_state": eval_result.get("rng_state"),
@@ -333,8 +335,19 @@ class CheckpointRegistry:
                     "timestamp": latest.get("timestamp"),
                     "schema_version": int(latest["schema_version"]),
                     "compatible": compatible,
+                    "requalification": (latest.get("protocol") or {}).get("requalification"),
                 })
         return runs
+
+    def load_archive(self, archive_id: str, episode: int) -> dict:
+        """Read a validated saved replay without replacing the active branch."""
+        if (not archive_id or Path(archive_id).name != archive_id
+                or archive_id in {".", ".."} or archive_id.startswith("invalid-")
+                or "/" in archive_id or "\\" in archive_id):
+            raise ValueError("invalid archived run id")
+        directory = self.dir / "archive" / archive_id
+        return self._load_pair(directory / self._json(episode).name,
+                               directory / self._pt(episode).name, episode)
 
     def restore_archive(self, archive_id: str, *, expected_engine: str | None = None,
                         expected_evaluation_suite: str | None = None) -> bool:

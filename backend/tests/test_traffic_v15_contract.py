@@ -486,7 +486,7 @@ class TrafficV15ContractTests(unittest.TestCase):
 
         self.assertEqual(self.spec.checkpoint_schema, 18)
         self.assertEqual(meta["schema_version"], 18)
-        self.assertEqual(meta["protocol"]["version"], 19)
+        self.assertEqual(meta["protocol"]["version"], 20)
         self.assertEqual(meta["protocol"]["training_curriculum"],
                          curriculum.protocol())
         self.assertEqual(
@@ -515,10 +515,10 @@ class TrafficV15ContractTests(unittest.TestCase):
         curriculum_env_type = getattr(driving, "TrafficCurriculumEnv", None)
         self.assertIsNotNone(curriculum_env_type)
         expected_schemas = {
-            "apex-gp": 7, "velocita": 7, "grandville": 7,
-            "thunder-oval": 7, "apex-gp-wet": 9, "glacier": 7,
-            "rally-ridge": 7, "kart-sprint": 7, "drift-trial": 8,
-            "eco-gp": 7,
+            "apex-gp": 8, "velocita": 8, "grandville": 8,
+            "thunder-oval": 8, "apex-gp-wet": 10, "glacier": 8,
+            "rally-ridge": 8, "kart-sprint": 8, "drift-trial": 9,
+            "eco-gp": 8,
         }
         driving_specs = {spec.id: spec for spec in list_specs()
                          if spec.kind == "driving"}

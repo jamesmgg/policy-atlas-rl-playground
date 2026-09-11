@@ -278,7 +278,7 @@ def evaluate_training_control(control, training_env, agent) -> dict:
 
 
 class Trainer:
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, *, initialize_actor: bool = True):
         self.settings = settings
         torch.set_num_threads(settings.cpu_threads)
         if settings.use_gpu and torch.cuda.is_available():
@@ -299,7 +299,7 @@ class Trainer:
         self._lock = threading.Lock()
 
         self._state_path = settings.checkpoint_dir / "state.json"
-        self._load_scenario(self._read_active_scenario())
+        self._load_scenario(self._read_active_scenario(), initialize_actor=initialize_actor)
 
     # ---------------------------------------------------------- scenario state
 
@@ -315,7 +315,7 @@ class Trainer:
         self._state_path.parent.mkdir(parents=True, exist_ok=True)
         self._state_path.write_text(json.dumps({"active_scenario": self.spec.id}))
 
-    def _load_scenario(self, scenario_id: str) -> None:
+    def _load_scenario(self, scenario_id: str, *, initialize_actor: bool = True) -> None:
         """Build env/agent/registry for a scenario. Caller holds the lock (or init)."""
         self.spec = get_spec(scenario_id)
         seed_everything(self.seed)
@@ -325,8 +325,10 @@ class Trainer:
             reset_training_environment(self.env, 1)
         self.agent = PPOAgent(self.env.obs_dim, self.env.n_continuous,
                               self.env.n_binary, self.device,
-                              actor_initialization=self.spec.actor_initialization)
+                              actor_initialization=self.spec.actor_initialization,
+                                  learning_rate=self.spec.training_learning_rate or ppo_defaults.LR)
         self.actor_warm_start_diagnostics = None
+        self.inherited_policy_origin = None
         self.registry = CheckpointRegistry(
             self.settings.checkpoint_dir, self.spec.id, self.spec.checkpoint_schema)
         self.episode = 0
@@ -341,11 +343,13 @@ class Trainer:
         self.latest_update_metrics: dict[str, float] | None = None
         restored = self._restore_latest()
         warm_start = getattr(self.spec, "actor_warm_start", None)
-        if not restored and warm_start is not None:
+        if not restored and initialize_actor and warm_start is not None:
             self.actor_warm_start_diagnostics = warm_start.apply(self.agent)
         self.last_error = None
         self.run_start_episode = self.episode
         self.run_target_episode = self.episode
+        self.pause_on_success = False
+        self.pause_reason = None
         self._write_active_scenario()
 
     def switch_scenario(self, scenario_id: str) -> bool:
@@ -367,7 +371,7 @@ class Trainer:
                        "checkpoints": self.registry.list()})
             self.emit({"type": "history", "scenario_id": self.spec.id,
                        "history": decimate(self.history)})
-            self.emit({"type": "ghost_clear"})
+            self.emit({"type": "ghost_clear", "scenario_id": self.spec.id})
             return True
 
     # ---------------------------------------------------------------- control
@@ -377,7 +381,8 @@ class Trainer:
         return self._thread is not None and self._thread.is_alive()
 
     def start(self, max_episodes: int | None = None,
-              checkpoint_every_n: int | None = None) -> bool:
+              checkpoint_every_n: int | None = None,
+              pause_on_success: bool = False) -> bool:
         with self._lock:
             if self.running:
                 return False
@@ -390,6 +395,8 @@ class Trainer:
                 self.run_start_episode = self.episode
             self.run_target_episode = target
             self.max_episodes = target
+            self.pause_on_success = bool(pause_on_success)
+            self.pause_reason = None
             if checkpoint_every_n is not None:
                 self.checkpoint_every_n = max(1, checkpoint_every_n)
             self._stop.clear()
@@ -424,7 +431,8 @@ class Trainer:
                 env.rng.seed(self.seed)
             self.agent = PPOAgent(env.obs_dim, env.n_continuous, env.n_binary,
                                   self.device,
-                                  actor_initialization=self.spec.actor_initialization)
+                                  actor_initialization=self.spec.actor_initialization,
+                                  learning_rate=self.spec.training_learning_rate or ppo_defaults.LR)
             warm_start = getattr(self.spec, "actor_warm_start", None)
             self.actor_warm_start_diagnostics = (
                 warm_start.apply(self.agent) if warm_start is not None else None)
@@ -433,6 +441,7 @@ class Trainer:
             self.update_count = 0
             self.run_start_episode = 0
             self.run_target_episode = 0
+            self.inherited_policy_origin = None
             self.history = []
             self.best_reward = None
             self.best_metric = None
@@ -440,6 +449,7 @@ class Trainer:
             self._learning = None
             self.latest_update_metrics = None
             self.last_error = None
+            self.pause_reason = None
             reset_curriculum = getattr(env, "reset_training_curriculum", None)
             if callable(reset_curriculum):
                 reset_curriculum()
@@ -448,7 +458,7 @@ class Trainer:
             self.emit({"type": "history", "scenario_id": self.spec.id, "history": []})
             self.emit({"type": "checkpoint_list", "scenario_id": self.spec.id,
                        "checkpoints": []})
-            self.emit({"type": "ghost_clear"})
+            self.emit({"type": "ghost_clear", "scenario_id": self.spec.id})
             return True
 
     def load_checkpoint(self, episode: int) -> bool:
@@ -465,6 +475,7 @@ class Trainer:
             # Loading an older policy creates a new branch. Preserve its newer
             # descendants before their episode-numbered files can be replaced.
             self.registry.archive_after(episode)
+            self.inherited_policy_origin = checkpoint_origin(data)
             self.history = data.get("history", [])
             self.episode = episode
             self.run_start_episode = episode
@@ -482,28 +493,47 @@ class Trainer:
             self.latest_update_metrics = data.get("meta", {}).get(
                 "training_diagnostics")
             self.ghost = None
+            self.pause_reason = None
             self._recompute_bests()
             self._emit_status()
             self.emit({"type": "history", "scenario_id": self.spec.id,
                        "history": decimate(self.history)})
             self.emit({"type": "checkpoint_list", "scenario_id": self.spec.id,
                        "checkpoints": self.registry.list()})
-            self.emit({"type": "ghost_clear"})
+            self.emit({"type": "ghost_clear", "scenario_id": self.spec.id})
             return True
 
     def set_ghost(self, episode: int) -> bool:
+        with self._lock:
+            return self._activate_saved_checkpoint(episode)
+
+    def _activate_saved_checkpoint(self, episode: int) -> bool:
+        """Caller owns the scenario or holds its lock; safe during trainer shutdown."""
         data = self.registry.load(episode)
+        return self._show_saved_replay(data, episode)
+
+    def set_archive_ghost(self, archive_id: str, episode: int, scenario_id: str) -> bool:
+        with self._lock:
+            if scenario_id != self.spec.id:
+                return False
+            data = self.registry.load_archive(archive_id, episode)
+            return self._show_saved_replay(data, episode, archive_id)
+
+    def _show_saved_replay(self, data: dict, episode: int, archive_id: str | None = None) -> bool:
         trajectory = data.get("trajectory") or []
         if not trajectory:
             return False
-        self.ghost = {"episode": episode, "dt": self.env.dt,
+        self.ghost = {"episode": episode, "scenario_id": self.spec.id,
+                      "archive_id": archive_id, "dt": self.env.dt,
                       "trajectory": trajectory}
+        if data.get("replay_frames"):
+            self.ghost["frames"] = data["replay_frames"]
         self.emit({"type": "ghost_lap", **self.ghost})
         return True
 
     def clear_ghost(self) -> None:
         self.ghost = None
-        self.emit({"type": "ghost_clear"})
+        self.emit({"type": "ghost_clear", "scenario_id": self.spec.id})
 
     def restore_archive(self, archive_id: str) -> bool:
         """Swap a recoverable run branch into the active workspace."""
@@ -521,7 +551,7 @@ class Trainer:
                        "checkpoints": self.registry.list()})
             self.emit({"type": "history", "scenario_id": self.spec.id,
                        "history": decimate(self.history)})
-            self.emit({"type": "ghost_clear"})
+            self.emit({"type": "ghost_clear", "scenario_id": self.spec.id})
             return True
 
     def status(self) -> dict:
@@ -532,6 +562,8 @@ class Trainer:
             "metric_label": self.spec.metric_label,
             "metric_mode": self.spec.metric_mode,
             "training": self.running,
+            "pause_on_success": getattr(self, "pause_on_success", False),
+            "pause_reason": getattr(self, "pause_reason", None),
             "last_error": getattr(self, "last_error", None),
             "cpu_threads": torch.get_num_threads(),
             "episode": self.episode,
@@ -698,6 +730,15 @@ class Trainer:
         self.emit({"type": "checkpoint_list", "scenario_id": self.spec.id,
                    "checkpoints": self.registry.list()})
 
+        # Freeze the just-saved policy before another optimizer update can
+        # degrade it. This is fixed-suite selection, not a holdout guarantee.
+        if (getattr(self, "pause_on_success", False)
+                and meta.eval_episodes >= 10 and meta.success_rate == 1.0
+                and getattr(self, "latest_replay_success", False)):
+            self.pause_reason = "fixed_test_success"
+            self._stop.set()
+            self._activate_saved_checkpoint(meta.episode)
+
     def _save_checkpoint_transaction(self, rng_state: dict):
         """Evaluate, advance training gates, and durably save as one unit."""
         control_result = None
@@ -776,14 +817,17 @@ class Trainer:
                 if getattr(self.spec, "actor_warm_start", None) is not None
                 else "PPO"
             ),
-            "version": 19,
+            "version": 20,
+            "inherited_policy_origin": getattr(self, "inherited_policy_origin", None),
+            "pause_on_success": getattr(self, "pause_on_success", False),
+            "success_stop_rule": "saved checkpoint passes all >=10 fixed test starts and canonical replay",
             "kl_stop_timing": "before_optimizer_step",
             "cpu_threads": torch.get_num_threads(),
             "rollout_steps": ROLLOUT_STEPS,
             "episode_aligned_rollouts": True,
             "gamma": scenario_discount_factor(self.spec),
             "gae_lambda": GAE_LAMBDA,
-            "learning_rate": ppo_defaults.LR,
+            "learning_rate": self.agent.optimizer.param_groups[0]["lr"],
             "clip_epsilon": ppo_defaults.CLIP_EPS,
             "entropy_coefficient": ppo_defaults.ENT_COEF,
             "value_coefficient": ppo_defaults.VF_COEF,
@@ -848,8 +892,10 @@ class Trainer:
             "torch_version": str(torch.__version__),
         }
         eval_result["rng_state"] = rng_state
-        return self.registry.save(
+        meta = self.registry.save(
             self.episode, self.agent, self.history, eval_result)
+        self.latest_replay_success = bool(eval_result.get("canonical_summary", {}).get("success", False))
+        return meta
 
     def _run_training_curriculum_eval(self) -> dict | None:
         curriculum = getattr(self.spec, "training_curriculum", None)
@@ -901,10 +947,20 @@ class Trainer:
         canonical = self.spec.make_env(False)
         obs = canonical.reset()
         trajectory: list[list[float]] = []
+        replay_frames: list[dict] = []
         for _ in range(canonical.max_steps):
             action = deterministic_action(self.agent, obs)
             obs, _, done, _ = canonical.step(action)
             trajectory.append(canonical.ghost_sample())
+            summary = canonical.episode_summary()
+            replay_frames.append({
+                "type": "frame", "scenario_id": self.spec.id,
+                "episode": self.episode,
+                "episode_reward": round(canonical.episode_reward, 3),
+                "terminal": done, "cause": summary["cause"] if done else None,
+                "terminal_steps": summary["steps"] if done else None,
+                **canonical.frame_payload(),
+            })
             if done:
                 break
 
@@ -922,6 +978,8 @@ class Trainer:
             "evaluation_suite": evaluation_suite_id(self.settings.eval_episodes),
             "seed": self.seed,
             "trajectory": trajectory,
+            "replay_frames": replay_frames,
+            "canonical_summary": canonical.episode_summary(),
         }
 
     # ----------------------------------------------------------------- emits
@@ -958,6 +1016,7 @@ class Trainer:
                     expected_evaluation_suite=evaluation_suite_id(
                         self.settings.eval_episodes),
                 )
+                self.inherited_policy_origin = checkpoint_origin(data)
                 self.history = data.get("history", [])
                 self.episode = latest
                 stored_steps = data.get("total_steps")
@@ -1025,3 +1084,9 @@ def decimate(history: list[dict], max_points: int = 2000) -> list[dict]:
         return history
     stride = len(history) / max_points
     return [history[int(i * stride)] for i in range(max_points)]
+
+
+def checkpoint_origin(data: dict) -> dict | None:
+    """Retain the original imported lineage through later PPO checkpoints."""
+    protocol = data.get("meta", {}).get("protocol") or {}
+    return protocol.get("inherited_policy_origin") or protocol.get("origin")

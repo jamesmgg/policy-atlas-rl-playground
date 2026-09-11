@@ -452,7 +452,7 @@ class TrafficStageCurriculumAblationTests(unittest.TestCase):
                 "successful_completion": "elapsed live-step time cost only",
             },
         )
-        self.assertEqual(protocol["version"], 19)
+        self.assertEqual(protocol["version"], 20)
         self.assertEqual(protocol["gamma"], 1.0)
         self.assertEqual(protocol["task_horizon_steps"], 2250)
         self.assertEqual(protocol["task_horizon_seconds"], 90.0)

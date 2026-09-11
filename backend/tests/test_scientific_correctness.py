@@ -511,7 +511,7 @@ class TestExperimentContract(unittest.TestCase):
         spec = {s.id: s for s in list_specs()}["mountain-car"]
         self.assertEqual(
             spec.checkpoint_schema,
-            3,
+            4,
             "changed metric and finite-horizon observations require a fresh policy",
         )
         mountain = spec.make_env(False)
@@ -604,10 +604,10 @@ class TestExperimentContract(unittest.TestCase):
         self.assertEqual(wet.obs_dim, dry.obs_dim)
         self.assertEqual(
             traffic.obs_dim - dry.obs_dim,
-            15,  # 4 values x 3 bots + 3 Traffic guidance values
+            12,  # 4 values x 3 bots; both now expose 3 guidance values
         )
 
-        first_bot = dry.obs_dim - 1  # traffic fields precede the shared time field
+        first_bot = dry.obs_dim - 4  # bots precede the shared 3 guidance values and clock
         traffic._bot_arcs[0] = (traffic.s_prev - 2.0) % traffic.track.total_length
         self.assertLess(
             float(traffic._obs()[first_bot]), 0.0,
@@ -871,7 +871,7 @@ class TestExperimentContract(unittest.TestCase):
         spec = {spec.id: spec for spec in list_specs()}["rally-ridge"]
         self.assertEqual(
             spec.checkpoint_schema,
-            7,
+            8,
             "changed reward, evaluation, and observation semantics require a fresh policy",
         )
         rally = spec.make_env(False)
@@ -912,7 +912,7 @@ class TestEvaluationProtocol(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 19)
+        self.assertEqual(protocol["version"], 20)
         self.assertEqual(protocol["gamma"], trainer.spec.training_discount_factor)
         self.assertEqual(protocol["training_reward_scale"], 0.01)
         self.assertEqual(protocol["entropy_coefficient"], 0.0)
@@ -1692,6 +1692,7 @@ class TestEvaluationProtocol(unittest.TestCase):
 
         class Agent:
             act_dim = 1
+            optimizer = SimpleNamespace(param_groups=[{"lr": 0.0003}])
 
             def select_action(self, observation, deterministic=False):
                 return np.array([0.0], dtype=np.float32), 0.0, 0.0
@@ -1761,6 +1762,7 @@ class TestEvaluationProtocol(unittest.TestCase):
 
         class Agent:
             act_dim = 1
+            optimizer = SimpleNamespace(param_groups=[{"lr": 0.0003}])
 
             def select_action(self, observation, deterministic=False):
                 return np.array([0.0], dtype=np.float32), 0.0, 0.0

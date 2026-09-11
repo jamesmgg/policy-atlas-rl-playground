@@ -70,6 +70,7 @@ class TrainerAuditTests(unittest.TestCase):
     def test_restoring_a_policy_does_not_retrain_its_demonstration_warm_start(self):
         from app.ppo.demonstrations import BehaviorCloningWarmStart
         with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "state.json").write_text('{"active_scenario":"drone-hover"}')
             settings = Settings(8901, Path(tmp), 50, 1, False, eval_episodes=1)
             with patch.object(BehaviorCloningWarmStart, "apply", return_value={"samples": 123}) as warm:
                 trainer = Trainer(settings)

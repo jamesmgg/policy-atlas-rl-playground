@@ -536,8 +536,8 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
             meta = trainer.registry.list()[0]
             payload = trainer.registry.load(25)
 
-        self.assertEqual(meta["schema_version"], 11)
-        self.assertEqual(meta["protocol"]["version"], 19)
+        self.assertEqual(meta["schema_version"], 12)
+        self.assertEqual(meta["protocol"]["version"], 20)
         self.assertEqual(meta["protocol"]["gamma"], 1.0)
         self.assertEqual(meta["protocol"]["training_curriculum"],
                          EXPECTED_CURRICULUM_PROTOCOL)
@@ -567,7 +567,7 @@ class TestLanderGatedAltitudeCurriculum(unittest.TestCase):
         self.assertEqual(self.spec.training_start_distribution,
                          expected_distribution)
         self.assertEqual(self.curriculum.protocol(), EXPECTED_CURRICULUM_PROTOCOL)
-        self.assertEqual(self.spec.checkpoint_schema, 11)
+        self.assertEqual(self.spec.checkpoint_schema, 12)
         self.assertEqual(self.spec.actor_initialization.continuous_log_std,
                          (-1.2, -1.2))
 

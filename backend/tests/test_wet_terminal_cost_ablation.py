@@ -65,7 +65,7 @@ class WetTerminalCostAblationTests(unittest.TestCase):
                 "reward": 1.0, "metric": None, "trajectory": [],
             })
 
-            self.assertEqual(self.wet.checkpoint_schema, 9)
+            self.assertEqual(self.wet.checkpoint_schema, 10)
             self.assertEqual(current.list(), [])
             with self.assertRaises(IncompatibleCheckpointError):
                 current.load_into(

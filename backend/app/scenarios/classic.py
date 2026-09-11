@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 from ..envs import cartpole, drone, lander, mountain_car, pendulum
+from ..envs import lander_demonstrations
 from ..ppo.demonstrations import BehaviorCloningWarmStart
 from ..ppo.initialization import ActorInitialization
+from ..ppo.classic_warmstarts import MOUNTAIN_CAR_ACTOR_INITIALIZATION, MOUNTAIN_CAR_ACTOR_WARM_START
 from .spec import ScenarioSpec
 
 
@@ -15,6 +17,24 @@ LANDER_ACTOR_INITIALIZATION = ActorInitialization(
     ),
     continuous_action_prior=(0.0, 0.0),
     continuous_log_std=(-1.2, -1.2),
+)
+
+LANDER_ACTOR_WARM_START = BehaviorCloningWarmStart(
+    id="lander-physics-demonstrations-v1",
+    expert_id="lander-braking-envelope-pd-v1",
+    expert_description=(
+        "physics feedback tracks a 60-unit/s cruise and 10-unit/s² braking "
+        "envelope toward 5-unit/s touchdown, with envelope feed-forward and "
+        "lateral/attitude PD control; generates training targets only and "
+        "is absent at inference"),
+    dataset_seed_base=lander_demonstrations.DATASET_SEED_BASE,
+    dataset_episodes=lander_demonstrations.DATASET_EPISODES,
+    dataset_start_description=(
+        "80 canonical full-height starts and 20 at each of four altitude "
+        "frontiers, alternating canonical and curriculum starts; fixed sample "
+        "permutation with dataset seed, disjoint from selection and holdout"),
+    dataset_builder=lander_demonstrations.behavior_cloning_dataset,
+    continuous_action_labels=("main_engine_throttle", "side_thruster_command"),
 )
 
 DRONE_ACTOR_INITIALIZATION = ActorInitialization(
@@ -71,8 +91,9 @@ CLASSIC_SPECS: list[ScenarioSpec] = [
         difficulty="Advanced", horizon_steps=lander.LanderEnv.max_steps,
         horizon_seconds=lander.LanderEnv.max_steps * lander.LanderEnv.dt,
         actor_initialization=LANDER_ACTOR_INITIALIZATION,
+        actor_warm_start=LANDER_ACTOR_WARM_START,
         training_discount_factor=1.0,
-        checkpoint_schema=11),
+        checkpoint_schema=12),
     ScenarioSpec(
         id="pendulum-swingup", name="Pendulum Swing-Up", group="Classic",
         kind="generic",
@@ -90,7 +111,7 @@ CLASSIC_SPECS: list[ScenarioSpec] = [
         termination_conditions=("fixed 16-second horizon",),
         difficulty="Intermediate", horizon_steps=pendulum.PendulumEnv.max_steps,
         horizon_seconds=pendulum.PendulumEnv.max_steps * pendulum.PendulumEnv.dt,
-        checkpoint_schema=2),
+        checkpoint_schema=3),
     ScenarioSpec(
         id="drone-hover", name="Drone Course", group="Classic",
         kind="generic",
@@ -130,7 +151,7 @@ CLASSIC_SPECS: list[ScenarioSpec] = [
         training_discount_factor=1.0,
         actor_initialization=DRONE_ACTOR_INITIALIZATION,
         actor_warm_start=DRONE_ACTOR_WARM_START,
-        checkpoint_schema=17),
+        checkpoint_schema=18),
     ScenarioSpec(
         id="cartpole-balance", name="Continuous Cart-Pole", group="Foundations",
         kind="generic",
@@ -167,5 +188,7 @@ CLASSIC_SPECS: list[ScenarioSpec] = [
         termination_conditions=("position reaches 0.45", "999-control-step horizon"),
         difficulty="Introductory", horizon_steps=mountain_car.MountainCarEnv.max_steps,
         horizon_seconds=None,
-        checkpoint_schema=3),
+        actor_initialization=MOUNTAIN_CAR_ACTOR_INITIALIZATION,
+        actor_warm_start=MOUNTAIN_CAR_ACTOR_WARM_START,
+        checkpoint_schema=4),
 ]

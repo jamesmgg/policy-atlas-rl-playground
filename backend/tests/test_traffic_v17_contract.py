@@ -327,7 +327,7 @@ class TrafficV17ContractTests(unittest.TestCase):
             meta = trainer.registry.list()[0]
 
             self.assertEqual(meta["schema_version"], 18)
-            self.assertEqual(meta["protocol"]["version"], 19)
+            self.assertEqual(meta["protocol"]["version"], 20)
             self.assertEqual(meta["protocol"]["algorithm"],
                              "demonstration-assisted PPO")
             self.assertEqual(meta["protocol"]["actor_warm_start"], {

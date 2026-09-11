@@ -112,7 +112,7 @@ class WetHorizonAblationTests(unittest.TestCase):
                 "reward": 1.0, "metric": None, "trajectory": [],
             })
 
-            self.assertEqual(self.wet.checkpoint_schema, 9)
+            self.assertEqual(self.wet.checkpoint_schema, 10)
             self.assertEqual(current.list(), [])
             with self.assertRaises(IncompatibleCheckpointError):
                 current.load_into(
@@ -153,7 +153,7 @@ class WetHorizonAblationTests(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 19)
+        self.assertEqual(protocol["version"], 20)
         self.assertEqual(protocol["task_horizon_steps"], 2250)
         self.assertEqual(protocol["task_horizon_seconds"], 90.0)
 

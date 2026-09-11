@@ -28,7 +28,7 @@ EXPECTED_DRIVING_PROTOCOL = {
     "continuous_action_labels": ["throttle_brake", "steering"],
     "continuous_action_prior": [0.25, 0.0],
     "continuous_latent_bias": [math.atanh(0.25), 0.0],
-    "continuous_log_std": [-0.5, -0.5],
+    "continuous_log_std": [-2.0, -2.0],
     "continuous_head_weight_std": 0.01,
     "binary_action_labels": ["drift"],
     "binary_probability_prior": [0.05],
@@ -112,7 +112,7 @@ class TestDrivingActorInitialization(unittest.TestCase):
         )
         torch.testing.assert_close(
             agent.network.log_std,
-            torch.tensor([-0.5, -0.5]),
+            torch.tensor([-2.0, -2.0]),
         )
         self.assertIsNotNone(agent.network.drift_logit)
         torch.testing.assert_close(
@@ -124,7 +124,7 @@ class TestDrivingActorInitialization(unittest.TestCase):
         np.testing.assert_allclose(action, [0.25, 0.0, 0.0], atol=1e-7)
 
     def test_non_driving_agent_keeps_zero_continuous_default(self) -> None:
-        spec = get_spec("mountain-car")
+        spec = get_spec("cartpole-balance")
         self.assertIsNone(getattr(spec, "actor_initialization", None))
         env = spec.make_env(False)
         agent = PPOAgent(
@@ -210,7 +210,7 @@ class TestDrivingActorInitialization(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 19)
+        self.assertEqual(protocol["version"], 20)
         self.assertEqual(protocol["actor_initialization"], EXPECTED_DRIVING_PROTOCOL)
 
 
@@ -251,7 +251,7 @@ class TestLanderExplorationInitialization(unittest.TestCase):
 
     def test_scenarios_without_a_specialized_prior_keep_log_std_minus_point_five(self) -> None:
         for spec in list_specs():
-            if spec.id in {self.spec.id, "drone-hover", "traffic-rush"}:
+            if spec.id == self.spec.id or spec.actor_warm_start is not None:
                 continue
             env = spec.make_env(False)
             initialization = (
@@ -324,7 +324,7 @@ class TestLanderExplorationInitialization(unittest.TestCase):
             trainer._save_checkpoint()
             protocol = trainer.registry.list()[0]["protocol"]
 
-        self.assertEqual(protocol["version"], 19)
+        self.assertEqual(protocol["version"], 20)
         self.assertEqual(protocol["actor_initialization"], EXPECTED_LANDER_PROTOCOL)
 
 

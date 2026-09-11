@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 from typing import Callable
 
 from ..envs.base import (
@@ -43,6 +44,9 @@ class ScenarioSpec:
     # PPO default; finite-horizon tasks may explicitly optimize undiscounted
     # episode return when delaying failure must not reduce its terminal cost.
     training_discount_factor: float = 0.995
+    # None retains the shared PPO default. Smaller steps can preserve a
+    # demonstrated actor while its initially untrained critic calibrates.
+    training_learning_rate: float | None = None
     # Increment when observations, actions, rewards, optimization, or metric
     # semantics change incompatibly. Old checkpoints remain on disk but are
     # hidden rather than loaded or compared under a different scientific
@@ -50,6 +54,11 @@ class ScenarioSpec:
     checkpoint_schema: int = 1
     reference_controller: str | None = None
     model_assumptions: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        rate = self.training_learning_rate
+        if rate is not None and (not math.isfinite(rate) or rate <= 0.0):
+            raise ValueError("scenario learning rate must be finite and positive")
 
     def make_training_env(self) -> Env:
         """Build the learning environment without changing evaluation starts."""
@@ -69,6 +78,7 @@ class ScenarioSpec:
             "termination_conditions": list(self.termination_conditions),
             "training_start_distribution": self.training_start_distribution,
             "training_discount_factor": self.training_discount_factor,
+            "training_learning_rate": self.training_learning_rate,
             "training_schedule": (
                 self.training_schedule.protocol()
                 if self.training_schedule is not None else None),
