@@ -4,6 +4,22 @@ import test from "node:test";
 
 import * as api from "../src/api/types.ts";
 
+test("saved replay ends on its final frame instead of jumping into another descent", () => {
+  const lap = { episode: 1000, dt: 0.04, trajectory: [
+    [500, 120, 0, 0, 0], [500, 300, 0, 0, 5], [500, 620, 0, 0, 8],
+  ] };
+  const replay = { lap, startedAt: 1000 };
+  assert.equal(typeof api.replayPosition, "function");
+  assert.equal(api.replayPosition(replay, 1000).index, 0);
+  assert.equal(api.replayPosition(replay, 1041).index, 1);
+  assert.equal(api.replayPosition(replay, 1081).index, 2);
+  assert.equal(api.replayPosition(replay, 1081).finished, false);
+  assert.equal(api.replayPosition(replay, 1121).finished, true);
+  assert.deepEqual(api.replayPosition(replay, 5000), api.replayPosition(replay, 1121));
+  assert.equal(api.replayPosition({ ...replay, startedAt: 5000 }, 5000).index, 0);
+  assert.equal(api.replayPosition({ lap: { ...lap, trajectory: [] }, startedAt: 0 }, 0), null);
+});
+
 test("mobile navigation restores screens from URLs and keeps older setup links usable", () => {
   assert.equal(typeof api.mobileViewFromHash, "function");
   for (const view of ["watch", "projects", "train", "results"]) {

@@ -14,7 +14,7 @@ const LearningCurve = lazy(() => import("./LearningCurve"));
 
 export default function SimulatorPage() {
   const { connectionState, currentScenario, scenarios, status, lastError, clearError,
-    ghostEpisode, clearGhost, stopTraining } = useTrainingSocket();
+    stopTraining } = useTrainingSocket();
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [mobileView, setMobileView] = useState(() => mobileViewFromHash(window.location.hash));
 
@@ -88,7 +88,6 @@ export default function SimulatorPage() {
 
             <SceneCanvas />
             <div className="mobile-watch-actions">
-              {ghostEpisode != null && <button className="secondary-action" onClick={clearGhost}>Stop replay</button>}
               {status?.training
                 ? <button className="primary-action action-pause" onClick={stopTraining}>Pause training</button>
                 : <a className="primary-action" href="#train">Train this policy</a>}

@@ -115,6 +115,9 @@ button:disabled { cursor: not-allowed; opacity: 0.48; }
 .app-shell { min-height: 100vh; }
 
 .mobile-setup-dock { display: none; }
+.replay-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.replay-controls p { flex: 1 0 100%; margin: 0; color: var(--muted); font-size: 13px; }
+.replay-controls button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); }
 .mobile-project-switch, .mobile-watch-actions, .mobile-screen-title, .mobile-error { display: none; }
 .watch-screen, .results-screen { display: flex; flex-direction: column; gap: clamp(14px, 1.5vw, 22px); min-width: 0; }
 .library-guidance { margin: 8px 0 0; color: var(--muted); font-size: 13px; }

@@ -545,6 +545,20 @@ export function focusExperimentHeading(
   return true;
 }
 
+export function replayPosition(
+  replay: { lap: GhostLap; startedAt: number }, now: number,
+) {
+  const { lap, startedAt } = replay;
+  if (!lap.trajectory.length || !Number.isFinite(lap.dt) || lap.dt <= 0) return null;
+  const duration = lap.trajectory.length * lap.dt;
+  const elapsed = Math.min(duration, Math.max(0, (now - startedAt) / 1000));
+  return {
+    episode: lap.episode,
+    index: Math.min(lap.trajectory.length - 1, Math.floor(elapsed / lap.dt)),
+    elapsed, duration, finished: elapsed >= duration,
+  };
+}
+
 export type MobileView = "watch" | "projects" | "train" | "results";
 
 export function mobileViewFromHash(hash: string): MobileView {

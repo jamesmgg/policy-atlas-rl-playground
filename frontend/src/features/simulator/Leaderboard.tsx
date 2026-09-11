@@ -48,7 +48,7 @@ export default function Leaderboard({ onWatch }: { onWatch?: () => void }) {
   const resume = (checkpoint: CheckpointMeta) => {
     if (!status || !isComparableCheckpoint(checkpoint, status)) return;
     if (window.confirm(
-      `Resume from episode ${checkpoint.episode}? This replaces the policy currently loaded in memory.`,
+      `Load episode ${checkpoint.episode} for further training? This replaces the current policy and leaves training paused. To see its saved performance, choose Watch replay instead.`,
     )) loadCheckpoint(checkpoint.episode);
   };
 
@@ -127,8 +127,8 @@ export default function Leaderboard({ onWatch }: { onWatch?: () => void }) {
                     <button type="button" disabled={training || !comparable}
                       title={!comparable
                         ? "Different experiment protocol: replay is available, but resume is disabled"
-                        : training ? "Pause training before loading a checkpoint" : "Load weights and continue from here"}
-                      onClick={() => resume(checkpoint)}>Resume</button>
+                        : training ? "Pause training before loading a checkpoint" : "Load this policy for further training; playback uses Watch replay"}
+                      onClick={() => resume(checkpoint)}>Load for training</button>
                   </div>
                 </article>
               );
@@ -227,13 +227,13 @@ export default function Leaderboard({ onWatch }: { onWatch?: () => void }) {
                           <button type="button" className={ghostActive ? "compare-active" : ""}
                             aria-pressed={ghostActive}
                             onClick={() => watchReplay(checkpoint.episode)}>
-                            {ghostActive ? "Hide replay" : "Compare replay"}
+                            {ghostActive ? "Hide replay" : training ? "Compare replay" : "Watch replay"}
                           </button>
                           <button type="button" disabled={training || !comparable}
                             title={!comparable
                               ? "Different experiment protocol: replay is available, but resume is disabled"
-                              : training ? "Pause training before loading a checkpoint" : "Load weights and continue from here"}
-                            onClick={() => resume(checkpoint)}>Resume</button>
+                              : training ? "Pause training before loading a checkpoint" : "Load this policy for further training; playback uses Watch replay"}
+                            onClick={() => resume(checkpoint)}>Load for training</button>
                         </td>
                       </tr>
                     );

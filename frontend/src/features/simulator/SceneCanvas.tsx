@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   displayedEpisodeNumber, formatEpisodeDuration, formatSimulationRate, formatTerminationCause,
-  selectVisibleFrame,
+  selectVisibleFrame, replayPosition,
 } from "../../api/types";
 import type { FrameMsg, GenericObject, SceneData, StaticPrimitive, TrackGeometry, ZoneInfo } from "../../api/types";
 import { useTrainingSocket } from "../../hooks/useTrainingSocket";
@@ -220,7 +220,7 @@ function drawGenericObject(
 export default function SceneCanvas() {
   const {
     frameRef, terminalFrameRef, ghostRef, ghostEpisode, status, ppo,
-    scenarioId, currentScenario,
+    scenarioId, currentScenario, setGhost, clearGhost,
   } = useTrainingSocket();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -231,6 +231,7 @@ export default function SceneCanvas() {
   const [sceneError, setSceneError] = useState<string | null>(null);
   const [sceneAttempt, setSceneAttempt] = useState(0);
   const [telemetry, setTelemetry] = useState<FrameMsg | null>(null);
+  const [playback, setPlayback] = useState<ReturnType<typeof replayPosition>>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenAvailable, setFullscreenAvailable] = useState(false);
   const [fullscreenError, setFullscreenError] = useState<string | null>(null);
@@ -238,6 +239,8 @@ export default function SceneCanvas() {
   const referenceRequest = useRef(0);
   const [referenceState, setReferenceState] = useState<"idle" | "loading" | "playing">("idle");
   const [referenceError, setReferenceError] = useState<string | null>(null);
+  const viewingReplay = ghostEpisode != null && referenceState !== "playing";
+  const replayOnly = viewingReplay && !status?.training;
 
   useEffect(() => {
     referenceRequest.current += 1;
@@ -307,14 +310,20 @@ export default function SceneCanvas() {
   }, [isFullscreen]);
 
   useEffect(() => {
-    const update = () => setTelemetry(referenceFrame(performance.now()) ?? selectVisibleFrame(
-      frameRef.current, terminalFrameRef.current, performance.now(), undefined,
-      status?.training === false,
-    ));
+    const update = () => {
+      const now = performance.now();
+      const ghost = referenceRef.current ? null : ghostRef.current;
+      setPlayback(ghost ? replayPosition(ghost, now) : null);
+      // A saved rollout must never inherit a training episode's outcome or HUD.
+      setTelemetry(ghost && !status?.training ? null : referenceFrame(now) ?? selectVisibleFrame(
+        frameRef.current, terminalFrameRef.current, now, undefined,
+        status?.training === false,
+      ));
+    };
     update();
     const timer = window.setInterval(update, 250);
     return () => window.clearInterval(timer);
-  }, [frameRef, terminalFrameRef, scenarioId, status?.training]);
+  }, [frameRef, terminalFrameRef, ghostRef, ghostEpisode, scenarioId, status?.training, referenceState]);
 
   useEffect(() => {
     if (!scenarioId) return;
@@ -364,6 +373,7 @@ export default function SceneCanvas() {
     let banner: LapBanner | null = null;
     let prevLastLap: number | null | undefined;
     let previousEpisode: number | null = null;
+    let previousGhostStart: number | null = null;
     let raf = 0;
     let timer = 0;
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -386,7 +396,9 @@ export default function SceneCanvas() {
         sctx.restore();
       }
 
-      const frame = referenceFrame(now) ?? selectVisibleFrame(
+      const ghost = referenceRef.current ? null : ghostRef.current;
+      const replayOnly = !!ghost && !status?.training;
+      const frame = replayOnly ? null : referenceFrame(now) ?? selectVisibleFrame(
         frameRef.current, terminalFrameRef.current, now, undefined,
         status?.training === false,
       );
@@ -432,13 +444,13 @@ export default function SceneCanvas() {
       ctx.drawImage(staticLayer, 0, 0, W, H);
       if (scene.kind === "track") ctx.drawImage(skidLayer, 0, 0, W, H);
 
-      // Ghost replay (loops).
-      const ghost = referenceRef.current ? null : ghostRef.current;
-      if (ghost) {
+      // Saved rollouts play once and hold their terminal position.
+      const position = ghost ? replayPosition(ghost, now) : null;
+      if (ghost && position) {
         const { lap, startedAt } = ghost;
-        const n = lap.trajectory.length;
-        const idx = Math.floor(((now - startedAt) / 1000) / lap.dt) % n;
-        const [gx, gy, grot, gd] = lap.trajectory[idx];
+        if (previousGhostStart !== startedAt) ghostTrail.length = 0;
+        previousGhostStart = startedAt;
+        const [gx, gy, grot, gd] = lap.trajectory[position.index];
         const gLast = ghostTrail[ghostTrail.length - 1];
         if (!gLast || (gLast.x - gx) ** 2 + (gLast.y - gy) ** 2 > 4) {
           ghostTrail.push({ x: gx, y: gy, drift: gd });
@@ -446,19 +458,19 @@ export default function SceneCanvas() {
         }
         if (scene.kind === "track") {
           drawTrail(ctx, ghostTrail, COLORS.ghostTrail);
-          drawCar(ctx, gx, gy, grot, COLORS.ghost, 0.55, gd, COLORS.ghost);
+          drawCar(ctx, gx, gy, grot, COLORS.ghost, replayOnly ? 1 : 0.55, gd, COLORS.ghost);
         } else {
           drawTrail(ctx, ghostTrail, COLORS.ghostTrail);
           drawGenericObject(ctx, {
             shape: scene.primary_shape as GenericObject["shape"],
             x: gx, y: gy, rot: grot, joint2: gd,
-          }, 0.5);
+          }, replayOnly ? 1 : 0.5);
         }
       } else {
         ghostTrail.length = 0;
       }
 
-      drawTrail(ctx, liveTrail, COLORS.trail);
+      if (!replayOnly) drawTrail(ctx, liveTrail, COLORS.trail);
       if (frame) {
         if (frame.bots) {
           for (const b of frame.bots) {
@@ -511,7 +523,7 @@ export default function SceneCanvas() {
       <header className="simulator-toolbar">
         <div>
           <span className="section-kicker">Live environment</span>
-          <h2 id="simulator-title">{referenceState === "playing" ? "Reference demonstration" : "Policy rollout"}</h2>
+          <h2 id="simulator-title">{referenceState === "playing" ? "Reference demonstration" : replayOnly ? "Saved policy replay" : "Policy rollout"}</h2>
         </div>
         <div className="simulator-legend" aria-label="Simulator legend">
           <span><i className="legend-agent" />{referenceState === "playing" ? "Reference" : "Agent"}</span>
@@ -533,6 +545,15 @@ export default function SceneCanvas() {
         Analytic reference controller · not a learned policy{scenarioId === "orbital-docking" ? " · 8× playback" : ""}
       </p>}
       {referenceError && <p className="reference-disclosure" role="alert">{referenceError}</p>}
+      {viewingReplay && <div className="replay-controls">
+        <p>Recorded rollout · fixed starting state. Playback does not train and stops at its final frame.</p>
+        <button type="button" onClick={() => setGhost(ghostEpisode!)}>Restart replay</button>
+        <button type="button" onClick={clearGhost}>Close replay</button>
+      </div>}
+      {scenarioId === "lunar-lander" && !viewingReplay && <p className="reference-disclosure">
+        Training includes practice close to the pad. A safe landing ends one episode;
+        training then starts another. Results measures full descents.
+      </p>}
       <div className="simulator-well" id="simulator-well" ref={stageRef}>
         {fullscreenError && (
           <div className="fullscreen-feedback" role="alert">{fullscreenError}</div>
@@ -542,7 +563,7 @@ export default function SceneCanvas() {
             onClick={() => void exitFullscreen()}>Exit fullscreen</button>
         )}
         <canvas ref={canvasRef} className="track-canvas" role="img"
-          aria-label={`${currentScenario?.name ?? "Experiment"} ${referenceState === "playing" ? "analytic reference demonstration" : "live policy simulation"}`}>
+          aria-label={`${currentScenario?.name ?? "Experiment"} ${referenceState === "playing" ? "analytic reference demonstration" : replayOnly ? "saved policy replay" : "live policy simulation"}`}>
           Live visual simulation for {currentScenario?.name ?? "the active experiment"}.
         </canvas>
         {!scene && !sceneError && <div className="track-loading">Loading environment…</div>}
@@ -552,13 +573,16 @@ export default function SceneCanvas() {
             <button type="button" onClick={() => setSceneAttempt((value) => value + 1)}>Retry</button>
           </div>
         )}
-      {scene && !status?.training && !frameRef.current && referenceState !== "playing" && (
+      {scene && !status?.training && !frameRef.current && !viewingReplay && referenceState !== "playing" && (
           <div className="track-idle"><strong>Environment ready</strong><span>Choose a budget and run the policy.</span></div>
       )}
       {ghostEpisode != null && referenceState !== "playing" && (
-          <div className="ghost-chip">Comparing episode {ghostEpisode}</div>
+          <div className="ghost-chip">{replayOnly ? "Saved policy" : "Comparing"} · episode {ghostEpisode}</div>
       )}
-        {telemetry?.terminal && telemetry.cause && (
+        {replayOnly && playback?.finished && <div className="termination-notice replay-ended" role="status">
+          <strong>Replay finished</strong><small>Final frame held. Restart to watch it again.</small>
+        </div>}
+        {!replayOnly && telemetry?.terminal && telemetry.cause && (
           <div
             className="termination-notice"
             role="status"
@@ -574,10 +598,14 @@ export default function SceneCanvas() {
                 currentScenario?.horizon_steps ?? 0,
                 currentScenario?.horizon_seconds ?? null,
               )}
+              {status?.training && " · Next training attempt starts automatically"}
             </small>
           </div>
         )}
-        <div className="scene-telemetry" aria-label="Live simulator telemetry">
+        {replayOnly ? <div className="scene-telemetry" aria-label="Saved replay telemetry">
+          <span><small>Saved policy</small><strong>Episode {ghostEpisode}</strong></span>
+          <span><small>Playback</small><strong>{playback?.elapsed.toFixed(1) ?? "0.0"} / {playback?.duration.toFixed(1) ?? "—"} s</strong></span>
+        </div> : <div className="scene-telemetry" aria-label="Live simulator telemetry">
           <span><small>Episode</small><strong>{displayedEpisodeNumber(
             telemetry, status?.episode ?? 0,
           )}</strong></span>
@@ -594,7 +622,7 @@ export default function SceneCanvas() {
               stepsPerSecond, currentScenario.horizon_steps, currentScenario.horizon_seconds,
             )}</strong></span>
           )}
-        </div>
+        </div>}
       </div>
     </section>
   );
